@@ -47,6 +47,18 @@ def get_changed_files(project_dir):
                 to_upload.append(path)
     return to_upload, to_delete
 
+def get_all_files(project_dir):
+    """Return every non-ignored file (relative paths) by walking the tree."""
+    all_files = []
+    for root, dirs, files in os.walk(project_dir):
+        # Prune ignored directories so we don't descend into them
+        dirs[:] = [d for d in dirs if d not in IGNORE and not d.startswith('.')]
+        for name in files:
+            rel = os.path.relpath(os.path.join(root, name), project_dir)
+            if not is_ignored(rel):
+                all_files.append(rel)
+    return all_files
+
 def ensure_remote_dir(ftp, remote_dir):
     """Create nested remote directories as needed, starting from root."""
     if not remote_dir:
@@ -73,8 +85,9 @@ def upload_to_ftp():
 
     to_upload, to_delete = get_changed_files(project_dir)
     if not to_upload and not to_delete:
-        print("No changed files to upload.")
-        return
+        # Nothing changed — upload the whole project instead.
+        print("No changes detected — uploading everything.")
+        to_upload = get_all_files(project_dir)
 
     print(f"Connecting to FTP server {FTP_HOST} (Explicit FTPS) as {FTP_USER}...")
     try:

@@ -111,6 +111,14 @@ function updateTwistVisuals(twist) {
     }
 
     if (svg) {
+        // Folded via the right lip: keep the strand collapsed even with sources.
+        if (twist.classList.contains('helix-folded')) {
+            svg.innerHTML = '';
+            svg.style.height = '0';
+            svg.style.marginTop = '0';
+            return;
+        }
+
         svg.setAttribute('viewBox', `0 0 ${width} 100`);
 
         let sourceColors = [];
@@ -123,4 +131,13 @@ function updateTwistVisuals(twist) {
         svg.style.height = isMonitor ? '55px' : '100px';
         svg.style.marginTop = isMonitor ? '6px' : '10px';
     }
+}
+
+// Toggle the DNA strand folded/unfolded when the twist's right lip is clicked.
+function toggleHelix(event, lip) {
+    event.stopPropagation();
+    const twist = lip.closest('.twist-container');
+    if (!twist) return;
+    twist.classList.toggle('helix-folded');
+    updateTwistVisuals(twist);
 }

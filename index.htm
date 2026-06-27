@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Anthony's Media Workflow Matrix</title>
     <style>
         :root {
@@ -304,6 +307,14 @@
             top: 2px;
             font-size: 8px;
         }
+        /* The matrix-container is the plain black landing box when empty */
+        .twist-container .matrix-container {
+            width: 100%;
+            min-height: 70px;
+        }
+        .twist-container.monitor-twist .matrix-container {
+            min-height: 45px;
+        }
 
         .twist-title {
             position: absolute;
@@ -321,12 +332,48 @@
         .twist-stats {
             position: absolute;
             top: 5px;
-            right: 15px;
+            right: 40px;            /* clear of the fold lip */
             font-size: 10px;
             font-weight: bold;
             color: #000;
             letter-spacing: 1px;
             z-index: 2;
+        }
+
+        /* Clickable right "lip" of the top rail: folds/unfolds the DNA strand */
+        .twist-lip {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 28px;
+            height: 20px;           /* matches the top rail height */
+            z-index: 3;
+            cursor: pointer;
+            border-top-right-radius: 10px;
+            border-bottom-right-radius: 10px;
+        }
+        .twist-lip::after {
+            content: '▾';
+            position: absolute;
+            top: 3px;
+            right: 8px;
+            font-size: 11px;
+            color: #000;
+            transition: transform 0.2s;
+        }
+        .twist-container.helix-folded .twist-lip::after {
+            transform: rotate(180deg);
+        }
+        .twist-lip:hover {
+            background: rgba(0, 0, 0, 0.18);
+        }
+        .twist-container.monitor-twist .twist-lip {
+            height: 14px;
+            width: 20px;
+        }
+        .twist-container.monitor-twist .twist-lip::after {
+            top: 1px;
+            font-size: 9px;
         }
 
         /* SVG Helix Animation */
@@ -761,14 +808,14 @@
         </div>
     </div>
 
-    <script src="js/globals.js?v=21"></script>
-    <script src="js/poolVideo.js?v=21"></script>
-    <script src="js/poolAudio.js?v=21"></script>
-    <script src="js/visuals.js?v=21"></script>
-    <script src="js/matrix.js?v=21"></script>
-    <script src="js/dragDrop.js?v=21"></script>
-    <script src="js/productions.js?v=21"></script>
-    <script src="js/topbar.js?v=21"></script>
-    <script src="js/app.js?v=21"></script>
+    <script src="js/globals.js?v=23"></script>
+    <script src="js/poolVideo.js?v=23"></script>
+    <script src="js/poolAudio.js?v=23"></script>
+    <script src="js/visuals.js?v=23"></script>
+    <script src="js/matrix.js?v=23"></script>
+    <script src="js/dragDrop.js?v=23"></script>
+    <script src="js/productions.js?v=23"></script>
+    <script src="js/topbar.js?v=23"></script>
+    <script src="js/app.js?v=23"></script>
 </body>
 </html>

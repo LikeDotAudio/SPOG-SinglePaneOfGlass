@@ -58,6 +58,11 @@ function initializeTwists() {
                     const removeCount = existingVideo.length - (config.maxVideo - 1);
                     for (let k = 0; k < removeCount; k++) existingVideo[k].remove();
                 }
+                if (config && config.maxAudio && child.classList.contains('audio')) {
+                    const existingAudio = dropZone.querySelectorAll('.signal-node.audio');
+                    const removeCount = existingAudio.length - (config.maxAudio - 1);
+                    for (let k = 0; k < removeCount; k++) existingAudio[k].remove();
+                }
                 dropZone.appendChild(child);
             }
 

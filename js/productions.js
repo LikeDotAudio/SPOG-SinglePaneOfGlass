@@ -66,9 +66,8 @@ function renderPrograms(programs) {
             const twistHtml = `
                     <div class="twist-container${isMonitor ? ' monitor-twist' : ''}" ${twistConfig} style="--lcars-color: ${lcarsColor}; ${sizing}">
                         <div class="twist-title">${twistName}</div>
-                        <div class="matrix-container" id="${pgm.id}-${twistName.replace(/\s+/g, '-').toLowerCase()}">
-                            <div style="color: rgba(255,255,255,0.5); text-align: center;">NO SWIMMERS ASSIGNED TO THIS GENE.</div>
-                        </div>
+                        <div class="twist-lip" title="Fold / unfold strand" onclick="toggleHelix(event, this)"></div>
+                        <div class="matrix-container" id="${pgm.id}-${twistName.replace(/\s+/g, '-').toLowerCase()}"></div>
                         <svg class="dna-helix" viewBox="0 0 100 100" preserveAspectRatio="none" style="width: 100%; height: 0; display: block; margin-top: 0;"></svg>
                     </div>
             `;
