@@ -33,7 +33,7 @@
             .lcars-topbar {
                 display: flex;
                 flex-wrap: wrap;
-                align-items: flex-start;
+                align-items: flex-end;   /* category buttons anchor to the bottom */
                 gap: 18px;
                 padding: 8px;
                 margin-bottom: 16px;
@@ -43,7 +43,7 @@
             .lcars-group {
                 --group-lcars: 255,170,0;
                 display: flex;
-                align-items: flex-start;
+                align-items: flex-end;   /* label sits at the bottom; body grows upward */
                 gap: 6px;
                 padding: 4px;
                 border-radius: 20px;
@@ -84,6 +84,14 @@
                 flex-direction: column;
                 gap: 6px;
                 align-items: flex-start;
+            }
+            /* When expanded, a "top bracket" in the group's colour spans the width
+               of its contained items, showing what belongs to the open group. */
+            .lcars-group:not(.collapsed) > .lcars-group-body {
+                border-top: 6px solid rgb(var(--group-lcars));
+                border-radius: 6px 6px 0 0;
+                padding-top: 5px;
+                margin-top: 2px;
             }
             .lcars-group-tabs {
                 display: flex;

@@ -135,19 +135,13 @@ def upload_to_ftp():
     # Refresh manifests first so they reflect the current tree and get uploaded.
     generate_manifests(project_dir)
 
+    # Manifests are refreshed above; any that actually changed are picked up by
+    # git below, so the upload stays incremental (just the real diff).
     to_upload, to_delete = get_changed_files(project_dir)
     if not to_upload and not to_delete:
         # Nothing changed — upload the whole project instead.
         print("No changes detected — uploading everything.")
         to_upload = get_all_files(project_dir)
-    else:
-        # Always (re)upload every manifest so the app's folder discovery on the
-        # server is never stale after a rename/move — these drive what renders.
-        manifests = [f for f in get_all_files(project_dir)
-                     if os.path.basename(f) == 'index.json']
-        for m in manifests:
-            if m not in to_upload:
-                to_upload.append(m)
 
     print(f"Connecting to FTP server {FTP_HOST} (Explicit FTPS) as {FTP_USER}...")
     try:
