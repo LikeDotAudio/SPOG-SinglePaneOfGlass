@@ -55,7 +55,7 @@ function togglePool(headerEl) {
 }
 
 function switchTab(tabId, event) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab, .lcars-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => {
         c.style.display = 'none';
         c.classList.remove('active');

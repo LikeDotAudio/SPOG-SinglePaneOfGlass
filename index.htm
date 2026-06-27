@@ -13,6 +13,10 @@
             --magenta: #ff00ff;
             --blue: #4d94ff;
             --text-main: #e0f0ff;
+            /* Signal category colours */
+            --video-color: #CC99CC;   /* violet */
+            --audio-color: #FF9C63;   /* orange */
+            --program-color: #646DCC; /* blue */
             --glow-cyan: 0 0 10px var(--cyan), 0 0 20px rgba(0, 255, 255, 0.4);
             --glow-magenta: 0 0 10px var(--magenta), 0 0 20px rgba(255, 0, 255, 0.4);
         }
@@ -21,7 +25,7 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Courier New', Courier, monospace;
+            font-family: Arial, Helvetica, sans-serif;
         }
 
         body {
@@ -66,6 +70,48 @@
             padding: 20px;
             overflow-y: auto;
             overflow-x: hidden; /* Prevent horizontal scrollbars */
+        }
+
+        /* Ingress panel floats: no box, no header, tight padding */
+        .ingress-panel {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+        }
+
+        .productions-super-pool {
+            --lcars-color: #646DCC; /* Program Blue */
+        }
+        .signal-node.prod-source {
+            border-color: #646DCC;
+            color: #646DCC;
+            box-shadow: 0 0 5px rgba(100, 109, 204, 0.4);
+        }
+
+        /* LCARS L-bar down the RIGHT side of each production, in the production
+           colour: a tall right spine with a foot at the bottom, behind the twists. */
+        .program-row::after {
+            content: '';
+            position: absolute;
+            top: 48px;            /* clear the production title */
+            right: 0;
+            bottom: 0;
+            width: 200px;
+            border-right: 45px solid var(--prod-color, #ffaa00);
+            border-bottom: 35px solid var(--prod-color, #ffaa00);
+            border-top-right-radius: 30px;
+            border-bottom-right-radius: 30px;
+            border-bottom-left-radius: 30px;
+            box-sizing: border-box;
+            opacity: 0.85;
+            z-index: 0;
+            pointer-events: none;
+        }
+        /* Keep the production's contents above the L-bar */
+        .program-row > * {
+            position: relative;
+            z-index: 1;
         }
 
         .panel-title {
@@ -135,14 +181,14 @@
         }
 
         .signal-node.video {
-            border-color: var(--magenta);
-            color: var(--magenta);
-            box-shadow: 0 0 5px rgba(255, 0, 255, 0.3);
+            border-color: var(--video-color);
+            color: var(--video-color);
+            box-shadow: 0 0 5px rgba(204, 153, 204, 0.4);
         }
         .signal-node.audio {
-            border-color: var(--cyan);
-            color: var(--cyan);
-            box-shadow: 0 0 5px rgba(0, 255, 255, 0.2);
+            border-color: var(--audio-color);
+            color: var(--audio-color);
+            box-shadow: 0 0 5px rgba(255, 156, 99, 0.4);
             font-size: 9px;
             padding: 5px 2px;
         }
@@ -424,23 +470,23 @@
         }
         
         .switcher-input.audio-input {
-            color: var(--cyan);
-            text-shadow: var(--glow-cyan);
+            color: var(--audio-color);
+            text-shadow: 0 0 10px var(--audio-color);
         }
         .switcher-input.video-input {
-            color: var(--magenta);
-            text-shadow: var(--glow-magenta);
+            color: var(--video-color);
+            text-shadow: 0 0 10px var(--video-color);
         }
-        .signal-node.video-main { border-color: #FF9C00; box-shadow: 0 0 5px rgba(255,156,0,0.3); color: #FF9C00; }
-        .signal-node.video-aux { border-color: #FFCC99; box-shadow: 0 0 5px rgba(255,204,153,0.3); color: #FFCC99; }
-        .signal-node.video-remote { border-color: #CC99CC; box-shadow: 0 0 5px rgba(204,153,204,0.3); color: #CC99CC; }
-        .signal-node.video-st1 { border-color: #FF9C00; box-shadow: 0 0 5px rgba(255,156,0,0.3); color: #FF9C00; }
-        .signal-node.video-st2 { border-color: #FFCC99; box-shadow: 0 0 5px rgba(255,204,153,0.3); color: #FFCC99; }
-        .signal-node.video-st3 { border-color: #FFFF33; box-shadow: 0 0 5px rgba(255,255,51,0.3); color: #FFFF33; }
-        .signal-node.video-st4 { border-color: #CC99CC; box-shadow: 0 0 5px rgba(204,153,204,0.3); color: #CC99CC; }
-        .signal-node.audio-studio { border-color: #99CCFF; box-shadow: 0 0 5px rgba(153,204,255,0.3); color: #99CCFF; }
-        .signal-node.audio-external { border-color: #3399FF; box-shadow: 0 0 5px rgba(51,153,255,0.3); color: #3399FF; }
-        .signal-node.audio-comms { border-color: #FFFF33; box-shadow: 0 0 5px rgba(255,255,51,0.3); color: #FFFF33; }
+        .signal-node.video-main { border-color: #CC99CC; box-shadow: 0 0 5px rgba(204,153,204,0.4); color: #CC99CC; }
+        .signal-node.video-aux { border-color: #D9B3D9; box-shadow: 0 0 5px rgba(217,179,217,0.4); color: #D9B3D9; }
+        .signal-node.video-remote { border-color: #B266B2; box-shadow: 0 0 5px rgba(178,102,178,0.4); color: #B266B2; }
+        .signal-node.video-st1 { border-color: #CC99CC; box-shadow: 0 0 5px rgba(204,153,204,0.4); color: #CC99CC; }
+        .signal-node.video-st2 { border-color: #D9B3D9; box-shadow: 0 0 5px rgba(217,179,217,0.4); color: #D9B3D9; }
+        .signal-node.video-st3 { border-color: #E0CCE0; box-shadow: 0 0 5px rgba(224,204,224,0.4); color: #E0CCE0; }
+        .signal-node.video-st4 { border-color: #B266B2; box-shadow: 0 0 5px rgba(178,102,178,0.4); color: #B266B2; }
+        .signal-node.audio-studio { border-color: #FF9C63; box-shadow: 0 0 5px rgba(255,156,99,0.4); color: #FF9C63; }
+        .signal-node.audio-external { border-color: #ED864C; box-shadow: 0 0 5px rgba(237,134,76,0.4); color: #ED864C; }
+        .signal-node.audio-comms { border-color: #F5AD00; box-shadow: 0 0 5px rgba(245,173,0,0.4); color: #F5AD00; }
         
         .super-pool-container {
             position: relative;
@@ -488,10 +534,10 @@
         }
 
         .video-super-pool {
-            --lcars-color: #FF9C00; /* LCARS Orange */
+            --lcars-color: #CC99CC; /* Violet */
         }
         .audio-super-pool {
-            --lcars-color: #99CCFF; /* LCARS Light Blue */
+            --lcars-color: #FF9C63; /* Orange */
         }
         
         .super-pool-title {
@@ -606,10 +652,6 @@
 </head>
 <body>
 
-    <header>
-        <h1>SYSTEM OS :: ANTHONY // Matrix Core</h1>
-    </header>
-
     <div class="container">
         <div class="panel ingress-panel">
             <div class="super-pool-container productions-super-pool" onclick="toggleSuperPool(event, this)">
@@ -660,13 +702,14 @@
         </div>
     </div>
 
-    <script src="js/globals.js?v=6"></script>
-    <script src="js/poolVideo.js?v=5"></script>
-    <script src="js/poolAudio.js?v=5"></script>
-    <script src="js/visuals.js?v=5"></script>
-    <script src="js/matrix.js?v=5"></script>
-    <script src="js/dragDrop.js?v=5"></script>
-    <script src="js/productions.js?v=5"></script>
-    <script src="js/app.js?v=5"></script>
+    <script src="js/globals.js?v=10"></script>
+    <script src="js/poolVideo.js?v=10"></script>
+    <script src="js/poolAudio.js?v=10"></script>
+    <script src="js/visuals.js?v=10"></script>
+    <script src="js/matrix.js?v=10"></script>
+    <script src="js/dragDrop.js?v=10"></script>
+    <script src="js/productions.js?v=10"></script>
+    <script src="js/topbar.js?v=10"></script>
+    <script src="js/app.js?v=10"></script>
 </body>
 </html>

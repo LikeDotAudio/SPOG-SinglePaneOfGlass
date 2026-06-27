@@ -1,4 +1,5 @@
 import os
+import subprocess
 import ftplib
 
 def load_env():
@@ -13,59 +14,94 @@ def load_env():
                     env_vars[key] = value.strip('"\'')
     return env_vars
 
+# Files and directories to never upload, even if changed
+IGNORE = {'.git', '.env', '__pycache__', 'deploy.py', 'start.py', 'uploadftp.py',
+          'node_modules', 'package.json', 'package-lock.json', 'test_puppeteer.js'}
+
+def is_ignored(rel_path):
+    parts = rel_path.split('/')
+    return any(p in IGNORE or p.startswith('.') for p in parts)
+
+def get_changed_files(project_dir):
+    """Return (to_upload, to_delete) relative paths from git status."""
+    result = subprocess.run(
+        ['git', '-C', project_dir, 'status', '--porcelain', '-z'],
+        capture_output=True, text=True, check=True
+    )
+    to_upload = []
+    to_delete = []
+    # -z output is NUL-separated; renames carry two paths but we keep it simple
+    for entry in result.stdout.split('\0'):
+        if not entry:
+            continue
+        status = entry[:2]
+        path = entry[3:]
+        if is_ignored(path):
+            continue
+        # 'D' in either column means the file was deleted locally
+        if 'D' in status:
+            to_delete.append(path)
+        else:
+            # Modified, added, untracked, renamed, etc.
+            if os.path.isfile(os.path.join(project_dir, path)):
+                to_upload.append(path)
+    return to_upload, to_delete
+
+def ensure_remote_dir(ftp, remote_dir):
+    """Create nested remote directories as needed, starting from root."""
+    if not remote_dir:
+        return
+    ftp.cwd('/')
+    for part in remote_dir.split('/'):
+        if not part:
+            continue
+        try:
+            ftp.mkd(part)
+        except ftplib.error_perm:
+            pass  # Directory already exists
+        ftp.cwd(part)
+
 def upload_to_ftp():
     env = load_env()
-    
+
     # Fallback to twist.like.audio if FTP_HOST is empty, since ftp.tandaphonic.com didn't resolve
     FTP_HOST = env.get('FTP_HOST', '') or "twist.like.audio"
     FTP_USER = env.get('FTP_USER', '')
     FTP_PASS = env.get('FTP_PASS', '')
 
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+
+    to_upload, to_delete = get_changed_files(project_dir)
+    if not to_upload and not to_delete:
+        print("No changed files to upload.")
+        return
+
     print(f"Connecting to FTP server {FTP_HOST} (Explicit FTPS) as {FTP_USER}...")
     try:
         ftp = ftplib.FTP_TLS(FTP_HOST)
         ftp.login(user=FTP_USER, passwd=FTP_PASS)
-        ftp.prot_p() # Switch to secure data connection
+        ftp.prot_p()  # Switch to secure data connection
         print("Login successful!")
-        
-        # Files and directories to ignore during upload
-        ignore = ['.git', '.env', '__pycache__', 'deploy.py', 'start.py', 'uploadftp.py', 'node_modules', 'package.json', 'package-lock.json', 'test_puppeteer.js']
-        
-        def upload_dir(local_path, remote_path):
+
+        for rel_path in to_upload:
+            remote_dir, filename = os.path.split(rel_path)
+            ensure_remote_dir(ftp, remote_dir)
+            local_item = os.path.join(project_dir, rel_path)
+            print(f"Uploading {rel_path}...")
+            with open(local_item, 'rb') as f:
+                ftp.storbinary(f'STOR {filename}', f)
+
+        for rel_path in to_delete:
+            print(f"Deleting remote {rel_path}...")
             try:
-                ftp.mkd(remote_path)
-            except ftplib.error_perm:
-                pass # Directory already exists
-            
-            ftp.cwd(remote_path)
-            
-            for item in os.listdir(local_path):
-                if item in ignore or item.startswith('.'):
-                    continue
-                    
-                local_item = os.path.join(local_path, item)
-                
-                if os.path.isdir(local_item):
-                    upload_dir(local_item, item)
-                    ftp.cwd('..')
-                else:
-                    print(f"Uploading {local_item}...")
-                    with open(local_item, 'rb') as f:
-                        ftp.storbinary(f'STOR {item}', f)
-                        
-        print("Starting upload of project files...")
-        
-        # The script uploads from the directory it is in
-        project_dir = os.path.dirname(os.path.abspath(__file__))
-        os.chdir(project_dir)
-        
-        # Start by ensuring we are in the root directory '/'
-        ftp.cwd('/')
-        upload_dir('.', '/')
-        
+                ftp.cwd('/')
+                ftp.delete(rel_path)
+            except ftplib.error_perm as e:
+                print(f"  Could not delete {rel_path}: {e}")
+
         ftp.quit()
         print("Upload complete!")
-        
+
     except Exception as e:
         print(f"FTP Error: {e}")
 

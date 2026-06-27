@@ -1,0 +1,126 @@
+{
+  "name": "LCARS Style Guide",
+  "source": "Okudagrams Color Complete Set Ver.4.1 (lcarsmania.com, Toshitin 2008-04-06)",
+  "palette": {
+    "standard": {
+      "label": "Standard LCARS Colors",
+      "colors": [
+        { "hex": "#FF9C00", "rgb": [255, 156, 0], "name": "LCARS Orange" },
+        { "hex": "#F7BD5A", "rgb": [247, 189, 90], "name": "Sunflower" },
+        { "hex": "#FFCC99", "rgb": [255, 204, 153], "name": "Peach" },
+        { "hex": "#FFFF33", "rgb": [255, 255, 51], "name": "Yellow" },
+        { "hex": "#FFFF9C", "rgb": [255, 255, 158], "name": "Pale Yellow" },
+        { "hex": "#CD6363", "rgb": [205, 99, 99], "name": "Mars" },
+        { "hex": "#CC99CC", "rgb": [204, 153, 204], "name": "Lilac" },
+        { "hex": "#FF9C63", "rgb": [255, 156, 99], "name": "Tomato" },
+        { "hex": "#646DCC", "rgb": [100, 109, 204], "name": "Blue Bell" },
+        { "hex": "#9C9CFF", "rgb": [156, 156, 255], "name": "Periwinkle" },
+        { "hex": "#3399FF", "rgb": [51, 153, 255], "name": "Sky" },
+        { "hex": "#99CCFF", "rgb": [153, 204, 255], "name": "Ice" },
+        { "hex": "#FFFFCC", "rgb": [255, 255, 204], "name": "Cream" },
+        { "hex": "#B1957A", "rgb": [177, 149, 122], "name": "Sand" },
+        { "hex": "#ED864C", "rgb": [237, 134, 76], "name": "Terracotta" },
+        { "hex": "#F5AD00", "rgb": [245, 173, 0], "name": "Amber" },
+        { "hex": "#DDFFFF", "rgb": [221, 255, 255], "name": "Frost" }
+      ]
+    },
+    "stViiiFc": {
+      "label": "Add ST:VIII (FC) LCARS Colors",
+      "colors": [
+        { "hex": "#C198B0", "rgb": [193, 152, 176] },
+        { "hex": "#B46757", "rgb": [180, 103, 87] },
+        { "hex": "#AE697D", "rgb": [174, 105, 125] },
+        { "hex": "#97567B", "rgb": [151, 86, 123] },
+        { "hex": "#C67825", "rgb": [198, 120, 37] },
+        { "hex": "#B28452", "rgb": [178, 132, 82] },
+        { "hex": "#C2B74B", "rgb": [194, 183, 75] },
+        { "hex": "#BEBCDF", "rgb": [190, 188, 223] }
+      ]
+    },
+    "stXNem": {
+      "label": "Add ST:X (NEM) LCARS Colors",
+      "colors": [
+        { "hex": "#0A46EE", "rgb": [10, 70, 238] },
+        { "hex": "#3786FF", "rgb": [55, 134, 255] },
+        { "hex": "#4BB0FF", "rgb": [75, 176, 255] },
+        { "hex": "#87EEFF", "rgb": [135, 238, 255] },
+        { "hex": "#46616E", "rgb": [70, 97, 110] },
+        { "hex": "#D45F10", "rgb": [212, 95, 16] },
+        { "hex": "#A35A1A", "rgb": [163, 90, 26] },
+        { "hex": "#A89B35", "rgb": [168, 155, 53] },
+        { "hex": "#DFAF71", "rgb": [223, 175, 113] },
+        { "hex": "#ACA98A", "rgb": [172, 169, 138] }
+      ]
+    },
+    "com29th": {
+      "label": "29th Cent. Com Colors",
+      "colors": [
+        { "hex": "#31C9F4", "rgb": [49, 201, 244] },
+        { "hex": "#72E2E4", "rgb": [114, 226, 228] },
+        { "hex": "#20788C", "rgb": [32, 120, 140] },
+        { "hex": "#26BEB2", "rgb": [38, 190, 178] },
+        { "hex": "#BC956E", "rgb": [188, 149, 110] },
+        { "hex": "#D19FA2", "rgb": [209, 159, 162] },
+        { "hex": "#805070", "rgb": [128, 80, 112] },
+        { "hex": "#2062EE", "rgb": [32, 98, 238] }
+      ]
+    },
+    "redAlert": {
+      "label": "Red Alert Colors",
+      "colors": [
+        { "hex": "#F5173C", "rgb": [245, 23, 60] },
+        { "hex": "#A30E24", "rgb": [163, 14, 36] },
+        { "hex": "#BF2D42", "rgb": [191, 45, 66] },
+        { "hex": "#330512", "rgb": [51, 5, 18] },
+        { "hex": "#D9D5B8", "rgb": [217, 213, 184] },
+        { "hex": "#F1DFBF", "rgb": [241, 223, 191] },
+        { "hex": "#4C4B47", "rgb": [76, 75, 71] },
+        { "hex": "#9E9993", "rgb": [158, 153, 147] }
+      ]
+    },
+    "nx01Com": {
+      "label": "NX-01 Enterprise Com Colors",
+      "colors": [
+        { "hex": "#BDEFFF", "rgb": [189, 239, 255] },
+        { "hex": "#009CCE", "rgb": [0, 156, 206] },
+        { "hex": "#DEFFB5", "rgb": [222, 255, 181] },
+        { "hex": "#CE6363", "rgb": [206, 99, 99] },
+        { "hex": "#E7FFFF", "rgb": [231, 255, 255] },
+        { "hex": "#4D6184", "rgb": [77, 97, 132] }
+      ]
+    },
+    "com23rd": {
+      "label": "23rd Cent. Com Colors",
+      "colors": [
+        { "hex": "#0000FF", "rgb": [0, 0, 255] },
+        { "hex": "#99CCFF", "rgb": [153, 204, 255] },
+        { "hex": "#6666FF", "rgb": [102, 102, 255] },
+        { "hex": "#99FF66", "rgb": [153, 255, 102] },
+        { "hex": "#009900", "rgb": [0, 153, 0] },
+        { "hex": "#FFCC33", "rgb": [255, 204, 51] },
+        { "hex": "#66CCFF", "rgb": [102, 204, 255] }
+      ]
+    }
+  },
+  "roles": {
+    "background": "#050a15",
+    "panelBg": "rgba(10, 20, 40, 0.8)",
+    "cyan": "#00ffff",
+    "magenta": "#ff00ff",
+    "blue": "#4d94ff",
+    "textMain": "#e0f0ff",
+    "videoSuperPool": "#FF9C00",
+    "audioSuperPool": "#99CCFF",
+    "productions": "#7CFC00",
+    "audioPoolCycle": [
+      "#31C9F4",
+      "#72E2E4",
+      "#20788C",
+      "#26BEB2",
+      "#BC956E",
+      "#D19FA2",
+      "#805070",
+      "#2062EE"
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 async function initApp() {
     // Load Productions
-    const prodFiles = ['Production1.json', 'Production1 copy.json', 'Production1 copy 2.json', 'Production1 copy 3.json', 'Production1 copy 4.json'];
+    const prodFiles = ['Production 1.json', 'Production 2.json', 'Production 3.json', 'Production 4.json', 'Production 5.json'];
     const programs = [];
     for (let file of prodFiles) {
         const data = await fetchJSON('Productions/' + file);
@@ -9,24 +9,21 @@ async function initApp() {
     
     const tabsContainer = document.getElementById('production-tabs');
     const contentContainer = document.getElementById('production-content');
-    tabsContainer.innerHTML = '';
-    contentContainer.innerHTML = '';
-    
+    TopBar.init(tabsContainer, contentContainer);
+
+    const prodGroup = TopBar.addGroup('PRODUCTIONS', { color: '100,109,204' });
     programs.forEach((pgm, index) => {
-        const tab = document.createElement('div');
-        tab.className = 'tab' + (index === 0 ? ' active' : '');
-        tab.onclick = (e) => switchTab(pgm.id, e);
-        tab.innerText = pgm.name;
-        tabsContainer.appendChild(tab);
-        
-        const cont = document.createElement('div');
-        cont.id = 'tab-' + pgm.id;
-        cont.className = 'tab-content' + (index === 0 ? ' active' : '');
-        contentContainer.appendChild(cont);
+        TopBar.addTab(pgm, { group: prodGroup, active: index === 0 });
     });
     
     renderPrograms(programs);
-    
+
+    // Expose productions as draggable inputs (so encoders can take program outputs)
+    const productionsSuper = document.getElementById('productions-super-pool-content');
+    if (typeof renderProductionInputs === 'function') {
+        renderProductionInputs(programs, productionsSuper);
+    }
+
     // Load Video Pools
     const videoFiles = ['Studio 1.json', 'Studio 2.json', 'Studio 3.json', 'Studio 4.json', 'Remotes.json', 'Sats.json'];
     const videoSuper = document.getElementById('video-super-pool-content');
@@ -47,7 +44,8 @@ async function initApp() {
         try {
             const data = await fetchJSON(`Audio/Pool${i}.json`);
             if (data && typeof renderAudioPool === 'function') {
-                renderAudioPool(data, audioSuper);
+                const poolColor = AUDIO_POOL_COLORS[(i - 1) % AUDIO_POOL_COLORS.length];
+                renderAudioPool(data, audioSuper, poolColor);
             }
         } catch (e) {
             console.error('Error loading audio pool:', e);
@@ -55,7 +53,7 @@ async function initApp() {
     }
 
     // Load Masters
-    const masterFiles = ['Encoder 1.json', 'Encoder 2.json', 'Encoder 2json', 'Encoder 4.json'];
+    const masterFiles = ['Encoder 1.json', 'Encoder 2.json', 'Encoder 4.json'];
     const masterPrograms = [];
     for (let file of masterFiles) {
         const data = await fetchJSON('Master/' + file);
@@ -64,17 +62,9 @@ async function initApp() {
             masterPrograms.push(data);
         }
     }
-    masterPrograms.forEach((pgm, index) => {
-        const tab = document.createElement('div');
-        tab.className = 'tab';
-        tab.onclick = (e) => switchTab(pgm.id, e);
-        tab.innerText = pgm.name;
-        tabsContainer.appendChild(tab);
-        
-        const cont = document.createElement('div');
-        cont.id = 'tab-' + pgm.id;
-        cont.className = 'tab-content';
-        contentContainer.appendChild(cont);
+    const masterGroup = TopBar.addGroup('MASTER', { color: '255,51,102' });
+    masterPrograms.forEach((pgm) => {
+        TopBar.addTab(pgm, { group: masterGroup, active: false });
     });
     renderPrograms(masterPrograms);
 

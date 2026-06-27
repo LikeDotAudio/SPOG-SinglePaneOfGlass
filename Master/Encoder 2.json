@@ -2,7 +2,7 @@
   "id": "enc2",
   "name": "ENCODER 2",
   "twists": [
-    "Video Destination",
-    "Audio Destination"
+    { "name": "Video Destination", "accepts": "video" },
+    { "name": "Audio Destination", "accepts": "audio" }
   ]
 }

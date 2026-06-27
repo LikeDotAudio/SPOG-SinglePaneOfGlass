@@ -1,7 +1,7 @@
 {
   "id": "prod1",
   "name": "PROD 1",
-  "color": "#ff00ff",
+  "color": "#6666FF",
   "twists": [
     {
       "name": "Video Mixer",
