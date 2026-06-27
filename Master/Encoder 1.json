@@ -1,0 +1,8 @@
+{
+  "id": "enc1",
+  "name": "ENCODER 1",
+  "twists": [
+    "Video Destination",
+    "Audio Destination"
+  ]
+}

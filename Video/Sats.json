@@ -1,0 +1,7 @@
+{
+  "id": "video-pool-sat",
+  "name": "SATS",
+  "prefix": "SAT-",
+  "count": 8,
+  "extraClass": "video-aux"
+}
