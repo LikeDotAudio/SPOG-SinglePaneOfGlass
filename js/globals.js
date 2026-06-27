@@ -77,11 +77,4 @@ function switchTab(tabId, event) {
     const targetTab = document.getElementById('tab-' + tabId);
     targetTab.style.display = 'block';
     targetTab.classList.add('active');
-
-    // Show PROGRAM OUTPUTS only while a master/encoder tab is selected.
-    const prodPool = document.querySelector('.productions-super-pool');
-    if (prodPool) {
-        const isMaster = window.masterTabIds && window.masterTabIds.has(tabId);
-        prodPool.style.display = isMaster ? '' : 'none';
-    }
 }

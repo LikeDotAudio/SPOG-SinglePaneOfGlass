@@ -13,15 +13,30 @@ function renderProductionInputs(programs, container) {
         <div class="input-grid-video pool-content">
     `;
 
+    // Each production explodes into its real outputs: video (multiviewer/program/
+    // preview), audio (main mix + mix-minus), and intercom (IFB) feeds.
+    const videoOuts = ['MV OUT 1', 'MV OUT 2', 'PROGRAM OUT', 'PREVIEW OUT'];
+    const audioOuts = ['MAIN MIX', 'MIX MINUS 1', 'MIX MINUS 2', 'MIX MINUS 3', 'MIX MINUS 4'];
+    const intercomOuts = ['IFB OUT 1', 'IFB OUT 2', 'IFB OUT 3', 'IFB OUT 4'];
+
     programs.forEach(pgm => {
         const color = pgm.color || '#7CFC00';
+        const slug = (s) => s.replace(/[^a-zA-Z0-9]/g, '-');
+        let subs = '';
+        videoOuts.forEach(o => {
+            subs += `<div class="signal-node video video-main sub-stream" draggable="true" id="prodsrc-${pgm.id}-${slug(o)}">${pgm.name} ${o}</div>`;
+        });
+        audioOuts.forEach(o => {
+            subs += `<div class="signal-node audio audio-studio sub-stream" draggable="true" id="prodsrc-${pgm.id}-${slug(o)}">${pgm.name} ${o}</div>`;
+        });
+        intercomOuts.forEach(o => {
+            subs += `<div class="signal-node audio audio-comms sub-stream" draggable="true" id="prodsrc-${pgm.id}-${slug(o)}">${pgm.name} ${o}</div>`;
+        });
         html += `
             <div class="signal-node video multiplex prod-source" id="prodsrc-${pgm.id}" draggable="true" style="border-color: ${color}; color: ${color};">
                 <div class="multiplex-header">${pgm.name}</div>
                 <div class="multiplex-children" style="display: none;">
-                    <div class="signal-node video video-main sub-stream" draggable="true" id="prodsrc-${pgm.id}-V">${pgm.name} V</div>
-                    <div class="signal-node audio audio-studio sub-stream" draggable="true" id="prodsrc-${pgm.id}-A1">${pgm.name} A1</div>
-                    <div class="signal-node audio audio-studio sub-stream" draggable="true" id="prodsrc-${pgm.id}-A2">${pgm.name} A2</div>
+                    ${subs}
                 </div>
             </div>
         `;

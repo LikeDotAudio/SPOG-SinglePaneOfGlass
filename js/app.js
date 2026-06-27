@@ -24,6 +24,19 @@ async function initApp() {
         renderProductionInputs(programs, productionsSuper);
     }
 
+    // Load Floors (between Productions and Master) — each with monitors, IEMs and foldback
+    const floorFiles = ['Floor 1.json', 'Floor 2.json', 'Floor 3.json', 'Floor 4.json'];
+    const floorPrograms = [];
+    for (let file of floorFiles) {
+        const data = await fetchJSON('Floors/' + file);
+        if (data) floorPrograms.push(data);
+    }
+    const floorGroup = TopBar.addGroup('FLOORS', { color: '63,193,201', collapsed: true });
+    floorPrograms.forEach((pgm) => {
+        TopBar.addTab(pgm, { group: floorGroup, active: false });
+    });
+    renderPrograms(floorPrograms);
+
     // Load Video Pools
     const videoFiles = ['Studio 1.json', 'Studio 2.json', 'Studio 3.json', 'Studio 4.json', 'Remotes.json', 'Sats.json'];
     const videoSuper = document.getElementById('video-super-pool-content');
@@ -67,12 +80,6 @@ async function initApp() {
         TopBar.addTab(pgm, { group: masterGroup, active: false });
     });
     renderPrograms(masterPrograms);
-
-    // PROGRAM OUTPUTS (the productions super-pool) is only useful when routing a
-    // master/encoder, so it stays hidden until a master tab is selected.
-    window.masterTabIds = new Set(masterPrograms.map(p => p.id));
-    const prodPool = document.querySelector('.productions-super-pool');
-    if (prodPool) prodPool.style.display = 'none';
 
     initializeDraggables();
     initializeTwists();
