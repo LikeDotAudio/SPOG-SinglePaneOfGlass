@@ -76,6 +76,7 @@ async function initApp() {
     TopBar.init(tabsContainer, contentContainer);
 
     // ===== DESTINATIONS — consume signals via twists (matrix landing spots) =====
+    // Top-level categories (no outer wrapper); only Floors nests one level deeper.
 
     // Control Rooms (formerly "productions"): they take inputs only — their
     // program outputs live on the Sources side, not here.
@@ -86,13 +87,22 @@ async function initApp() {
     });
     renderPrograms(controlRooms);
 
-    // Floors — each floor folder is a group; its rooms (one *.json each) are tabs.
+    // Floors — a FLOORS group holding one nested group per floor, whose rooms
+    // (one *.json each) are the tabs. Each room gets a distinct colour used for
+    // both its tab and its content L-bar, and remembers its floor as parentName
+    // so the title reads e.g. "1ST FLOOR — ROOM 1".
+    const ROOM_COLORS = ['#9C6B9C', '#3786FF', '#5CB8C4', '#D45F10', '#C2B74B', '#97587B', '#46A06E', '#C19880'];
+    const floorsParent = TopBar.addGroup('FLOORS', { color: '63,193,201', collapsed: true });
     const floorsDir = await listDirectory('Destinations/Floors/');
     for (const floorDir of floorsDir.dirs) {
         const rooms = await loadProgramFolder('Destinations/Floors/' + floorDir.href);
         if (!rooms.length) continue;
-        const group = TopBar.addGroup(floorDir.name.toUpperCase(), { color: '63,193,201', collapsed: true });
-        rooms.forEach((rm) => TopBar.addTab(rm, { group, active: false }));
+        const group = TopBar.addGroup(floorDir.name.toUpperCase(), { parent: floorsParent, color: '63,193,201', collapsed: true });
+        rooms.forEach((rm, ri) => {
+            rm.parentName = floorDir.name;
+            rm.color = ROOM_COLORS[ri % ROOM_COLORS.length];
+            TopBar.addTab(rm, { group, active: false, color: rm.color });
+        });
         renderPrograms(rooms);
     }
 
@@ -124,6 +134,7 @@ async function initApp() {
 
     initializeDraggables();
     initializeTwists();
+    initSidebarResizer();
 }
 
 window.addEventListener('DOMContentLoaded', initApp);

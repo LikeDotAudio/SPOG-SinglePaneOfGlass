@@ -380,3 +380,93 @@ function closeTwistModal() {
     document.getElementById('twist-modal').style.display = 'none';
     currentTwist = null;
 }
+
+// Place a clone of one pool source node into a twist's drop-zone, honoring the
+// twist's accepts / maxVideo / maxAudio config. Returns true if it was placed.
+function placeSourceInTwist(twist, node) {
+    if (!twist || !node) return false;
+    let config = null;
+    if (twist.dataset.config) { try { config = JSON.parse(twist.dataset.config); } catch (e) {} }
+    const isVideo = node.classList.contains('video');
+    const isAudio = node.classList.contains('audio');
+    if (config && config.accepts === 'video' && !isVideo) return false;
+    if (config && config.accepts === 'audio' && !isAudio) return false;
+
+    let dropZone = twist.querySelector('.drop-zone');
+    if (!dropZone) {
+        dropZone = document.createElement('div');
+        dropZone.className = 'drop-zone';
+        dropZone.style.cssText = 'display:flex; flex-wrap:wrap; gap:5px; width:100%; justify-content:center;';
+        twist.appendChild(dropZone);
+    }
+
+    if (config && config.maxVideo && isVideo) {
+        const ex = dropZone.querySelectorAll('.signal-node.video');
+        for (let k = 0; k < ex.length - (config.maxVideo - 1); k++) ex[k].remove();
+    }
+    if (config && config.maxAudio && isAudio) {
+        const ex = dropZone.querySelectorAll('.signal-node.audio');
+        for (let k = 0; k < ex.length - (config.maxAudio - 1); k++) ex[k].remove();
+    }
+
+    const clone = node.cloneNode(true);
+    clone.id = node.id + '-' + Math.random().toString(36).substr(2, 6);
+    clone.classList.remove('selected');
+    clone.style.opacity = '1';
+    clone.draggable = false;
+    dropZone.appendChild(clone);
+    return true;
+}
+
+// Distribute a dropped program's outputs across a room's twists: video feeds fan
+// out to the video twists (monitors), audio feeds to the audio twists (IEMs,
+// foldback) — one feed per twist, cycling through the available feeds. Returns
+// how many feeds were placed.
+function autoPopulateRoom(room, ids) {
+    const nodes = ids.map(id => document.getElementById(id)).filter(Boolean);
+    const video = nodes.filter(n => n.classList.contains('video') && !n.classList.contains('multiplex'));
+    const audio = nodes.filter(n => n.classList.contains('audio') && !n.classList.contains('multiplex'));
+    if (!video.length && !audio.length) return 0;
+
+    let vi = 0, ai = 0, placed = 0;
+    room.querySelectorAll('.twist-container').forEach(twist => {
+        let config = null;
+        if (twist.dataset.config) { try { config = JSON.parse(twist.dataset.config); } catch (e) {} }
+        const accepts = config && config.accepts;
+        if ((accepts === 'video' || accepts === 'both') && video.length) {
+            if (placeSourceInTwist(twist, video[vi % video.length])) { vi++; placed++; }
+        }
+        if ((accepts === 'audio' || accepts === 'both') && audio.length) {
+            if (placeSourceInTwist(twist, audio[ai % audio.length])) { ai++; placed++; }
+        }
+        updateTwistVisuals(twist);
+    });
+    return placed;
+}
+
+// Let a whole program ("super group") be dropped onto a room (not a specific
+// twist) to auto-populate all of its twists at once.
+function initRoomDrops() {
+    document.querySelectorAll('.program-row').forEach(room => {
+        if (room.dataset.roomDrop) return;
+        room.dataset.roomDrop = '1';
+
+        room.addEventListener('dragover', (e) => {
+            if (e.target.closest('.twist-container')) return; // a twist handles its own drops
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        });
+        room.addEventListener('drop', (e) => {
+            if (e.target.closest('.twist-container')) return;
+            const idsStr = e.dataTransfer.getData('text/plain');
+            if (!idsStr) return;
+            e.preventDefault();
+            const placed = autoPopulateRoom(room, idsStr.split(','));
+            if (placed) {
+                const flash = room.style.backgroundColor;
+                room.style.backgroundColor = 'rgba(255, 0, 255, 0.15)';
+                setTimeout(() => { room.style.backgroundColor = flash; }, 300);
+            }
+        });
+    });
+}

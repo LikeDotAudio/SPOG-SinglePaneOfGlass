@@ -15,6 +15,14 @@
         '190,188,223', // periwinkle
     ];
 
+    // Convert "#rrggbb" to the "r,g,b" string the LCARS CSS variables expect.
+    function hexToRgb(hex) {
+        const m = /^#?([0-9a-fA-F]{6})$/.exec(hex || '');
+        if (!m) return null;
+        const n = parseInt(m[1], 16);
+        return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+    }
+
     const STYLE_ID = 'lcars-topbar-styles';
 
     function injectStyles() {
@@ -31,11 +39,11 @@
                 margin-bottom: 16px;
                 border: none;
             }
-            /* An LCARS group: coloured label spine + its tabs */
+            /* An LCARS group: coloured label spine + its body (tabs + subgroups) */
             .lcars-group {
                 --group-lcars: 255,170,0;
                 display: flex;
-                align-items: center;
+                align-items: flex-start;
                 gap: 6px;
                 padding: 4px;
                 border-radius: 20px;
@@ -62,11 +70,20 @@
                 font-size: 10px;
                 transition: transform 0.2s;
             }
-            .lcars-group:not(.collapsed) .lcars-group-caret {
+            /* Scope to the group's OWN label so a nested group's caret tracks its
+               own state, not an expanded ancestor's. */
+            .lcars-group:not(.collapsed) > .lcars-group-label .lcars-group-caret {
                 transform: rotate(90deg);
             }
-            .lcars-group.collapsed .lcars-group-tabs {
+            .lcars-group.collapsed > .lcars-group-body {
                 display: none;
+            }
+            /* Body stacks direct tabs (a row) above any nested subgroups (a column). */
+            .lcars-group-body {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                align-items: flex-start;
             }
             .lcars-group-tabs {
                 display: flex;
@@ -111,11 +128,15 @@
     let tabIndex = 0;
     let groups = [];
 
-    // Expand one group and roll up (collapse) all the others — an accordion.
-    function expandGroup(target) {
-        groups.forEach(g => g.group.classList.toggle('collapsed', g !== target));
-        // If the newly-expanded group has no active tab, select its first one.
-        if (!target.tabsEl.querySelector('.lcars-tab.active')) {
+    // Toggle a group open/closed. Among siblings (same parent) it acts as an
+    // accordion — opening one rolls up the others at that level only.
+    function toggleGroup(target) {
+        const expand = target.group.classList.contains('collapsed');
+        groups.filter(g => g.parent === target.parent && g !== target)
+              .forEach(g => g.group.classList.add('collapsed'));
+        target.group.classList.toggle('collapsed', !expand);
+        // When opening a leaf group (one with direct tabs), make sure one is selected.
+        if (expand && !target.tabsEl.querySelector('.lcars-tab.active')) {
             const first = target.tabsEl.querySelector('.lcars-tab');
             if (first) first.click();
         }
@@ -136,10 +157,13 @@
 
         // Create an LCARS group container with a coloured label.
         // opts.color is an "r,g,b" string. opts.collapsed folds it by default.
-        // The label toggles the accordion. Returns a group handle for addTab().
+        // opts.parent nests this group inside another group's body (for the
+        // DESTINATIONS → FLOORS → floor hierarchy). The label toggles the
+        // accordion. Returns a group handle for addTab() / nested addGroup().
         addGroup(label, opts = {}) {
             if (!tabsContainer) return null;
             const color = opts.color || '255,170,0';
+            const parent = opts.parent || null;
 
             const group = document.createElement('div');
             group.className = 'lcars-group' + (opts.collapsed ? ' collapsed' : '');
@@ -150,15 +174,19 @@
             labelEl.innerHTML = `<span>${label}</span><span class="lcars-group-caret">▸</span>`;
             group.appendChild(labelEl);
 
+            const bodyEl = document.createElement('div');
+            bodyEl.className = 'lcars-group-body';
+            group.appendChild(bodyEl);
+
             const tabsEl = document.createElement('div');
             tabsEl.className = 'lcars-group-tabs';
-            group.appendChild(tabsEl);
+            bodyEl.appendChild(tabsEl);
 
-            const handle = { group, tabsEl, labelEl };
-            labelEl.addEventListener('click', () => expandGroup(handle));
+            const handle = { group, tabsEl, bodyEl, labelEl, parent };
+            labelEl.addEventListener('click', (e) => { e.stopPropagation(); toggleGroup(handle); });
             groups.push(handle);
 
-            tabsContainer.appendChild(group);
+            (parent ? parent.bodyEl : tabsContainer).appendChild(group);
             return handle;
         },
 
@@ -169,7 +197,9 @@
             if (!tabsContainer) return null;
             const active = !!opts.active;
             const host = (opts.group && opts.group.tabsEl) || tabsContainer;
-            const color = LCARS_COLORS[tabIndex % LCARS_COLORS.length];
+            // Honor an explicit (hex) colour so a tab can match its content L-bar;
+            // otherwise fall back to the rotating LCARS palette.
+            const color = (opts.color && hexToRgb(opts.color)) || LCARS_COLORS[tabIndex % LCARS_COLORS.length];
             tabIndex++;
 
             const tab = document.createElement('div');

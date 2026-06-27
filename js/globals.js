@@ -4,6 +4,51 @@ let currentTwist = null;
 let matrixDragSrcEl = null;
 let inputDragSrcEl = null;
 
+// Make the sources sidebar resizable via the drag handle ("sash") between it
+// and the main panel. The width is stored on the .container as --sidebar-width
+// and persisted to localStorage.
+function initSidebarResizer() {
+    const sash = document.getElementById('sidebar-sash');
+    const container = document.querySelector('.container');
+    const panel = container && container.querySelector('.ingress-panel');
+    if (!sash || !container || !panel) return;
+    const MIN = 160, MAX = 700;
+    let dragging = false;
+
+    const onMove = (e) => {
+        if (!dragging) return;
+        let w = e.clientX - panel.getBoundingClientRect().left;
+        w = Math.max(MIN, Math.min(MAX, w));
+        container.style.setProperty('--sidebar-width', w + 'px');
+    };
+    const stop = () => {
+        if (!dragging) return;
+        dragging = false;
+        sash.classList.remove('dragging');
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        try {
+            const w = container.style.getPropertyValue('--sidebar-width').trim();
+            if (w) localStorage.setItem('sidebarWidth', w);
+        } catch (e) { /* ignore storage errors */ }
+    };
+
+    sash.addEventListener('mousedown', (e) => {
+        dragging = true;
+        sash.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'col-resize';
+        e.preventDefault();
+    });
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', stop);
+
+    try {
+        const saved = localStorage.getItem('sidebarWidth');
+        if (saved) container.style.setProperty('--sidebar-width', saved);
+    } catch (e) { /* ignore storage errors */ }
+}
+
 async function fetchJSON(url) {
     try {
         // no-store bypasses stale browser cache (e.g. an empty copy cached
@@ -91,18 +136,26 @@ async function listDirectory(url) {
 }
 
 function toggleSuperPool(event, container) {
-    if (event.target === container || event.target.closest('.super-pool-title')) {
-        const content = container.querySelector('.super-pool-content');
-        const icon = container.querySelector('.super-pool-title .fold-icon');
-        const isOpening = content.style.display === 'none';
-        
-        if (isOpening) {
-            content.style.display = '';
-            if (icon) icon.style.transform = 'rotate(0deg)';
-        } else {
-            content.style.display = 'none';
-            if (icon) icon.style.transform = 'rotate(-90deg)';
-        }
+    // React to a click on THIS container's own title or its spine — but not on a
+    // nested child pool's title/spine, which would otherwise bubble up here too.
+    const title = event.target.closest('.super-pool-title');
+    const onOwnTitle = title && title.closest('.super-pool-container') === container;
+    const onOwnSpine = event.target === container;
+    if (!onOwnTitle && !onOwnSpine) return;
+    event.stopPropagation();
+
+    // Toggle this container's direct-child content (not a nested descendant's).
+    const content = container.querySelector(':scope > .super-pool-content');
+    if (!content) return;
+    const icon = container.querySelector(':scope > .super-pool-title .fold-icon');
+    const isOpening = content.style.display === 'none';
+
+    if (isOpening) {
+        content.style.display = '';
+        if (icon) icon.style.transform = 'rotate(0deg)';
+    } else {
+        content.style.display = 'none';
+        if (icon) icon.style.transform = 'rotate(-90deg)';
     }
 }
 
