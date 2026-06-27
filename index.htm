@@ -219,8 +219,18 @@
         .signal-node.video:not(.multiplex):not(.dropped-group) {
             clip-path: polygon(0 0, 100% 0, 90% 100%, 10% 100%);
             border-radius: 0;
+            border-color: transparent; /* real border is clipped on the slants */
             padding-left: 12px;
             padding-right: 12px;
+            /* clip-path clips the border, so trace the trapezoid silhouette with a
+               1px drop-shadow outline (currentColor = the node's source colour) plus
+               a soft glow — both follow the clipped shape, giving defined edges. */
+            filter:
+                drop-shadow(1px 0 0)
+                drop-shadow(-1px 0 0)
+                drop-shadow(0 1px 0)
+                drop-shadow(0 -1px 0)
+                drop-shadow(0 0 4px);
         }
         .signal-node.audio:not(.multiplex):not(.dropped-group) {
             border-radius: 999px;
@@ -985,14 +995,14 @@
 
     <a class="credit-button" href="https://www.like.audio" target="_blank" rel="noopener">CREATED BY ANTHONY PETER KUZUB&nbsp;&nbsp;-&nbsp;&nbsp;WWW.LIKE.AUDIO</a>
 
-    <script src="js/globals.js?v=35"></script>
-    <script src="js/poolVideo.js?v=35"></script>
-    <script src="js/poolAudio.js?v=35"></script>
-    <script src="js/visuals.js?v=35"></script>
-    <script src="js/matrix.js?v=35"></script>
-    <script src="js/dragDrop.js?v=35"></script>
-    <script src="js/productions.js?v=35"></script>
-    <script src="js/topbar.js?v=35"></script>
-    <script src="js/app.js?v=35"></script>
+    <script src="js/globals.js?v=37"></script>
+    <script src="js/poolVideo.js?v=37"></script>
+    <script src="js/poolAudio.js?v=37"></script>
+    <script src="js/visuals.js?v=37"></script>
+    <script src="js/matrix.js?v=37"></script>
+    <script src="js/dragDrop.js?v=37"></script>
+    <script src="js/productions.js?v=37"></script>
+    <script src="js/topbar.js?v=37"></script>
+    <script src="js/app.js?v=37"></script>
 </body>
 </html>
