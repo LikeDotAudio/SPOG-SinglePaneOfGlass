@@ -148,7 +148,7 @@ you drew.
 
 ---
 
-Created by **Anthony Peter Kuzub** · [www.like.audio](https://www.like.audio)
+Created by **Anthony Peter Kuzub** · [like.audio/20260627/twist-like-audio](https://like.audio/20260627/twist-like-audio/)
 
 LCARS is a trademark/design associated with *Star Trek* and its rights holders. This is a
 non-commercial fan tribute and a working engineering tool; no affiliation or endorsement is
