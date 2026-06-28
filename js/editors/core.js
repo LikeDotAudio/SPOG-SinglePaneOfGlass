@@ -231,6 +231,13 @@
                 g.classList.remove('collapsed');
             }
             tab.click();    // programmatic activation → lazy load → notifyRendered
+            return false;
+        }
+        // No tab matched by label (URL uses the display name, tabs are filenamed):
+        // load the destination productions once so the armed link can resolve.
+        if (!resolvePending._loadedAll && typeof window.loadAllDestinations === 'function') {
+            resolvePending._loadedAll = true;
+            window.loadAllDestinations();
         }
         return false;
     }

@@ -107,4 +107,10 @@ async function initApp() {
     if (window.Editors && Editors.openFromHash) Editors.openFromHash();
 }
 
+// Force every (lazy) destination tab to load its content. Only used to resolve a
+// deep link whose production isn't open yet — normal browsing stays lazy.
+window.loadAllDestinations = function loadAllDestinations() {
+    document.querySelectorAll('.lcars-tab').forEach(t => { try { t.click(); } catch (e) {} });
+};
+
 window.addEventListener('DOMContentLoaded', initApp);
