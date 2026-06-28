@@ -503,5 +503,6 @@ export function initRoomDrops() {
     });
 }
 
-// Inline onclick="removeSwimmer(...)" in the switcher modal resolves against window.
+// Inline onclick in the switcher modal (index.htm) resolves against window.
 window.removeSwimmer = removeSwimmer;
+window.closeTwistModal = closeTwistModal;

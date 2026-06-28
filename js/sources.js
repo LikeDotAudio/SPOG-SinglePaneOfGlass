@@ -3,9 +3,11 @@
 // rendered into its own super-pool, and every *.json leaf is dispatched to the
 // right pool renderer based on the SHAPE of its own data (not its folder name),
 // so dropping a new category/folder/file in makes it appear with zero code edits.
-import { listDirectory, fetchJSON, toggleSuperPool } from './globals.js';
+import { listDirectory, fetchJSON, toggleSuperPool, isFaultStatus } from './globals.js';
 import { AUDIO_POOL_COLORS, SOURCE_POOL_COLORS } from './util/palette.js';
 import { makeMediaGroup } from './ui/makeMediaGroup.js';
+import { stripOrder, slugId } from './util/dom.js';
+import { styleSignalNode } from './util/color.js';
 import { initializeDraggables } from './dragDrop.js';
 import { renderPlayoutPool } from './poolPlayout.js';
 import { renderProductionInputs } from './productions.js';
@@ -39,14 +41,30 @@ export function renderSourceLeaf(data, container, kind, color) {
 export async function renderSourceTree(baseUrl, container, depth, inheritColor, parentLabel) {
     const { dirs, files } = await listDirectory(baseUrl);
 
-    // Fetch this folder's leaf files concurrently, then render them in order.
+    // Fetch this folder's leaf files concurrently.
     const datas = await Promise.all(files.map(f => fetchJSON(baseUrl + f.href)));
-    datas.forEach((data, fi) => {
-        if (!data) return;
-        // Origin shown when feeds are dropped: "1st Floor — STAGEBOX 202".
-        data.origin = parentLabel ? `${parentLabel} — ${data.name}` : data.name;
-        const color = inheritColor || AUDIO_POOL_COLORS[fi % AUDIO_POOL_COLORS.length];
-        renderSourceLeaf(data, container, inferPoolKind(data), color);
+    const valid = datas.filter(Boolean);
+    valid.forEach(d => { d.origin = parentLabel ? `${parentLabel} — ${d.name}` : d.name; });
+
+    // GANG: audio boxes that share a leading word (STAGEBOX 101, 102, …) collapse
+    // to one square-cell grid (the word as a caption, the numbers as cells).
+    // Everything else renders as its normal pool, preserving order.
+    const order = [];
+    const byWord = new Map();
+    valid.forEach(d => {
+        const kind = inferPoolKind(d);
+        const word = (d.name || '').trim().split(/\s+/)[0] || '';
+        if (kind === 'audio' && word) {
+            if (!byWord.has(word)) { const g = { word, leaves: [] }; byWord.set(word, g); order.push(g); }
+            byWord.get(word).leaves.push(d);
+        } else order.push({ single: d, kind });
+    });
+    let ci = 0;
+    order.forEach(g => {
+        const color = inheritColor || AUDIO_POOL_COLORS[ci++ % AUDIO_POOL_COLORS.length];
+        if (g.single) renderSourceLeaf(g.single, container, g.kind, color);
+        else if (g.leaves.length >= 2) renderGang(container, g.word, g.leaves, color);
+        else renderSourceLeaf(g.leaves[0], container, 'audio', color);
     });
 
     // Build the nested group headers from the manifest, but DON'T crawl into them
@@ -55,13 +73,13 @@ export async function renderSourceTree(baseUrl, container, depth, inheritColor, 
     // fetched on demand.
     dirs.forEach((d, idx) => {
         const groupColor = inheritColor || AUDIO_POOL_COLORS[idx % AUDIO_POOL_COLORS.length];
-        const content = makeMediaGroup(container, d.name, groupColor, depth);
+        const content = makeMediaGroup(container, stripOrder(d.name), groupColor, depth);
         const header = content.previousElementSibling;
         let loaded = false;
         const load = async () => {
             if (loaded) return;
             loaded = true;
-            await renderSourceTree(baseUrl + d.href, content, depth + 1, groupColor, d.name);
+            await renderSourceTree(baseUrl + d.href, content, depth + 1, groupColor, stripOrder(d.name));
             // Wire the freshly-rendered pool nodes for drag (mouse + touch).
             initializeDraggables();
         };
@@ -77,7 +95,7 @@ export function buildSuperPool(panel, name, color) {
     container.style.setProperty('--lcars-color', color);
     container.innerHTML = `
         <div class="super-pool-title foldable-header">
-            <span>${name.toUpperCase()}</span><span class="fold-icon">▼</span>
+            <span>${stripOrder(name).toUpperCase()}</span><span class="fold-icon">▼</span>
         </div>
         <div class="super-pool-content"></div>
     `;

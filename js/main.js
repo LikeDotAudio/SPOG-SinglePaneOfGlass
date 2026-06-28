@@ -12,4 +12,8 @@ import './clock.js';
 import './touchDrag.js';
 import './tutorial.js';
 import './router-view.js';
+import './captains-log.js';
+import './portals.js';
+import './lcars-pulse.js';
+import './dest-selector.js';
 import './app.js';

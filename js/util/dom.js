@@ -13,3 +13,9 @@ export function faultTag(status) {
 export function slugId(s) {
     return String(s == null ? '' : s).replace(/[^a-zA-Z0-9]+/g, '-');
 }
+
+// Strip the backend-only ordering prefix ("001_") from a folder / file name so it
+// is used for sort order but never shown to the user.
+export function stripOrder(name) {
+    return String(name == null ? '' : name).replace(/^\d{3,}_/, '');
+}
