@@ -10,4 +10,6 @@ import './editors/audio-mixer.js';
 import './editors/intercom.js';
 import './clock.js';
 import './touchDrag.js';
+import './tutorial.js';
+import './router-view.js';
 import './app.js';
