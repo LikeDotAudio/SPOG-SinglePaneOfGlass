@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TwistRouting — A.8 side build</title>
+  <style>
+    /* Minimal LCARS-tinted chrome for the P0 skeleton. The real cutover reuses
+       the existing styleguide CSS (shared, not forked — see A.8). */
+    :root { color-scheme: dark; }
+    body { margin: 0; background: radial-gradient(circle at 50% 30%, #0d1730, #03060f 85%);
+      color: #e0f0ff; font: 14px/1.5 Arial, Helvetica, sans-serif; padding: 22px; }
+    h1 { font-size: 18px; letter-spacing: 3px; text-transform: uppercase; color: #F2B74B; }
+    h1 small { color: #7e93b5; letter-spacing: 1px; }
+    header p { color: #9fb6cc; }
+    .prod { border-left: 6px solid var(--c, #646DCC); border-radius: 0 10px 10px 0;
+      background: #0a1326; margin: 10px 0; padding: 10px 16px; }
+    .prod h2 { margin: 0 0 6px; font-size: 14px; letter-spacing: 2px; color: var(--c, #646DCC); }
+    .prod ul { margin: 0; padding-left: 18px; color: #cfe6ff; }
+    .ed { color: #39d353; font-weight: bold; }
+    .fallback { color: #7e93b5; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div id="app">loading…</div>
+  <script type="module" src="/src/app/main.ts"></script>
+</body>
+</html>
