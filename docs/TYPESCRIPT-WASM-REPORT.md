@@ -5,10 +5,21 @@
 > (and the rest of the modern web platform) genuinely move this app forward —
 > versus where they'd be hype.
 
-The codebase is now **native ES modules** (Phase 2 done): ~26 files, single
+The codebase is now **native ES modules** (Phase 2 done): **52 files**, single
 `main.js` entry, explicit `import`/`export`, a registry pattern (`editors/`),
 centralized `core/state.js`, and a clean DnD `DataTransfer` contract. That ES-module
 foundation is *exactly* what makes both TypeScript and a WASM core tractable.
+
+**What changed since this report was first written:** the app grew a **fleet of 15
+twist editors** (`js/editors/*.js`) — vision mixer, multi-viewer, ISO/replay, audio
+mixer, audio monitor, intercom, IFB, camera control, encoder, signaling, stage-box,
+lighting, WYSIWYG — all on the same `register(test,title,render)` contract; the most
+complex (camera control) is itself split into a **6-module set** (`js/editors/camera/`)
+threaded by a shared `ctx` object. It also gained a **role-based access layer**
+(`js/auth.js` + `js/schedule.js`): a capability model, `window.can()`, and
+`data-cap`-driven progressive disclosure applied on every editor open. These are
+**new, wholly untyped cross-module contracts** — and the single biggest reason to
+move on TypeScript now (details in A.0/A.3).
 
 ---
 
@@ -16,12 +27,26 @@ foundation is *exactly* what makes both TypeScript and a WASM core tractable.
 
 ### A.0 Why now
 TS pays off most where there are **data contracts crossing module boundaries**, and
-this app has several implicit ones that currently live only in comments:
+this app has several implicit ones that currently live only in comments. The list has
+grown sharply with the editor fleet and the access layer:
 - The **JSON data shapes** (`Routes/Sources/**` and `Routes/Destinations/**`): pools,
-  stage boxes, playouts, productions, twist configs.
+  stage boxes, playouts, productions, twist configs (now including camera-input twists:
+  `cameraInput`, `row`, `maxVideo`).
 - The **DnD `DataTransfer` protocol** (`text/plain` = ids, `source-type` = `'pool'`).
-- The **editor registry** contract (`register(test,title,render)`, `render(body,twist,config)`).
-- The **`window` bridges** (`window.TopBar`, `window.Editors`, `window.Tutorial`, `window.RouterView`, `window.loadAllDestinations`).
+- The **editor registry** contract (`register(test,title,render)`, `render(body,twist,config)`)
+  — now honoured by **15** editors, each with its own `test` regex against a free-text
+  twist name. Two editors matching overlapping names (e.g. `signal` vs `signaling`,
+  `light` vs `on-air`) is exactly the drift TS + a shared `EditorPlugin` type guards against.
+- The **capability/role contract** (`js/auth.js`): the `Capability` keys
+  (`admin|switch|route|signal|shade|gfx|comms|audio|book|view`), `window.can(cap)`,
+  `window.Auth.applyScope()`, and the `data-cap="<capability>"` DOM attribute that every
+  editor uses for progressive disclosure. A typo in a `data-cap` value silently shows a
+  control to the wrong role today — a string-literal union would catch it.
+- The **inter-editor bridges**: `window.openStageBox(name,color,channels,origin)`
+  (audio-mixer → stage-box), `renderGridOfSiblings(body,twist,re,buildOne)` (`multi.js`,
+  used by audio-monitor & IFB), and the camera module's shared `ctx`/`mkState()` object.
+- The **`window` bridges** (`window.TopBar`, `window.Editors`, `window.Auth`,
+  `window.Tutorial`, `window.RouterView`, `window.openStageBox`, `window.loadAllDestinations`).
 Each is a real bug surface (the stale-manifest folder-rename and the lazy-load
 `dragWired` regression were both "shape/expectation drifted" bugs that types would
 have flagged).
@@ -85,9 +110,10 @@ export interface Production {               // Routes/Destinations/**, Sources/P
   twists?: (string | TwistConfig)[];
 }
 export interface TwistConfig {
-  name: string; accepts?: 'video' | 'audio' | 'both';
+  name: string; accepts?: 'video' | 'audio' | 'both' | 'camera';
   inputs?: string[]; monitor?: boolean; row?: string;
   maxVideo?: number; maxAudio?: number;
+  cameraInput?: boolean;                     // "CAM N" twists fed into a destination
 }
 export type Manifest = string[];            // index.json (entries end "/" = folder)
 export type PoolKind = 'video' | 'audio' | 'playout' | 'productions';
@@ -96,6 +122,31 @@ This turns `inferPoolKind`, `channelsFor`, `renderPrograms`, the pool renderers 
 `sources.js` into type-checked functions and makes the manifest/folder contract
 explicit (would have caught the `Audio/`→`Sound/` rename mismatch).
 
+**The editor-side runtime model is now equally worth typing.** The access layer and the
+camera console both carry real shape contracts:
+
+```ts
+// js/auth.js — the capability vocabulary, used as data-cap values and window.can() args
+export type Capability =
+  | 'admin' | 'switch' | 'route' | 'signal' | 'shade'
+  | 'gfx' | 'comms' | 'audio' | 'book' | 'view';
+export interface Role {
+  id: string; name: string; sub?: string; tier: string;
+  color: Hex; task: string; caps: Partial<Record<Capability, 1>>;
+}
+
+// js/editors/camera/state.js — mkState(): one per camera (8 instances)
+export interface CamState {
+  pan: number; tilt: number; zoom: number; dolly: number; ped: number;
+  iris: number; gamma: number; mgain: number; shutter: number; mblack: number;
+  rGain: number; gGain: number; bGain: number; rBlk: number; gBlk: number; bBlk: number;
+  presets: (Partial<CamState> | null)[];
+}
+```
+Typing `Capability` makes `window.can(cap)` and every `data-cap` literal checkable;
+typing `CamState` makes the per-frame `scopes`/`maps`/`controls` builders that read it
+type-safe instead of passing an untyped `ctx` blob between six modules.
+
 ### A.3 Typing the seams
 - **DnD contract** → a const + type so `dragDrop`, `matrix`, `touchDrag`, `router-view`
   share one definition:
@@ -103,11 +154,30 @@ explicit (would have caught the `Audio/`→`Sound/` rename mismatch).
   export const DND = { IDS: 'text/plain', KIND: 'source-type' } as const;
   export type SourceKind = 'pool';
   ```
-- **Registry** → a generic, replacing the loose-regex `KINDS`:
+- **Registry** → a generic, replacing the loose-regex `KINDS` now shared by 15 editors:
   ```ts
-  interface EditorPlugin { id: string; match(name: string): boolean;
-    title: string; render(body: HTMLElement, twist: HTMLElement, cfg: TwistConfig|null): void; }
+  type EditorTest = (name: string) => boolean;
+  type EditorRender = (body: HTMLElement, twist: HTMLElement, cfg: TwistConfig|null) => void;
+  interface EditorPlugin { match: EditorTest; title: string; render: EditorRender; }
+  // window.Editors.register(test, title, render) → typed; openForTwist returns boolean
   ```
+- **Access layer** (`js/auth.js`) → the highest-leverage new seam. Type the global so
+  every editor's gating is checked:
+  ```ts
+  // types/globals.d.ts
+  interface Window {
+    can(cap: Capability): boolean;
+    Auth: { role: Role; roles: Role[];
+      setRole(r: Role): void; showLogin(): void; applyScope(root?: ParentNode): void };
+    openStageBox(name: string, color: Hex, channels: string[], origin?: HTMLElement): void;
+  }
+  ```
+  Pair it with a typed `data-cap` — a tiny helper `cap(el, c: Capability)` instead of raw
+  `el.dataset.cap = '…'` strings makes the disclosure contract impossible to mistype.
+- **Camera module `ctx`** → the object `camera-control.js` threads through
+  `state/scopes/bars/maps/controls` is pure `any` today; give it an interface
+  (`{ cams: CamState[]; S(): CamState; ui: {...}; … }`) so the six files share one contract.
+- **`multi.js`** → `renderGridOfSiblings(body, twist, re: RegExp, buildOne: EditorRender)`.
 - **`AppState`** (`core/state.js`) → an interface; kills `any` on the shared mutable state.
 - **`window` bridges** → `types/globals.d.ts` with `declare global { interface Window { … } }`
   for `TopBar`, `Editors`, `Tutorial`, `RouterView`, `loadAllDestinations`, and the
@@ -125,12 +195,22 @@ explicit (would have caught the `Audio/`→`Sound/` rename mismatch).
   `uploadftp.py` deploy `dist/` instead of `js/` (one-line change to the rank function).
 
 ### A.5 Phased TS plan (each step shippable, no big-bang)
-1. **Add `tsconfig.json` (checkJs) + `types/model.d.ts` + `types/globals.d.ts`.** Zero runtime change; light up errors in the editor.
+1. **Add `tsconfig.json` (checkJs) + `types/model.d.ts` + `types/globals.d.ts`.** Include the
+   new `Capability`, `Role`, `CamState`, and the `window.can/Auth/openStageBox` declarations.
+   Zero runtime change; light up errors in the editor.
 2. **JSDoc the leaf utils** (`util/*`, `core/state`, `globals` net helpers) — pure, easy, high signal.
 3. **JSDoc the data layer** (`sources`, pools, `productions`, `app`) against `model.d.ts`.
-4. **JSDoc the seams** (DnD, registry, editors). Fix the type errors surfaced.
-5. **Optional Path 2:** rename `.js`→`.ts`, add esbuild, ship `dist/`. Do hottest/most-coupled files first (`matrix`, `sources`, `editors`).
-6. Turn on `strict` once the above is clean.
+4. **JSDoc the seams** (DnD, registry, **access layer**, inter-editor bridges). Type
+   `editors/core.js`'s `register`/`openForTwist` and `auth.js`'s `can`/`applyScope` first —
+   they're imported or relied on by every editor, so they pay back across all 15 at once.
+5. **JSDoc the editor fleet, cheapest-first.** Start with the self-contained simulators
+   (`vision-mixer`, `multi-viewer`, `signaling`, `lighting`, `wysiwyg`), then the
+   cross-wired ones (`audio-mixer`↔`stagebox-input`, `intercom`↔`ifb`,
+   `audio-monitor`/`ifb`↔`multi.js`), then the **camera module set** as a unit (type `ctx`
+   + `CamState` once, all six files fall into line).
+6. **Optional Path 2:** rename `.js`→`.ts`, add esbuild, ship `dist/`. Do hottest/most-coupled
+   files first (`matrix`, `sources`, `editors/core`, `auth`).
+7. Turn on `strict` once the above is clean.
 
 ---
 
@@ -174,11 +254,22 @@ WASM-ified UI.**
 > The WASM core's value is **portability + a server-authoritative future**, not present-day speed.
 
 ### B.2 Real-time media — where WASM shows up *if the editors become real*
-The editors currently **simulate** signal flow (fake VU meters, T-bar, talk groups).
-The moment any of them touch real media, the right primitives are:
+The editors still **simulate** signal flow (the data is synthetic), but they are no
+longer static mockups: several now run **real per-frame canvas compute** — the camera
+console's RGB parade + vectorscope + SMPTE bars + robotics maps (`editors/camera/`), and
+WYSIWYG's 60fps top-down DMX pre-viz with ray-traced shadows (`editors/wysiwyg.js`).
+That work is driven off `requestAnimationFrame`/intervals against synthetic state today,
+so it's cheap — but it means the **render hot paths already exist**, and the GPU/Canvas
+arguments below are now about optimizing code that's in the tree, not hypothetical future
+code. The moment any editor touches real media, the right primitives are:
 - **Audio Mixer → Web Audio + `AudioWorklet` + WASM DSP.** Real faders/EQ/aux-sends/
   mix-minus = sample-accurate DSP on the audio thread. AudioWorklet runs WASM in the
   realtime audio context — *this* is a textbook, high-value WASM use (EQ/dynamics/pan laws).
+- **Camera scopes / WYSIWYG pre-viz → `OffscreenCanvas` in a Worker, then `WebGPU`.** These
+  are the app's *current* compute-shaped surfaces: the parade/vectorscope and the previz beam-
+  cone + shadow pass are per-pixel work that would move cleanly to a Worker (keep the UI thread
+  free) and then to GPU shaders if the resolution/fixture count grows. No WASM needed — this is
+  a GPU/Worker story.
 - **Multiviewer / ISO / Vision Mixer → `WebCodecs` + `WebGPU`/`OffscreenCanvas`.** Real
   thumbnails, tally-bordered tiles, transitions: decode with WebCodecs (hardware), composite
   on the GPU. WASM only for exotic codecs/scalers WebCodecs lacks; otherwise GPU > WASM here.
@@ -217,7 +308,10 @@ Ranked by value-for-this-app:
 
 ## Bottom line
 - **Do TypeScript now** — Path 1 (JSDoc + `checkJs`, no build) → domain types → seams →
-  optional `.ts`+esbuild. The ES-module refactor already paid the hard cost; this is the payoff.
+  editor fleet → optional `.ts`+esbuild. The ES-module refactor already paid the hard cost;
+  this is the payoff — and the case is **stronger than when this report was written**: 15
+  editors share one stringly-typed `register` contract, and the new `data-cap`/`window.can`
+  access layer is a typo-prone string contract that a `Capability` union eliminates outright.
 - **Don't WASM-ify the UI.** The single forward-thinking WASM play is a **portable
   `routing-core`** (browser + server), and even that is a "when you add real-time sync"
   move, not a today move.
