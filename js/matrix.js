@@ -71,6 +71,76 @@ export function buildDroppedGroup(groupName, groupColor, sourceNodes, parentLabe
     return group;
 }
 
+// Programmatically route a set of SOURCE sub-stream nodes into a twist's drop
+// zone (respecting its accept type + limits). Used by the camera trickle-down.
+export function routeIntoTwist(twist, sourceNodes, opts = {}) {
+    if (!twist || !sourceNodes || !sourceNodes.length) return;
+    let config = null;
+    if (twist.dataset.config) { try { config = JSON.parse(twist.dataset.config); } catch (e) {} }
+    const accepts = config && config.accepts;
+    const ok = (el) => !accepts || accepts === 'both'
+        || (accepts === 'video' && el.classList.contains('video'))
+        || (accepts === 'audio' && el.classList.contains('audio'))
+        || (accepts === 'camera' && (el.classList.contains('video') || el.classList.contains('camera-control')));
+    const accepted = sourceNodes.filter(ok);
+    if (!accepted.length) return;
+    let dz = twist.querySelector('.drop-zone');
+    if (!dz) {
+        dz = document.createElement('div');
+        dz.className = 'drop-zone';
+        dz.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;width:100%;justify-content:center;';
+        twist.appendChild(dz);
+    }
+    if (opts.replace) dz.innerHTML = '';
+    if (opts.group) {
+        const color = window.getComputedStyle(accepted[0]).color;
+        dz.appendChild(buildDroppedGroup(opts.groupName || 'CAM', color, accepted, opts.parent));
+    } else {
+        accepted.forEach(n => {
+            const c = n.cloneNode(true);
+            c.id = n.id + '-' + Math.random().toString(36).substr(2, 6);
+            c.classList.remove('selected', 'sub-stream');
+            c.style.opacity = '1';
+            c.draggable = true;
+            enforceTwistLimits(dz, config, c);
+            dz.appendChild(c);
+        });
+    }
+    updateTwistVisuals(twist);
+}
+
+// A camera box dropped on a Camera Input: place it here (1 camera/input, video +
+// control), then trickle its feeds out to the rest of the production.
+function handleCameraDrop(twist, ids) {
+    const box = ids.map(id => document.getElementById(id)).filter(Boolean)
+        .find(n => n.classList && n.classList.contains('multiplex'));
+    if (!box) return false;
+    const subs = Array.from(box.querySelectorAll('.sub-stream'));
+    const video = subs.filter(s => s.classList.contains('video'));
+    const ctrl = subs.filter(s => s.classList.contains('camera-control'));
+    const auds = subs.filter(s => s.classList.contains('audio'));
+    if (!video.length && !ctrl.length) return false;
+    const camName = ((box.querySelector('.multiplex-header') || {}).innerText || 'CAM').trim();
+    const parent = (box.dataset.origin || '').split(' — ').map(s => s.trim()).filter(Boolean).join(' · ');
+
+    // 1) the camera input itself shows the camera (video + control), one per input.
+    routeIntoTwist(twist, [...video, ...ctrl], { group: true, replace: true, groupName: camName, parent });
+
+    // 2) trickle to the rest of THIS production's twists.
+    const prodRow = twist.closest('.program-row');
+    if (prodRow) {
+        const twists = Array.from(prodRow.querySelectorAll('.twist-container'));
+        const find = (re) => twists.find(t => re.test(((t.querySelector('.twist-title') || {}).innerText || '')));
+        const mixer = find(/video mixer|switcher|\bswitch/i);
+        const mv = find(/multi ?viewer/i);
+        const audio = find(/audio mixer/i);
+        if (mixer) routeIntoTwist(mixer, video, { groupName: camName, parent });
+        if (mv) routeIntoTwist(mv, video, { groupName: camName, parent });
+        if (audio) routeIntoTwist(audio, auds, { groupName: camName, parent });
+    }
+    return true;
+}
+
 export function initializeTwists() {
     document.querySelectorAll('.twist-container').forEach(twist => {
         if (twist.dataset.initialized) return;
@@ -136,8 +206,16 @@ export function initializeTwists() {
                 if (!config || !config.accepts) return true;
                 if (config.accepts === 'video') return el.classList.contains('video');
                 if (config.accepts === 'audio') return el.classList.contains('audio');
+                if (config.accepts === 'camera') return el.classList.contains('video') || el.classList.contains('camera-control');
                 return true;
             };
+
+            // A camera dropped on a Camera Input takes over the whole flow: it lands
+            // here (video + control) and trickles its video to the Video Mixer + Multi
+            // Viewer and its audio to the Audio Mixer automatically.
+            if (config && config.cameraInput && sourceType === 'pool') {
+                if (handleCameraDrop(twist, ids)) return;
+            }
 
             // A feed already routed here (and the feeds this drop would add) — used
             // to warn before adding the same source twice.

@@ -78,6 +78,7 @@ export function renderPrograms(programs) {
         // each member ~1/4 width. rowKey groups them (monitors row, iso row, ...).
         const rows = {};
         const rowOrder = [];
+        let bigHtml = '';
         pgmTwists.forEach(twistObj => {
             let twistName = twistObj;
             let twistConfig = '';
@@ -90,6 +91,7 @@ export function renderPrograms(programs) {
                 if (twistObj.accepts === 'video') lcarsColor = '#CC99CC';
                 if (twistObj.accepts === 'audio') lcarsColor = '#FF9C63';
                 if (twistObj.accepts === 'both') lcarsColor = '#CC99CC';
+                if (twistObj.accepts === 'camera') lcarsColor = '#6FC8F0';
                 rowKey = twistObj.row || (twistObj.monitor ? 'monitors' : null);
             }
 
@@ -114,11 +116,16 @@ export function renderPrograms(programs) {
                 if (!(rowKey in rows)) { rows[rowKey] = ''; rowOrder.push(rowKey); }
                 rows[rowKey] += twistHtml;
             } else {
-                html += twistHtml;
+                bigHtml += twistHtml;
             }
         });
 
+        // Camera inputs render ABOVE the big twists (the Video Mixer etc.); the
+        // other small-twist rows (monitors, ISOs) stay below.
+        if (rows['cameras']) html += `<div class="monitor-row camera-row">${rows['cameras']}</div>`;
+        html += bigHtml;
         rowOrder.forEach(k => {
+            if (k === 'cameras') return;
             html += `<div class="monitor-row">${rows[k]}</div>`;
         });
 

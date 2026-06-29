@@ -8,6 +8,7 @@ import './editors/multi-viewer.js';
 import './editors/vision-mixer.js';
 import './editors/audio-mixer.js';
 import './editors/intercom.js';
+import './editors/camera-control.js';
 import './clock.js';
 import './touchDrag.js';
 import './tutorial.js';

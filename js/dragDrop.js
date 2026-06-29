@@ -25,19 +25,32 @@ export function makeNodeDraggable(node) {
     // Studio-style multiplexes still use hold-to-expand; production outputs fold
     // on a plain click (handled below), like the pool headers.
     if (node.classList.contains('multiplex') && !isProdOutput) {
+        const ownKids = () => node.querySelector(':scope > .multiplex-children');
         const startHold = (e) => {
-            // Don't toggle when the press is on a child sub-stream (it bubbles up);
-            // that would collapse the group while a source is being dragged out.
-            if (e.target.closest('.multiplex-children')) return;
+            // Ignore presses that land inside THIS box's own children (a sub-stream
+            // being dragged out, or a NESTED box like a camera inside a ganged stage
+            // box — which handles its own hold). Checking this box's direct children
+            // (not any ancestor's) is what lets nested cameras expand to show A/CC.
+            const kids = ownKids();
+            if (kids && kids.contains(e.target)) return;
             e.stopPropagation();
             holdTimer = setTimeout(() => {
-                const children = node.querySelector('.multiplex-children');
-                if (children) {
-                    const opening = children.style.display === 'none';
-                    children.style.display = opening ? 'flex' : 'none';
-                    // A ganged cell grows to full row width while expanded.
-                    if (node.classList.contains('gang-cell')) node.classList.toggle('expanded', opening);
+                const children = ownKids();
+                if (!children) return;
+                const opening = children.style.display === 'none';
+                // Gang accordion: only ONE cell open per grid — collapse the others.
+                if (opening && node.classList.contains('gang-cell')) {
+                    const grid = node.closest('.gang-grid');
+                    if (grid) grid.querySelectorAll(':scope > .gang-cell.expanded').forEach(c => {
+                        if (c === node) return;
+                        c.classList.remove('expanded');
+                        const ck = c.querySelector(':scope > .multiplex-children');
+                        if (ck) ck.style.display = 'none';
+                    });
                 }
+                children.style.display = opening ? 'flex' : 'none';
+                // A ganged cell grows to full row width while expanded.
+                if (node.classList.contains('gang-cell')) node.classList.toggle('expanded', opening);
             }, 400);
         };
 

@@ -8,9 +8,9 @@ const RULES = [
     [/\bifb\b|earpiece|foldback|headphone/i, '🎧'],   // talent foldback = headphones
     [/aud(io)?\s*monitor|monitor.*aud|\bspeaker\b/i, '🕪'],  // audio monitor = speaker
     [/intercom|talkback|comms?/i,       '☎'],
-    [/sound|audio|mic|mix|sfx/i,        '♪'],
-    [/multiview|monitor|wall|mv\b/i,    '▦'],
-    [/vision|switch|cut|me\b|m\/e/i,    '◈'],
+    [/multi ?view|monitor|video ?wall|\bmv\b/i, '▦'],          // multi viewer / monitors
+    [/vision|switch|video ?mix|\bcut\b|\bme\b|m\/e/i, '◈'],     // video mixer / switcher
+    [/sound|audio|mic|\bmix(er)?\b|sfx/i, '♪'],                 // audio mixer
     [/record|iso|capture|ingest/i,      '⏺'],
     [/\bplay\b|playlist|clip|vtr/i,     '▶'],   // the PLAY super-pool only
     [/cam|camera|video|vid/i,           '■'],
