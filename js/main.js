@@ -16,4 +16,5 @@ import './captains-log.js';
 import './portals.js';
 import './lcars-pulse.js';
 import './dest-selector.js';
+import './unroute.js';
 import './app.js';

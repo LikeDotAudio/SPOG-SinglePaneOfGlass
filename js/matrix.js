@@ -1,6 +1,7 @@
 import { state } from './core/state.js';
 import { updateTwistVisuals } from './visuals.js';
 import { openForTwist } from './editors/core.js';
+import { confirmDialog } from './dialog.js';
 // Enforce a twist's hard input limits so a newly added source REPLACES the
 // oldest rather than stacking past the limit. Caps applied: maxVideo (video
 // sources), maxAudio (audio sources), and a total cap equal to the number of
@@ -33,6 +34,7 @@ export function buildDroppedGroup(groupName, groupColor, sourceNodes) {
     group.style.borderColor = groupColor;
     group.style.color = groupColor;
     group.id = 'grp-' + Math.random().toString(36).substr(2, 6);
+    group.draggable = true;   // drag back to sources to unroute the whole group
 
     const head = document.createElement('div');
     head.className = 'dropped-group-header';
@@ -46,7 +48,7 @@ export function buildDroppedGroup(groupName, groupColor, sourceNodes) {
         c.id = src.id + '-' + Math.random().toString(36).substr(2, 6);
         c.classList.remove('sub-stream', 'selected');
         c.style.opacity = '1';
-        c.draggable = false;
+        c.draggable = true;   // drag an individual placed feed back to sources to unroute it
         kids.appendChild(c);
     });
 
@@ -127,59 +129,60 @@ export function initializeTwists() {
                 return true;
             };
 
-            const plain = [];  // non-multiplex pool nodes, grouped by origin below
+            // A feed already routed here (and the feeds this drop would add) — used
+            // to warn before adding the same source twice.
+            const feedKey = (label, origin) => (label || '').trim().split('\n')[0] + '␟' + (origin || '');
+            const existing = new Set();
+            dropZone.querySelectorAll('.signal-node').forEach(n => {
+                if (!n.classList.contains('dropped-group')) existing.add(feedKey(n.innerText, n.dataset.origin));
+            });
+            const incoming = [];
             ids.forEach(id => {
-                const node = document.getElementById(id);
-                if (!node) return;
-                if (sourceType !== 'pool') {
-                    if (acceptsType(node)) appendWithLimit(node);
-                    return;
-                }
-                if (node.classList.contains('multiplex')) {
-                    // A multiplex box drops as one collapsible chip of its feeds.
-                    const accepted = Array.from(node.querySelectorAll('.sub-stream')).filter(acceptsType);
-                    if (accepted.length) {
-                        const headerEl = node.querySelector('.multiplex-header');
-                        const groupName = headerEl ? headerEl.innerText : (node.dataset.origin || node.id);
-                        dropZone.appendChild(buildDroppedGroup(groupName, window.getComputedStyle(node).color, accepted));
-                    }
-                } else if (acceptsType(node)) {
-                    plain.push(node);
-                }
+                const node = document.getElementById(id); if (!node) return;
+                if (sourceType !== 'pool') { if (acceptsType(node)) incoming.push(feedKey(node.innerText, node.dataset.origin)); return; }
+                if (node.classList.contains('multiplex')) Array.from(node.querySelectorAll('.sub-stream')).filter(acceptsType).forEach(s => incoming.push(feedKey(s.innerText, s.dataset.origin)));
+                else if (acceptsType(node)) incoming.push(feedKey(node.innerText, node.dataset.origin));
             });
+            const hasDup = incoming.some(k => existing.has(k));
 
-            // Group same-origin plain sources under one labeled container so you
-            // can see where they came from (e.g. "1st Floor — STAGEBOX 202")
-            // instead of a wall of bare CH 1-12 chips.
-            const byOrigin = new Map();
-            plain.forEach(n => {
-                const key = n.dataset.origin || '';
-                if (!byOrigin.has(key)) byOrigin.set(key, []);
-                byOrigin.get(key).push(n);
-            });
-            byOrigin.forEach((nodes, origin) => {
-                if (origin && nodes.length >= 2) {
-                    dropZone.appendChild(buildDroppedGroup(origin, window.getComputedStyle(nodes[0]).color, nodes));
-                } else {
-                    nodes.forEach(n => {
+            function commitDrop() {
+                const plain = [];  // non-multiplex pool nodes, grouped by origin below
+                ids.forEach(id => {
+                    const node = document.getElementById(id);
+                    if (!node) return;
+                    if (sourceType !== 'pool') { if (acceptsType(node)) appendWithLimit(node); return; }
+                    if (node.classList.contains('multiplex')) {
+                        // A multiplex box drops as one collapsible chip of its feeds.
+                        const accepted = Array.from(node.querySelectorAll('.sub-stream')).filter(acceptsType);
+                        if (accepted.length) {
+                            const headerEl = node.querySelector('.multiplex-header');
+                            const groupName = headerEl ? headerEl.innerText : (node.dataset.origin || node.id);
+                            dropZone.appendChild(buildDroppedGroup(groupName, window.getComputedStyle(node).color, accepted));
+                        }
+                    } else if (acceptsType(node)) plain.push(node);
+                });
+                // Group same-origin plain sources under one labeled container.
+                const byOrigin = new Map();
+                plain.forEach(n => { const key = n.dataset.origin || ''; if (!byOrigin.has(key)) byOrigin.set(key, []); byOrigin.get(key).push(n); });
+                byOrigin.forEach((nodes, origin) => {
+                    if (origin && nodes.length >= 2) dropZone.appendChild(buildDroppedGroup(origin, window.getComputedStyle(nodes[0]).color, nodes));
+                    else nodes.forEach(n => {
                         const clone = n.cloneNode(true);
                         clone.id = n.id + '-' + Math.random().toString(36).substr(2, 6);
                         clone.classList.remove('selected');
                         clone.style.opacity = '1';
-                        clone.draggable = false;
+                        clone.draggable = true;   // draggable so it can be returned to the sources to unroute
                         appendWithLimit(clone);
                     });
-                }
-            });
-            
-            updateTwistVisuals(twist);
-            
-            // Visual feedback
-            const originalBg = twist.style.backgroundColor;
-            twist.style.backgroundColor = 'rgba(255, 0, 255, 0.2)';
-            setTimeout(() => {
-                twist.style.backgroundColor = originalBg;
-            }, 300);
+                });
+                updateTwistVisuals(twist);
+                const originalBg = twist.style.backgroundColor;
+                twist.style.backgroundColor = 'rgba(255, 0, 255, 0.2)';
+                setTimeout(() => { twist.style.backgroundColor = originalBg; }, 300);
+            }
+
+            if (hasDup) confirmDialog('This source is already in the destination.', 'Add it twice', 'Close').then(ok => { if (ok) commitDrop(); });
+            else commitDrop();
         });
     });
 }
