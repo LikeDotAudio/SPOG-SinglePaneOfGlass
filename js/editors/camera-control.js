@@ -9,7 +9,7 @@
 // This file assembles the layout, owns the per-frame loop, and registers it.
 import { register, addStyles, pushTimer } from './core.js';
 import { CSS } from './camera/styles.js';
-import { mkState } from './camera/state.js';
+import { mkState, clamp } from './camera/state.js';
 import { drawParade, drawVectorscope } from './camera/scopes.js';
 import { drawSMPTE, stepDVD } from './camera/bars.js';
 import { topSVG, sideSVG, updateMaps } from './camera/maps.js';
@@ -27,7 +27,7 @@ function render(body, twist) {
     const lineage = (parts.length ? parts : [titleTxt]).join('  ›  ').toUpperCase();
 
     const cams = Array.from({ length: 8 }, mkState);
-    const ui = { active: Math.min(7, myNum - 1), bars: false, autoiris: false, rec: false, drag: false, t: 0, pendingSave: false };
+    const ui = { active: Math.min(7, myNum - 1), bars: false, autoiris: false, rec: false, drag: false, t: 0, pendingSave: false, vel: { x: 0, y: 0 } };
 
     body.innerHTML = `
       <div class="cc-wrap">
@@ -51,6 +51,7 @@ function render(body, twist) {
 
         <div class="cc-rail">
           <div class="cc-card"><h4>5-Axis Master Controller</h4>
+            <div class="cc-rate"><label>RATE</label><input type="range" min="0.2" max="3" step="0.05" value="1"><span class="cc-ratev">1.0×</span></div>
             <div class="cc-jsgrid">
               <div class="cc-vside"><label>PED</label><input class="cc-vbar" type="range" min="0" max="1" step="0.01" data-ax="ped"></div>
               <div class="cc-stick"><div class="ring"></div><div class="puck"></div></div>
@@ -89,10 +90,17 @@ function render(body, twist) {
         const pt = (e) => e.touches ? e.touches[0] : e;
         const move = (e) => {
             const p = pt(e);
+            // Handle is TOP-RIGHT. A square scope (top-anchored) tracks the rightward
+            // drag; a free box (bottom-anchored) grows right + upward.
+            if (opts.square) {
+                let m = Math.max(opts.minW || 120, sw + (p.clientX - sx));
+                if (opts.max) m = Math.min(m, opts.max);
+                box.style.width = m + 'px'; box.style.height = m + 'px';
+                return;
+            }
             let w = Math.max(opts.minW || 120, sw + (p.clientX - sx));
-            let h = Math.max(opts.minH || 100, sh + (p.clientY - sy));
+            let h = Math.max(opts.minH || 100, sh + (sy - p.clientY));
             if (opts.max) { w = Math.min(w, opts.max); h = Math.min(h, opts.max); }
-            if (opts.square) { const m = Math.max(w, h); w = h = m; }
             box.style.width = w + 'px'; box.style.height = h + 'px';
         };
         const up = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); };
@@ -181,8 +189,12 @@ function render(body, twist) {
         ui.t += 0.05; const s = ctx.S();
         if (ui.autoiris) { const tgt = 0.6 + Math.sin(ui.t * 0.6) * 0.05; s.iris += (tgt - s.iris) * 0.07; syncKnobs(); }
         if (ui.autowb) { ['rGain', 'gGain', 'bGain'].forEach(k => s[k] += (0.5 - s[k]) * 0.1); syncKnobs(); }
+        // Velocity joystick: integrate pan/tilt from the puck deflection at RATE.
+        const v = ui.vel;
+        if (!ui.drag) { v.x *= 0.55; v.y *= 0.55; if (Math.abs(v.x) < 0.004) v.x = 0; if (Math.abs(v.y) < 0.004) v.y = 0; }
+        if (v.x || v.y) { s.pan = clamp(s.pan + v.x * s.rate * 0.02); s.tilt = clamp(s.tilt + v.y * s.rate * 0.02); placePuck(); }
         if (ctx.fly) {
-            ctx.fly.t = Math.min(1, ctx.fly.t + 0.04);
+            ctx.fly.t = Math.min(1, ctx.fly.t + 0.04 * (s.rate || 1));
             const e = ctx.fly.t < .5 ? 2 * ctx.fly.t * ctx.fly.t : 1 - Math.pow(-2 * ctx.fly.t + 2, 2) / 2;
             ['pan', 'tilt', 'zoom', 'dolly', 'ped'].forEach(k => s[k] = ctx.fly.from[k] + (ctx.fly.to[k] - ctx.fly.from[k]) * e);
             placePuck(); syncAxes(); if (ctx.fly.t >= 1) ctx.fly = null;

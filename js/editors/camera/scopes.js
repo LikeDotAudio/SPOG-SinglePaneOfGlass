@@ -21,17 +21,22 @@ export function drawParade(cv, s, barsOn) {
     const w = cv.clientWidth | 0, h = cv.clientHeight | 0; if (!w || !h) return;
     if (cv.width !== w) cv.width = w; if (cv.height !== h) cv.height = h;
     const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, w, h);
-    const top = 12, bot = h - 6, span = bot - top, padL = 22, gap = 10;
+    const top = 12, bot = h - 6, span = bot - top, padL = 26, gap = 10;
     const pw = (w - padL - 4 - gap * 2) / 3;
+    // Full broadcast IRE scale: -10 (sub-black) at the bottom → 110 (super-white)
+    // at the top, so signal headroom above 100 / below 0 stays visible.
+    const ire2y = (ire) => bot - ((ire + 10) / 120) * span;
     ctx.font = '9px Courier New, monospace';
     for (let c = 0; c < 3; c++) {
         const x0 = padL + c * (pw + gap);
         ctx.fillStyle = 'rgba(255,255,255,.02)'; ctx.fillRect(x0, top, pw, span);
-        [0, 25, 50, 75, 100].forEach(p => {
-            const y = bot - (p / 100) * span;
-            ctx.strokeStyle = p === 100 ? 'rgba(255,90,90,.3)' : 'rgba(80,110,150,.16)';
+        [-10, 0, 25, 50, 75, 100, 110].forEach(p => {
+            const y = ire2y(p), edge = (p === -10 || p === 110);
+            ctx.strokeStyle = p === 100 ? 'rgba(255,90,90,.3)' : edge ? 'rgba(120,160,210,.30)' : 'rgba(80,110,150,.16)';
+            if (edge) ctx.setLineDash([3, 3]);
             ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + pw, y); ctx.stroke();
-            if (c === 0) { ctx.fillStyle = 'rgba(120,150,190,.7)'; ctx.fillText(String(p), 2, y + 3); }
+            ctx.setLineDash([]);
+            if (c === 0) { ctx.fillStyle = edge ? 'rgba(155,190,230,.95)' : 'rgba(120,150,190,.7)'; ctx.fillText(String(p), 2, y + 3); }
         });
         ctx.fillStyle = `rgba(${RGBCOL[c]},.9)`; ctx.fillText(LBL[c], x0 + 5, top + 9);
         ctx.globalCompositeOperation = 'lighter';
@@ -40,7 +45,7 @@ export function drawParade(cv, s, barsOn) {
             const fx = i / (N - 1), px = x0 + fx * pw;
             const val = barsOn ? BARS75[Math.min(6, Math.floor(fx * 7))][c] : channel(s, c, fx);
             const jit = barsOn ? 0.012 : (0.03 + s.mgain * 0.12);
-            for (let k = 0; k < 3; k++) { ctx.fillStyle = `rgba(${RGBCOL[c]},.5)`; ctx.fillRect(px, bot - clamp(val + (Math.random() - 0.5) * jit) * span, 2, 2); }
+            for (let k = 0; k < 3; k++) { ctx.fillStyle = `rgba(${RGBCOL[c]},.5)`; ctx.fillRect(px, ire2y(clamp(val + (Math.random() - 0.5) * jit) * 100), 2, 2); }
         }
         ctx.globalCompositeOperation = 'source-over';
     }

@@ -40,25 +40,32 @@ export function buildShading(ctx) {
         slot.style.left = x + 'px'; slot.style.top = y + 'px';
         slot.appendChild(buildDial(ctx, key, label, color)); venn.appendChild(slot);
     };
-    place('rGain', 'R Gain', '#ff4d4d', 95, 60); place('gGain', 'G Gain', '#28e04a', 265, 60); place('bGain', 'B Gain', '#4d83ff', 180, 162);
-    place('rBlk', 'R', '#ff7a7a', 146, 110, true); place('gBlk', 'G', '#74ef8a', 180, 110, true); place('bBlk', 'B', '#86acff', 214, 110, true);
+    place('rGain', 'R Gain', '#ff4d4d', 105, 52); place('gGain', 'G Gain', '#28e04a', 395, 52); place('bGain', 'B Gain', '#4d83ff', 250, 134);
+    place('rBlk', 'R', '#ff7a7a', 205, 92, true); place('gBlk', 'G', '#74ef8a', 250, 92, true); place('bBlk', 'B', '#86acff', 295, 92, true);
 }
 
 export function buildJoystick(ctx) {
     const stick = ctx.$('.cc-stick'), puck = stick.querySelector('.puck');
-    const placePuck = () => { const r = 62; puck.style.left = `calc(50% + ${(ctx.S().pan - 0.5) * 2 * r}px)`; puck.style.top = `calc(50% + ${(0.5 - ctx.S().tilt) * 2 * r}px)`; };
-    const stickMove = (e) => {
-        const r = stick.getBoundingClientRect();
-        const px = (e.touches ? e.touches[0].clientX : e.clientX) - r.left - r.width / 2;
-        const py = (e.touches ? e.touches[0].clientY : e.clientY) - r.top - r.height / 2;
-        ctx.S().pan = clamp(0.5 + px / r.width); ctx.S().tilt = clamp(0.5 - py / r.height); placePuck();
+    const cs = (v) => Math.max(-1, Math.min(1, v));     // signed clamp
+    // VELOCITY joystick: the puck shows DEFLECTION (a pan/tilt rate command), which
+    // the frame loop integrates at s.rate. Released, it springs back to centre.
+    const placePuck = () => { const travel = stick.getBoundingClientRect().width / 2 - 37; const v = ctx.ui.vel; puck.style.left = `calc(50% + ${(v.x * travel).toFixed(1)}px)`; puck.style.top = `calc(50% + ${(-v.y * travel).toFixed(1)}px)`; };
+    const setVel = (e) => {
+        const r = stick.getBoundingClientRect(), m = r.width / 2;
+        const px = (e.touches ? e.touches[0].clientX : e.clientX) - r.left - m;
+        const py = (e.touches ? e.touches[0].clientY : e.clientY) - r.top - m;
+        ctx.ui.vel = { x: cs(px / m), y: cs(-py / m) };   // up = +y
+        placePuck();
     };
-    const down = (e) => { ctx.ui.drag = true; stick.style.cursor = 'grabbing'; stickMove(e); };
-    const up = () => { ctx.ui.drag = false; stick.style.cursor = 'grab'; };
-    stick.addEventListener('mousedown', down); window.addEventListener('mousemove', e => ctx.ui.drag && stickMove(e)); window.addEventListener('mouseup', up);
-    stick.addEventListener('touchstart', down, { passive: true }); stick.addEventListener('touchmove', stickMove, { passive: true }); stick.addEventListener('touchend', up);
+    const down = (e) => { ctx.ui.drag = true; stick.style.cursor = 'grabbing'; setVel(e); };
+    const up = () => { ctx.ui.drag = false; stick.style.cursor = 'grab'; };   // frame loop springs vel→0
+    stick.addEventListener('mousedown', down); window.addEventListener('mousemove', e => ctx.ui.drag && setVel(e)); window.addEventListener('mouseup', up);
+    stick.addEventListener('touchstart', down, { passive: true }); stick.addEventListener('touchmove', setVel, { passive: true }); stick.addEventListener('touchend', up);
     ctx.body.querySelectorAll('[data-ax]').forEach(inp => inp.addEventListener('input', () => { ctx.S()[inp.dataset.ax] = parseFloat(inp.value); }));
-    const syncAxes = () => { ctx.body.querySelectorAll('[data-ax]').forEach(inp => inp.value = ctx.S()[inp.dataset.ax]); placePuck(); };
+    // RATE slider — scales how fast the PTZ pans / tilts / recalls.
+    const rate = ctx.$('.cc-rate input'), ratev = ctx.$('.cc-ratev');
+    if (rate) { const upd = () => { ctx.S().rate = parseFloat(rate.value); if (ratev) ratev.textContent = parseFloat(rate.value).toFixed(1) + '×'; }; rate.addEventListener('input', upd); upd(); }
+    const syncAxes = () => { ctx.body.querySelectorAll('[data-ax]').forEach(inp => inp.value = ctx.S()[inp.dataset.ax]); if (rate) rate.value = ctx.S().rate; placePuck(); };
     return { placePuck, syncAxes };
 }
 
