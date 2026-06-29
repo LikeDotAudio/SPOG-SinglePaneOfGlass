@@ -50,8 +50,9 @@ def load_env():
     return env_vars
 
 # Files and directories to never upload, even if changed
-IGNORE = {'.git', '.env', '__pycache__', 'deploy.py', 'start.py', 'uploadftp.py',
-          'node_modules', 'package.json', 'package-lock.json', 'test_puppeteer.js'}
+IGNORE = {'.git', '.env', '__pycache__', 'deploy.py', 'deploy-next.py', 'start.py', 'uploadftp.py',
+          'node_modules', 'package.json', 'package-lock.json', 'test_puppeteer.js',
+          'dist', 'src', 'vite.config.ts', 'tsconfig.json', '.smoke.mjs'}
 
 def is_ignored(rel_path):
     parts = rel_path.split('/')

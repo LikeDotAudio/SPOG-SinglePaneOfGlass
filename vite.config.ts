@@ -7,6 +7,10 @@ import { defineConfig } from 'vite';
 // Entry is `index.next.htm` so the live `index.htm` is untouched until cutover.
 export default defineConfig({
   root: '.',
+  // Relative base: the built index.next.html references ./assets/… so the bundle
+  // works dropped at the site root next to Routes/ (side-by-side with index.htm),
+  // regardless of mount path. App data fetches (Routes/…) are already relative.
+  base: './',
   server: { open: '/index.next.html' },
   build: {
     outDir: 'dist',
