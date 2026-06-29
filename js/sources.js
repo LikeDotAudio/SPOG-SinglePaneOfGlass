@@ -57,6 +57,11 @@ function injectGangStyles() {
         .signal-node.gang-cell.expanded > .multiplex-children > .sub-stream{flex:1 1 auto;min-width:60px;}
         /* the PREAMP control spans the whole box — it's THE box control, not a channel */
         .signal-node.gang-cell .multiplex-children > .signal-node.control{flex-basis:100%;width:100%;order:99;min-height:30px;}
+        /* the cameras INSIDE an expanded cell read differently from the dark container */
+        .signal-node.gang-cell.expanded{cursor:pointer;}
+        .signal-node.gang-cell.expanded .gang-cam-grid > .signal-node.multiplex{
+            background:rgba(46,86,128,.32);border:1px solid #4f86b8;border-radius:6px;box-shadow:0 2px 7px rgba(0,0,0,.45);}
+        .signal-node.gang-cell.expanded > .multiplex-header{background:rgba(0,0,0,.35);border-radius:4px;margin-bottom:4px;}
     `;
     document.head.appendChild(s);
 }
@@ -113,6 +118,21 @@ function buildGangCell(data, suffix, color, kind) {
     const header = document.createElement('div');
     header.className = 'multiplex-header';
     header.textContent = suffix;
+    // Click the cell header to fold / unfold it (accordion within the grid).
+    header.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const opening = kids.style.display === 'none';
+        if (opening) {
+            const grid = node.closest('.gang-grid');
+            if (grid) grid.querySelectorAll(':scope > .gang-cell.expanded').forEach(c => {
+                if (c === node) return;
+                c.classList.remove('expanded');
+                const ck = c.querySelector(':scope > .multiplex-children'); if (ck) ck.style.display = 'none';
+            });
+        }
+        kids.style.display = opening ? 'flex' : 'none';
+        node.classList.toggle('expanded', opening);
+    });
     node.appendChild(header);
     node.appendChild(kids);
     styleSignalNode(node, cellColor);

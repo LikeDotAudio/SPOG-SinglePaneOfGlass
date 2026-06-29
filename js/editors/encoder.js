@@ -27,6 +27,11 @@ const CSS = `
 @keyframes encPan{from{filter:hue-rotate(0)}to{filter:hue-rotate(40deg)}}
 .enc-mez .tag{position:absolute;left:6px;top:5px;font:bold 10px 'Courier New',monospace;color:#9effc0;letter-spacing:1px;}
 .enc-mez .gold{position:absolute;right:6px;top:5px;font:bold 10px 'Courier New',monospace;color:#ffd400;}
+.enc-streams{display:flex;flex-direction:column;gap:8px;}
+.enc-strm{display:flex;gap:8px;align-items:center;background:#03060f;border:1px solid #1d2942;border-radius:8px;padding:6px;}
+.enc-strm .pic{width:40px;height:40px;border-radius:5px;flex:0 0 auto;background:linear-gradient(135deg,#23406b,#0a1322);animation:encPan 9s ease-in-out infinite alternate;}
+.enc-strm .nm{font:bold 11px sans-serif;color:#cfe6ff;letter-spacing:1px;} .enc-strm .nm small{display:block;color:#7e93b5;font-size:9px;letter-spacing:1px;font-weight:normal;}
+.enc-shead{grid-column:1 / -1;font:bold 10px 'Courier New',monospace;color:#6FC8F0;letter-spacing:1px;margin-top:8px;padding-top:6px;border-top:1px solid #1d2942;}
 .enc-aud{display:flex;flex-direction:column;gap:7px;margin-top:10px;}
 .enc-arow{display:flex;align-items:center;gap:8px;}
 .enc-arow .lab{width:96px;font:11px sans-serif;color:#cfe6ff;} .enc-arow .lab small{color:#7e93b5;}
@@ -66,16 +71,37 @@ const CSS = `
 @keyframes encToast{0%{opacity:0;transform:translate(-50%,12px)}15%{opacity:1;transform:translate(-50%,0)}85%{opacity:1}100%{opacity:0}}
 `;
 
+// Read what's routed to the encoder twist, split into video + audio feeds.
+function gatherTyped(twist) {
+    const dz = twist && twist.querySelector('.drop-zone'); const vids = [], auds = [];
+    if (!dz) return { vids, auds };
+    const push = (n) => {
+        const label = (n.innerText || '').trim().split('\n')[0]; if (!label) return;
+        const o = { label, color: window.getComputedStyle(n).color || '#6FC8F0' };
+        if (n.classList.contains('video')) vids.push(o); else if (n.classList.contains('audio')) auds.push(o);
+    };
+    dz.querySelectorAll(':scope > .signal-node').forEach(n => {
+        if (n.classList.contains('dropped-group')) n.querySelectorAll('.dropped-group-children .signal-node').forEach(push); else push(n);
+    });
+    return { vids, auds };
+}
+
 function render(body, twist) {
     addStyles('enc-styles', CSS);
-    const tiles = RENDITIONS.map(r => ({ ...r, on: true, err: false, dest: 0 }));
+    // Auto-populate from whatever is routed in. Each VIDEO becomes its own STREAM
+    // (its own ABR ladder); audio feeds become the embedded tracks.
+    const { vids, auds } = gatherTyped(twist);
+    const streams = vids.length ? vids : [{ label: '(no video routed)', color: '#7e93b5' }];
+    const tracks = auds.length ? auds.map((a, i) => ({ n: a.label, t: i === 0 ? 'PGM' : 'A' + (i + 1) })) : AUDIO;
+    const tiles = [];
+    streams.forEach((s, si) => RENDITIONS.forEach(r => tiles.push({ ...r, on: true, err: false, dest: 0, stream: si, src: s.label })));
     const ui = { dest: 0, drm: true, failPrimary: true };
 
     body.innerHTML = `
       <div class="enc">
         <div class="enc-col">
-          <div class="enc-card"><h4>Input · 1:1 Mezzanine</h4>
-            <div class="enc-mez"><div class="pic"></div><div class="tag">GOLDEN SOURCE 1:1</div><div class="gold">● LOCK</div></div>
+          <div class="enc-card"><h4>Inputs · 1:1 Mezzanine · ${streams.length} stream${streams.length > 1 ? 's' : ''}</h4>
+            <div class="enc-streams"></div>
             <div class="enc-aud"></div>
             <div class="enc-meta">
               <span class="enc-badge on">SCTE-35</span><span class="enc-badge on">CC 608/708</span><span class="enc-badge on">LTC TC</span><span class="enc-badge on">SMPTE 2110</span>
@@ -99,19 +125,25 @@ function render(body, twist) {
       </div>`;
 
     const $ = (q) => body.querySelector(q);
-    // audio tracks
+    // input streams — one mini 1:1 mezzanine per routed video
+    const strm = $('.enc-streams');
+    streams.forEach((s, si) => { const el = document.createElement('div'); el.className = 'enc-strm'; el.innerHTML = `<div class="pic"></div><div class="nm">STREAM ${si + 1}<small>${s.label}</small></div>`; strm.appendChild(el); });
+    // embedded audio tracks (auto-populated from routed audio)
     const aud = $('.enc-aud');
-    AUDIO.forEach(a => { const r = document.createElement('div'); r.className = 'enc-arow'; r.innerHTML = `<div class="lab">${a.n} <small>[${a.t}]</small></div><div class="m"><i style="width:40%"></i></div>`; aud.appendChild(r); });
+    tracks.forEach(a => { const r = document.createElement('div'); r.className = 'enc-arow'; r.innerHTML = `<div class="lab">${a.n} <small>[${a.t}]</small></div><div class="m"><i style="width:40%"></i></div>`; aud.appendChild(r); });
 
-    // output tiles
+    // output map — the ABR ladder, one bank per video stream
     const grid = $('.enc-grid');
-    tiles.forEach((t, i) => {
-        const el = document.createElement('div'); el.className = 'enc-tile';
-        const sq = t.ar === '1:1' ? [18, 18] : t.ar === '9:16' ? [12, 20] : [24, 14];
-        el.innerHTML = `<div class="led"></div><div class="ar"><span class="arbox" style="width:${sq[0]}px;height:${sq[1]}px"></span><div><b>${t.name}</b><div class="codec">${t.ar} · ${t.codec}</div></div></div>
-            <div class="br">${(t.kbps / 1000).toFixed(1)} Mbps</div><div class="dest">${DESTS[t.dest]}</div>`;
-        el.addEventListener('click', () => { t.on = !t.on; el.classList.toggle('off', !t.on); });
-        grid.appendChild(el); t.el = el;
+    streams.forEach((s, si) => {
+        if (streams.length > 1) { const h = document.createElement('div'); h.className = 'enc-shead'; h.textContent = `STREAM ${si + 1} · ${s.label} → ABR LADDER`; grid.appendChild(h); }
+        tiles.filter(t => t.stream === si).forEach(t => {
+            const el = document.createElement('div'); el.className = 'enc-tile';
+            const sq = t.ar === '1:1' ? [18, 18] : t.ar === '9:16' ? [12, 20] : [24, 14];
+            el.innerHTML = `<div class="led"></div><div class="ar"><span class="arbox" style="width:${sq[0]}px;height:${sq[1]}px"></span><div><b>${t.name}</b><div class="codec">${t.ar} · ${t.codec}</div></div></div>
+                <div class="br">${(t.kbps / 1000).toFixed(1)} Mbps</div><div class="dest">${DESTS[t.dest]}</div>`;
+            el.addEventListener('click', () => { t.on = !t.on; el.classList.toggle('off', !t.on); });
+            grid.appendChild(el); t.el = el;
+        });
     });
 
     // destination vault

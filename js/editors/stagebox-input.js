@@ -56,7 +56,18 @@ const CSS = `
 .sb-tab{padding:9px 15px;border-radius:8px;border:1px solid #2c3e5e;background:#0c1730;color:#9fb6cc;font:bold 12px sans-serif;letter-spacing:1px;cursor:pointer;}
 .sb-tab:hover{background:#16243d;}
 .sb-tab.sel{background:#F2B74B;color:#1a1206;border-color:#F2B74B;}
+.sb-bankl{font:bold 11px 'Courier New',monospace;color:#F2B74B;letter-spacing:1px;margin-right:4px;}
+.sb-arrow{padding:9px 13px;border-radius:8px;border:1px solid #2c3e5e;background:#0c1730;color:#cfe6ff;font:900 13px sans-serif;cursor:pointer;}
+.sb-arrow:hover{background:#16243d;}
+.sb-slope{flex:1;padding:8px 4px;border-radius:6px;border:1px solid #2c3e5e;background:#0c1730;color:#9fb6cc;font:bold 10px sans-serif;letter-spacing:.5px;cursor:pointer;}
+.sb-slope:hover{background:#16243d;} .sb-slope.sel{background:#6FC8F0;color:#001019;border-color:#6FC8F0;}
 .sb-host .sb{height:100%;}
+/* bank quad — 4 channels at 1/4 screen each */
+.sb-bankgrid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:12px;overflow:auto;}
+.sb-host{position:relative;min-width:0;min-height:0;overflow:auto;border:1px solid #1d2942;border-radius:10px;}
+.sb-cell-tag{position:absolute;right:8px;top:6px;z-index:6;background:#F2B74B;color:#1a1206;font:900 11px sans-serif;letter-spacing:1px;border-radius:6px;padding:3px 9px;pointer-events:none;}
+/* HPF response chart */
+.sb-hpchart{width:100%;height:84px;margin-top:10px;background:#070f1f;border:1px solid #1d2942;border-radius:8px;display:block;}
 `;
 
 function buildPanel(body, chName) {
@@ -96,6 +107,19 @@ function buildPanel(body, chName) {
         </div>
 
         <div class="sb-col">
+          <div class="sb-card"><h4>Noise Reduction · Pre-Gain</h4>
+            <div class="sb-row"><span>Mode</span>
+              <select class="sb-sel sb-nrmode"><option>Off</option><option>Broadband (NS)</option><option>Adaptive AI</option><option>De-Hum 50/60Hz</option><option>De-Ess</option></select></div>
+            <div class="sb-row" style="margin-top:8px"><span>Reduction</span><span><input class="sb-nr" type="range" min="0" max="24" value="0" style="width:120px;vertical-align:middle"> <b class="sb-nrv">0 dB</b></span></div>
+          </div>
+          <div class="sb-card"><h4>High-Pass Filter</h4>
+            <div class="sb-row"><span>Window</span>
+              <select class="sb-sel sb-hpw"><option>Butterworth</option><option>Linkwitz-Riley</option><option>Bessel</option><option>Chebyshev</option><option>Hann</option><option>Blackman</option></select></div>
+            <div class="sb-row" style="margin-top:8px"><span>Frequency</span><span><input class="sb-hpf2" type="range" min="20" max="300" value="80" style="width:120px;vertical-align:middle"> <b class="sb-hpfv">80 Hz</b></span></div>
+            <div class="sb-row" style="margin-top:8px;display:block"><span>Slope</span>
+              <div class="sb-slopes" style="display:flex;gap:6px;margin-top:6px"></div></div>
+            <canvas class="sb-hpchart"></canvas>
+          </div>
           <div class="sb-card"><h4>Preamp</h4>
             <div class="sb-knrow"></div>
             <div class="sb-key conf">Confidence Monitor</div>
@@ -139,6 +163,23 @@ function buildPanel(body, chName) {
     $('.sb-cable').addEventListener('input', e => { s.cable = +e.target.value; $('.sb-cablev').textContent = s.cable + ' m'; $('.sb-hf').textContent = '+' + (s.cable * 0.012).toFixed(1) + ' dB'; });
     $('.phantom').addEventListener('click', () => { if (MICS[s.mic].ribbon) return; s.phantom = !s.phantom; $('.phantom').classList.toggle('on', s.phantom); });
     $('.sb-conf, .sb-key.conf').addEventListener('click', e => { s.conf = !s.conf; e.currentTarget.classList.toggle('on', s.conf); });
+    // noise reduction + HPF window / frequency / slope — visualised as a response chart
+    const redrawHPF = () => {
+        const fc = +$('.sb-hpf2').value;
+        const sel = $('.sb-slope.sel');
+        const sl = sel ? (parseInt(sel.textContent, 10) || 12) : 12;
+        drawHPF($('.sb-hpchart'), fc, sl, $('.sb-hpw').value);
+    };
+    $('.sb-nr').addEventListener('input', e => { $('.sb-nrv').textContent = e.target.value + ' dB'; });
+    $('.sb-hpf2').addEventListener('input', e => { $('.sb-hpfv').textContent = e.target.value + ' Hz'; redrawHPF(); });
+    $('.sb-hpw').addEventListener('change', redrawHPF);
+    const slopes = $('.sb-slopes');
+    ['6', '12', '18', '24'].forEach((db, i) => {
+        const btn = document.createElement('button'); btn.className = 'sb-slope' + (i === 1 ? ' sel' : ''); btn.textContent = db + ' dB/oct';
+        btn.addEventListener('click', () => { slopes.querySelectorAll('.sb-slope').forEach(x => x.classList.remove('sel')); btn.classList.add('sel'); redrawHPF(); });
+        slopes.appendChild(btn);
+    });
+    setTimeout(redrawHPF, 0);   // after layout so the canvas has a size
     applyMic();
 
     const mask = $('.sb-meter .mask'), pk = $('.sb-meter .pk'), hr = $('.sb-headroom'), hc = $('.sb-hist canvas');
@@ -171,6 +212,34 @@ function drawHist(cv, hist) {
     ctx.fillStyle = '#ff3b3b'; hist.forEach((v, i) => { if (v > 0.95) ctx.fillRect(i / 300 * w, 2, 2, 6); });
 }
 
+// High-pass filter frequency response — log freq (20–20k) × gain (dB), with the
+// roll-off set by the slope and the knee character by the window type.
+function drawHPF(cv, fc, slope, win) {
+    if (!cv) return;
+    const w = cv.width = cv.clientWidth, h = cv.height = cv.clientHeight; if (!w || !h) return;
+    const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, w, h);
+    const lmin = Math.log10(20), lmax = Math.log10(20000);
+    const xOf = f => (Math.log10(f) - lmin) / (lmax - lmin) * w;
+    const dbTop = 6, dbBot = -36, yOf = db => h - (db - dbBot) / (dbTop - dbBot) * h;
+    ctx.font = '8px Courier New, monospace'; ctx.strokeStyle = 'rgba(80,110,150,.16)'; ctx.fillStyle = 'rgba(120,150,190,.6)';
+    [-24, -12, 0].forEach(db => { const y = yOf(db); ctx.beginPath(); ctx.moveTo(22, y); ctx.lineTo(w, y); ctx.stroke(); ctx.fillText(db + '', 2, y - 2); });
+    [100, 1000, 10000].forEach(f => { const x = xOf(f); ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); ctx.fillText(f >= 1000 ? f / 1000 + 'k' : '' + f, x + 2, h - 2); });
+    ctx.strokeStyle = 'rgba(111,200,240,.4)'; ctx.beginPath(); ctx.moveTo(xOf(fc), 0); ctx.lineTo(xOf(fc), h); ctx.stroke();
+    const n = slope / 6, ripple = win === 'Chebyshev' ? 1 : 0, gentle = win === 'Bessel' ? 1 : 0;
+    ctx.beginPath();
+    for (let px = 22; px <= w; px++) {
+        const f = Math.pow(10, lmin + (px / w) * (lmax - lmin));
+        let db = 20 * Math.log10(1 / Math.sqrt(1 + Math.pow(fc / f, 2 * n)));
+        const near = Math.exp(-Math.pow(Math.log10(f / fc), 2) / 0.05);
+        db += ripple * near * 2.5 - gentle * near * 1.5;
+        const y = yOf(Math.max(dbBot, Math.min(dbTop, db)));
+        px === 22 ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
+    }
+    ctx.strokeStyle = '#6FC8F0'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.lineTo(w, h); ctx.lineTo(22, h); ctx.closePath(); ctx.fillStyle = 'rgba(111,200,240,.1)'; ctx.fill();
+    ctx.fillStyle = '#6FC8F0'; ctx.font = 'bold 9px Courier New, monospace'; ctx.fillText(`${win} · ${fc}Hz · ${slope}dB/oct`, 26, 11);
+}
+
 function render(body, twist) {
     buildPanel(body, ((twist.querySelector('.twist-title') || {}).innerText || 'INPUT').replace(/^[^A-Za-z0-9]*/, '').trim());
 }
@@ -181,26 +250,38 @@ function render(body, twist) {
 const sbSlug = (x) => (x || '').toString().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 window.openStageBox = (name, color, channels, origin) => {
     const list = (channels && channels.length) ? channels : [{ label: name }];
-    const openCh = (chName) => {
-        try { history.replaceState(null, '', '#/stagebox/' + (sbSlug(origin) || 'box') + '/' + sbSlug(chName)); } catch (e) {}
-        open(`${chName} · STAGE BOX INPUT`, color || '#F2B74B', (b) => {
+    const BANK = 4, nBanks = Math.ceil(list.length / BANK);
+    const openBank = (bank) => {
+        bank = Math.max(0, Math.min(nBanks - 1, bank));
+        try { history.replaceState(null, '', '#/stagebox/' + (sbSlug(origin) || 'box') + '/bank-' + (bank + 1)); } catch (e) {}
+        open(`${origin || 'STAGE BOX'} · BANK ${bank + 1}/${nBanks}`, color || '#F2B74B', (b) => {
             b.style.display = 'flex'; b.style.flexDirection = 'column'; b.style.gap = '10px';
+            // bank nav — page through the routed grouping 4 at a time
             const nav = document.createElement('div'); nav.className = 'sb-nav';
             if (origin) { const o = document.createElement('span'); o.className = 'orig'; o.textContent = origin; nav.appendChild(o); }
-            list.forEach(ch => {
-                const t = document.createElement('button');
-                t.className = 'sb-tab' + (ch.label === chName ? ' sel' : '');
-                t.textContent = ch.label;
-                t.addEventListener('click', () => openCh(ch.label));
-                nav.appendChild(t);
-            });
+            if (nBanks > 1) {
+                const bl = document.createElement('span'); bl.className = 'sb-bankl'; bl.textContent = `BANK ${bank + 1}/${nBanks}`; nav.appendChild(bl);
+                const pv = document.createElement('button'); pv.className = 'sb-arrow'; pv.textContent = '◀'; pv.addEventListener('click', () => openBank(bank - 1)); nav.appendChild(pv);
+                for (let bi = 0; bi < nBanks; bi++) {
+                    const bt = document.createElement('button'); bt.className = 'sb-tab' + (bi === bank ? ' sel' : '');
+                    bt.textContent = `${list[bi * BANK].label}–${list[Math.min(list.length - 1, bi * BANK + BANK - 1)].label}`;
+                    bt.addEventListener('click', () => openBank(bi)); nav.appendChild(bt);
+                }
+                const nx = document.createElement('button'); nx.className = 'sb-arrow'; nx.textContent = '▶'; nx.addEventListener('click', () => openBank(bank + 1)); nav.appendChild(nx);
+            }
             b.appendChild(nav);
-            const host = document.createElement('div'); host.className = 'sb-host'; host.style.cssText = 'flex:1;min-height:0;';
-            b.appendChild(host);
-            buildPanel(host, chName);
+            // 2×2 grid — the bank's 4 channels, each its own 1/4-screen panel
+            const grid = document.createElement('div'); grid.className = 'sb-bankgrid'; b.appendChild(grid);
+            list.slice(bank * BANK, bank * BANK + BANK).forEach(ch => {
+                const cell = document.createElement('div'); cell.className = 'sb-host';
+                grid.appendChild(cell);
+                buildPanel(cell, ch.label);
+                const tag = document.createElement('div'); tag.className = 'sb-cell-tag'; tag.textContent = ch.label; cell.appendChild(tag);
+            });
         });
     };
-    openCh(name);
+    const idx = Math.max(0, list.findIndex(c => c.label === name));
+    openBank(Math.floor(idx / BANK));
 };
 
 register(n => /stage\s*box|pre.?amp|input asset|mic input/i.test(n), 'STAGE BOX INPUT · SMART OBJECT', render);
