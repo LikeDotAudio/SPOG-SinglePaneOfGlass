@@ -19,7 +19,7 @@
         const s = document.createElement('style');
         s.id = STYLE_ID;
         s.textContent = `
-        .ds-open{position:fixed;left:14px;bottom:10px;z-index:1000;background:#e08a1e;color:#000;
+        .ds-open{position:fixed;left:50%;transform:translateX(-50%);bottom:10px;z-index:1000;background:#e08a1e;color:#000;
             border:none;border-radius:50%;width:46px;height:46px;font-size:22px;cursor:pointer;
             box-shadow:0 0 14px rgba(224,138,30,.5),inset 0 0 0 3px #1a1206;}
         .ds-open:hover{background:#ffd400;}

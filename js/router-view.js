@@ -75,6 +75,16 @@ import { updateTwistVisuals } from './visuals.js';
             vertical-align:bottom;height:120px;padding:8px 3px;}
         .rv-twisthead.grp{font-style:italic;color:#000080;}
         .rv-feedhead.grp{font-style:italic;color:#000080;}
+        /* level-1 parent groups — vertical (90°) and pinned so they never scroll off */
+        .rv-pparenthead{writing-mode:vertical-rl;transform:rotate(180deg);vertical-align:bottom;height:110px;
+            background:#000080;color:#fff;font-weight:bold;letter-spacing:1px;position:sticky;top:0;z-index:5;
+            border:2px solid;border-color:#1084d0 #000040 #000040 #1084d0;}
+        .rv-rparenthead{writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;
+            background:#000080;color:#fff;font-weight:bold;letter-spacing:1px;padding:6px 3px;
+            position:sticky;left:0;z-index:2;border:2px solid;border-color:#1084d0 #000040 #000040 #1084d0;}
+        /* type pips on each feed — video purple, audio orange, signal green */
+        .rv-dot{font-weight:bold;margin-right:2px;font-size:11px;}
+        .rv-dot.v{color:#b388ff;} .rv-dot.a{color:#FF9C63;} .rv-dot.s{color:#39d353;}
         .rv-grid thead th{position:sticky;top:0;z-index:3;}
         .rv-corner{position:sticky;left:0;top:0;z-index:4;}
         .rv-originhead{left:0;z-index:2;text-align:left;}
@@ -118,6 +128,20 @@ import { updateTwistVisuals } from './visuals.js';
         return m;
     }
     // prod -> Map(twist -> twistEl)
+    // A coloured type pip for a feed — video ■ purple, audio ♪ orange, signal ⬢ green.
+    function typeDot(node, label) {
+        let cls = '';
+        if (node && node.classList) {
+            if (node.classList.contains('video')) cls = 'v';
+            else if (node.classList.contains('control')) cls = 's';
+            else if (node.classList.contains('audio')) cls = 'a';
+        }
+        if (!cls) cls = /tally|on.?air|\bpgm\b|\bpvw\b|signal|control|gpi/i.test(label) ? 's'
+            : /\bcam\b|v\d|video|-v\b/i.test(label) ? 'v' : 'a';
+        const g = cls === 'v' ? '■' : cls === 's' ? '⬢' : '♪';
+        return `<span class="rv-dot ${cls}">${g}</span>`;
+    }
+
     function gatherReceivers() {
         const m = new Map();
         document.querySelectorAll('.twist-container').forEach(tw => {

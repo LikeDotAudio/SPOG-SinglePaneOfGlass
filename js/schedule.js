@@ -12,6 +12,14 @@
     ];
     const fmt = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 
+    // Crew roles map to the three Starfleet divisions — Command (red), Operations
+    // (gold), Sciences (blue) — so the manifest reads as a duty roster by department.
+    function division(role) {
+        if (/captain|first officer|director|conn|helm|\btd\b/i.test(role)) return ['Command', '#e0524a'];
+        if (/science|metadata|analytics|medical|counselor/i.test(role)) return ['Sciences', '#5b8def'];
+        return ['Operations', '#e0b53a'];
+    }
+
     function injectStyles() {
         if (document.getElementById('sched-styles')) return;
         const s = document.createElement('style'); s.id = 'sched-styles';
@@ -31,6 +39,7 @@
         .sc-room{color:#9fd6ff;font-size:12px;letter-spacing:1px;margin:3px 0 10px;}
         .sc-crew{display:flex;flex-wrap:wrap;gap:6px;}
         .sc-role{font:bold 10px sans-serif;letter-spacing:.5px;border-radius:6px;padding:5px 9px;background:#13233c;color:#cfe6ff;border:1px solid #2c3e5e;}
+        .sc-legend{display:flex;gap:16px;margin:-8px 0 16px;font:bold 11px sans-serif;letter-spacing:1px;}
         .sc-hint{color:#6b82a3;font-size:11px;letter-spacing:1px;margin-top:6px;}
         `;
         document.head.appendChild(s);
@@ -40,7 +49,7 @@
     function ensure() {
         injectStyles(); if (ov) return;
         ov = document.createElement('div'); ov.className = 'sc-ov';
-        ov.innerHTML = `<div class="sc-box"><h2>PRODUCTION SCHEDULE</h2><p>TODAY · TIMELINE · ROOM & CREW BOOKING</p><div class="sc-list"></div><div class="sc-hint">Crew shown as ROLES booked to the slot — the access system loads each operator's scope from here.</div></div>`;
+        ov.innerHTML = `<div class="sc-box"><h2>PRODUCTION SCHEDULE</h2><p>TODAY · TIMELINE · ROOM & CREW BOOKING</p><div class="sc-legend"><span style="color:#e0524a">■ Command</span><span style="color:#e0b53a">■ Operations</span><span style="color:#5b8def">■ Sciences</span></div><div class="sc-list"></div><div class="sc-hint">Crew shown as ROLES booked to the slot — the access system loads each operator's scope from here.</div></div>`;
         ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('open'); });
         document.body.appendChild(ov);
     }
@@ -52,7 +61,7 @@
             const el = document.createElement('div'); el.className = 'sc-slot' + (live ? ' live' : '');
             el.innerHTML = `<div class="sc-time">${fmt(sl.s)}<br>–${fmt(sl.e)}<div class="badge">${live ? '● LIVE NOW' : 'BOOKED'}</div></div>
                 <div class="sc-show"><b>${sl.show}</b><div class="sc-room">▣ ${sl.room}</div>
-                  <div class="sc-crew">${sl.crew.map(r => `<span class="sc-role">${r}</span>`).join('')}</div></div>`;
+                  <div class="sc-crew">${sl.crew.map(r => { const [d, c] = division(r); return `<span class="sc-role" style="border-color:${c};color:${c}" title="${d} division">${r}</span>`; }).join('')}</div></div>`;
             list.appendChild(el);
         });
     }
