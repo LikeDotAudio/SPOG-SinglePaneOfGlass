@@ -69,8 +69,12 @@ import { updateTwistVisuals } from './visuals.js';
             font-weight:bold;padding:3px 8px;}
         .rv-prodhead,.rv-originhead{cursor:pointer;color:#000080;letter-spacing:1px;position:sticky;}
         .rv-prodhead:active,.rv-originhead:active{border-color:#808080 #fff #fff #808080;}
-        .rv-twisthead{font-weight:normal;color:#000;}
-        .rv-twisthead.grp,.rv-feedhead.grp{font-style:italic;color:#000080;}
+        /* Destination (column) headers run vertically — 90° flipped, reading
+           bottom-to-top — so the narrow crosspoint columns stay tight. */
+        .rv-twisthead{font-weight:normal;color:#000;writing-mode:vertical-rl;transform:rotate(180deg);
+            vertical-align:bottom;height:120px;padding:8px 3px;}
+        .rv-twisthead.grp{font-style:italic;color:#000080;}
+        .rv-feedhead.grp{font-style:italic;color:#000080;}
         .rv-grid thead th{position:sticky;top:0;z-index:3;}
         .rv-corner{position:sticky;left:0;top:0;z-index:4;}
         .rv-originhead{left:0;z-index:2;text-align:left;}
@@ -180,35 +184,45 @@ import { updateTwistVisuals } from './visuals.js';
         // connected senders missing from loaded pools still get a row (node=null)
         cS.forEach(k => { const [o, l] = k.split(SEP); if (!senderMap.has(o)) senderMap.set(o, new Map()); if (!senderMap.get(o).has(l)) senderMap.get(o).set(l, null); });
 
-        // Build receiver columns (leaves), grouped by production, foldable.
+        // Both "prod" and "origin" carry their parent before the last " — "
+        // (e.g. "PRIMARY — PROD 3", "1st Floor — STAGEBOX 101") — split to a level.
+        const splitParent = (s) => { const i = s.lastIndexOf(' — '); return i >= 0 ? [s.slice(0, i), s.slice(i + 3)] : ['', s]; };
+
+        // Receiver columns: parent → production → twist (groups inside groups).
         colLeaves = [];
-        const colGroups = [];        // {prod, span}
+        const colGroups = [];        // {prod, parent, prodLeaf, span}
         recvMap.forEach((twists, prod) => {
             const keep = [...twists].filter(([t]) => (showAllDst || cR.has(prod + SEP + t)) && rMatch(prod, t));
             if (!keep.length) return;
+            const [parent, prodLeaf] = splitParent(prod);
             if (collapsedProds.has(prod)) {
-                colLeaves.push({ prod, group: true, twists: keep.map(([t]) => t), els: keep.map(([, e]) => e) });
-                colGroups.push({ prod, span: 1 });
+                colLeaves.push({ prod, parent, group: true, twists: keep.map(([t]) => t), els: keep.map(([, e]) => e) });
+                colGroups.push({ prod, parent, prodLeaf, span: 1 });
             } else {
-                keep.forEach(([t, e]) => colLeaves.push({ prod, twist: t, twists: [t], el: e }));
-                colGroups.push({ prod, span: keep.length });
+                keep.forEach(([t, e]) => colLeaves.push({ prod, parent, twist: t, twists: [t], el: e }));
+                colGroups.push({ prod, parent, prodLeaf, span: keep.length });
             }
         });
+        const colParents = [];   // {parent, span} — consecutive prods sharing a parent
+        colGroups.forEach(g => { const par = g.parent || 'PRODUCTIONS'; const last = colParents[colParents.length - 1]; if (last && last.parent === par) last.span += g.span; else colParents.push({ parent: par, span: g.span }); });
 
-        // Build sender rows (leaves), grouped by origin box, foldable.
+        // Sender rows: parent → origin box → feed (groups inside groups).
         rowLeaves = [];
-        const rowGroups = [];        // {origin, rows:[leafIdx...]}
+        const rowGroups = [];        // {origin, parent, boxLeaf, start, end, connected}
         senderMap.forEach((labels, origin) => {
             const keep = [...labels].filter(([l]) => (showAllSrc || cS.has(origin + SEP + l)) && sMatch(origin, l));
             if (!keep.length) return;
+            const [parent, boxLeaf] = splitParent(origin);
             const idxStart = rowLeaves.length;
             if (collapsedOrigins.has(origin)) {
-                rowLeaves.push({ origin, group: true, labels: keep.map(([l]) => l), nodes: keep.map(([, n]) => n) });
+                rowLeaves.push({ origin, parent, group: true, labels: keep.map(([l]) => l), nodes: keep.map(([, n]) => n) });
             } else {
-                keep.forEach(([l, n]) => rowLeaves.push({ origin, label: l, labels: [l], node: n }));
+                keep.forEach(([l, n]) => rowLeaves.push({ origin, parent, label: l, labels: [l], node: n }));
             }
-            rowGroups.push({ origin, start: idxStart, end: rowLeaves.length, connected: keep.some(([l]) => cS.has(origin + SEP + l)) });
+            rowGroups.push({ origin, parent, boxLeaf, start: idxStart, end: rowLeaves.length, connected: keep.some(([l]) => cS.has(origin + SEP + l)) });
         });
+        const rowParents = [];   // {parent, start, end} — consecutive origins sharing a parent
+        rowGroups.forEach(g => { const par = g.parent || 'SOURCES'; const last = rowParents[rowParents.length - 1]; if (last && last.parent === par) last.end = g.end; else rowParents.push({ parent: par, start: g.start, end: g.end }); });
 
         const litAt = (ri, ci) => {
             const r = rowLeaves[ri], c = colLeaves[ci];
@@ -227,22 +241,26 @@ import { updateTwistVisuals } from './visuals.js';
 
         const tbl = document.createElement('table');
         tbl.className = 'rv-grid';
-        // header
-        let h1 = `<tr><th class="rv-corner" rowspan="2">SRC \\ DST</th><th class="rv-corner" rowspan="2"></th>`;
-        colGroups.forEach(g => { h1 += `<th class="rv-prodhead" colspan="${g.span}" data-prod="${encodeURIComponent(g.prod)}">${collapsedProds.has(g.prod) ? '▸' : '▾'} ${g.prod}</th>`; });
+        // header: 3 stacked rows — DST parent (sticky, 90°), production, twist (90°)
+        let h1 = `<tr><th class="rv-corner" rowspan="3" colspan="3">SRC \\ DST</th>`;
+        colParents.forEach(g => { h1 += `<th class="rv-pparenthead" colspan="${g.span}">${g.parent}</th>`; });
+        h1 += '</tr><tr>';
+        colGroups.forEach(g => { h1 += `<th class="rv-prodhead" colspan="${g.span}" data-prod="${encodeURIComponent(g.prod)}">${collapsedProds.has(g.prod) ? '▸' : '▾'} ${g.prodLeaf}</th>`; });
         h1 += '</tr><tr>';
         colLeaves.forEach(c => { h1 += c.group ? `<th class="rv-twisthead grp">ALL ${c.twists.length}</th>` : `<th class="rv-twisthead">${c.twist}</th>`; });
         h1 += '</tr>';
         const thead = document.createElement('thead'); thead.innerHTML = h1; tbl.appendChild(thead);
-        // body
+        // body: parent → box → feed, then the crosspoint cells
         let html = '';
-        rowGroups.forEach(g => {
-            for (let ri = g.start; ri < g.end; ri++) {
+        rowParents.forEach(pg => {
+            for (let ri = pg.start; ri < pg.end; ri++) {
+                const g = rowGroups.find(x => ri >= x.start && ri < x.end);
                 const r = rowLeaves[ri];
                 const off = !r.group && !cS.has(g.origin + SEP + r.label);
                 html += `<tr class="${off ? 'rv-row-off' : ''}">`;
-                if (ri === g.start) html += `<td class="rv-originhead" rowspan="${g.end - g.start}" data-origin="${encodeURIComponent(g.origin)}">${collapsedOrigins.has(g.origin) ? '▸' : '▾'} ${g.origin}</td>`;
-                html += r.group ? `<td class="rv-feedhead grp">ALL ${r.labels.length} FEEDS</td>` : `<td class="rv-feedhead">${r.label}</td>`;
+                if (ri === pg.start) html += `<td class="rv-rparenthead" rowspan="${pg.end - pg.start}">${pg.parent}</td>`;
+                if (ri === g.start) html += `<td class="rv-originhead" rowspan="${g.end - g.start}" data-origin="${encodeURIComponent(g.origin)}">${collapsedOrigins.has(g.origin) ? '▸' : '▾'} ${g.boxLeaf}</td>`;
+                html += r.group ? `<td class="rv-feedhead grp">ALL ${r.labels.length} FEEDS</td>` : `<td class="rv-feedhead">${typeDot(r.node, r.label)} ${r.label}</td>`;
                 colLeaves.forEach((c, ci) => {
                     const lit = litAt(ri, ci), grp = r.group || c.group;
                     html += `<td class="rv-cell${lit ? ' on' : ''}${grp ? ' grp' : ''}" data-r="${ri}" data-c="${ci}"></td>`;

@@ -32,7 +32,7 @@
         const el = document.createElement('div');
         el.id = 'ptp-clock';
         el.className = 'ptp-clock';
-        el.title = 'Click to toggle: HH:MM + second-dots ⟷ numeric (Unix / timecode)';
+        el.title = 'Click to open the production schedule & crew';
         el.innerHTML = `<span class="ck-time"></span><span class="ck-dots"></span>`;
         document.body.appendChild(el);
 
@@ -41,12 +41,10 @@
         for (let i = 0; i < 60; i++) dotsEl.appendChild(document.createElement('span')).className = 'ck-dot';
         const dots = dotsEl.children;
 
-        // num view cycles unix → timecode → back to dot view
-        let mode = 'dots';   // 'dots' | 'unix' | 'tc'
-        el.addEventListener('click', () => {
-            mode = mode === 'dots' ? 'unix' : mode === 'unix' ? 'tc' : 'dots';
-            el.classList.toggle('num', mode !== 'dots');
-        });
+        // The clock stays in the dot view; clicking it launches the production
+        // SCHEDULE (timeline + crew) rather than cycling the clock format.
+        let mode = 'dots';   // kept for the tick() display logic below
+        el.addEventListener('click', () => { if (window.Schedule) window.Schedule.show(); });
 
         const pad = (n) => String(n).padStart(2, '0');
         let lastSec = -1;
