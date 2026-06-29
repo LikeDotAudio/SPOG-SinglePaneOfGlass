@@ -52,7 +52,10 @@ def load_env():
 # Files and directories to never upload, even if changed
 IGNORE = {'.git', '.env', '__pycache__', 'deploy.py', 'deploy-next.py', 'start.py', 'uploadftp.py',
           'node_modules', 'package.json', 'package-lock.json', 'test_puppeteer.js',
-          'dist', 'src', 'vite.config.ts', 'tsconfig.json', '.smoke.mjs'}
+          'dist', 'src', 'vite.config.ts', 'tsconfig.json', '.smoke.mjs',
+          # The dev side-build entry (loads /src/app/main.ts) must never hit prod;
+          # the BUILT index.next.html is published by deploy-next.py instead.
+          'index.next.html'}
 
 def is_ignored(rel_path):
     parts = rel_path.split('/')
