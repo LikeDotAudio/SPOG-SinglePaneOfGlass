@@ -46,5 +46,43 @@ export function drawParade(cv, s, barsOn) {
     }
 }
 
-// Vectorscope dot offset from RGB balance.
-export function vectorXY(s) { return [(s.rGain - s.bGain) * 70, (s.gGain - 0.5) * -70]; }
+// A real vectorscope: a 2D projection of colour (chrominance) — RGB is converted
+// to YPbPr, luminance discarded, and the colour-difference (Pb,Pr) plotted on a
+// polar graph (angle = hue, radius = saturation). Target boxes mark the SMPTE
+// primaries/secondaries; the I-line is the skin-tone axis. Balance to centre = WB.
+const TARGETS = { R: [.75, 0, 0], Yl: [.75, .75, 0], G: [0, .75, 0], Cy: [0, .75, .75], B: [0, 0, .75], Mg: [.75, 0, .75] };
+
+function ypbpr(r, g, b) {
+    const Y = 0.299 * r + 0.587 * g + 0.114 * b;
+    return [(b - Y) * 0.564, (r - Y) * 0.713];   // Pb, Pr
+}
+
+export function drawVectorscope(cv, s, barsOn) {
+    const w = cv.width = cv.clientWidth | 0, h = cv.height = cv.clientHeight | 0; if (!w || !h) return;
+    const ctx = cv.getContext('2d'), cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 4, K = R * 1.78;
+    ctx.clearRect(0, 0, w, h);
+    const xy = (r, g, b) => { const [pb, pr] = ypbpr(r, g, b); return [cx + pb * K, cy - pr * K]; };
+    // graticule
+    ctx.strokeStyle = 'rgba(80,110,150,.3)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, R * 0.5, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R); ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy); ctx.stroke();
+    // skin-tone / I-line
+    const [sx, sy] = xy(0.78, 0.55, 0.42);
+    ctx.strokeStyle = 'rgba(255,200,120,.35)'; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + (sx - cx) * 1.5, cy + (sy - cy) * 1.5); ctx.stroke();
+    // target boxes
+    ctx.font = '8px Courier New, monospace'; ctx.strokeStyle = 'rgba(150,180,220,.6)'; ctx.fillStyle = 'rgba(150,180,220,.7)';
+    for (const k in TARGETS) { const [x, y] = xy(...TARGETS[k]); ctx.strokeRect(x - 4, y - 4, 8, 8); ctx.fillText(k, x + 6, y + 3); }
+    // trace
+    if (barsOn) {
+        [[.75, .75, .75], ...Object.values(TARGETS)].forEach(c => { const [x, y] = xy(...c); ctx.fillStyle = '#dff0ff'; ctx.beginPath(); ctx.arc(x, y, 2.6, 0, 7); ctx.fill(); });
+    } else {
+        const gr = (v, k) => v * (0.62 + s[k] * 0.82);
+        // skin-tone cluster (lands on the I-line when WB is correct)
+        ctx.fillStyle = 'rgba(255,224,96,.85)';
+        for (let i = 0; i < 50; i++) { const [x, y] = xy(gr(0.78, 'rGain'), gr(0.55, 'gGain'), gr(0.42, 'bGain')); ctx.fillRect(x + (Math.random() - 0.5) * 10, y + (Math.random() - 0.5) * 10, 1.5, 1.5); }
+        // neutral-grey dot: collapses to centre only when RGB gains are balanced
+        const [nx, ny] = xy(gr(0.5, 'rGain'), gr(0.5, 'gGain'), gr(0.5, 'bGain'));
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(nx, ny, 3, 0, 7); ctx.fill();
+    }
+}

@@ -59,6 +59,11 @@ const CSS = `
 .enc-key.on{background:#6FC8F0;color:#001019;border-color:#6FC8F0;}
 .enc-health{font:11px 'Courier New',monospace;line-height:1.9;color:#9fb6cc;}
 .enc-health .ok{color:#39d353;} .enc-health .bad{color:#ff6a6a;}
+.enc-scte{margin-top:12px;padding:14px;border-radius:9px;border:1px solid #ff6a6a;background:#1a0c0c;color:#ff9a9a;font:900 13px sans-serif;letter-spacing:2px;text-transform:uppercase;cursor:pointer;text-align:center;}
+.enc-scte:hover{background:#2a1212;}
+.enc-scte.on{background:#ff3b3b;color:#fff;border-color:#ff3b3b;box-shadow:0 0 16px rgba(255,59,59,.7);}
+.enc-toast{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:rgba(255,59,59,.92);color:#fff;font:bold 11px 'Courier New',monospace;padding:7px 13px;border-radius:7px;z-index:5;white-space:nowrap;animation:encToast 1.8s ease forwards;}
+@keyframes encToast{0%{opacity:0;transform:translate(-50%,12px)}15%{opacity:1;transform:translate(-50%,0)}85%{opacity:1}100%{opacity:0}}
 `;
 
 function render(body, twist) {
@@ -75,6 +80,7 @@ function render(body, twist) {
             <div class="enc-meta">
               <span class="enc-badge on">SCTE-35</span><span class="enc-badge on">CC 608/708</span><span class="enc-badge on">LTC TC</span><span class="enc-badge on">SMPTE 2110</span>
             </div>
+            <div class="enc-scte">⦿ SCTE-35 Ad Trigger</div>
           </div>
         </div>
 
@@ -119,6 +125,16 @@ function render(body, twist) {
     });
     $('.enc-fo').addEventListener('click', e => { const p = e.target.closest('.pill'); if (!p) return; ui.failPrimary = p.classList.contains('prim'); $('.enc-fo .prim').classList.toggle('on', ui.failPrimary); $('.enc-fo .sec').classList.toggle('on', !ui.failPrimary); });
     $('.enc-key.drm').addEventListener('click', e => { ui.drm = !ui.drm; e.target.classList.toggle('on', ui.drm); });
+
+    // SCTE-35 ad trigger — splices an ad-insertion cue into the outgoing manifest.
+    const scte = $('.enc-scte'), mez = $('.enc-mez');
+    scte.addEventListener('click', () => {
+        scte.classList.add('on'); setTimeout(() => scte.classList.remove('on'), 600);
+        const toast = document.createElement('div'); toast.className = 'enc-toast'; toast.textContent = 'SCTE-35 · AD CUE-OUT SPLICED';
+        mez.appendChild(toast); setTimeout(() => toast.remove(), 1800);
+        const badge = [...$('.enc-meta').children].find(b => /SCTE/.test(b.textContent));
+        if (badge) { badge.style.boxShadow = '0 0 12px #ff3b3b'; setTimeout(() => { badge.style.boxShadow = ''; }, 700); }
+    });
 
     const health = $('.enc-health');
     let f = 0;

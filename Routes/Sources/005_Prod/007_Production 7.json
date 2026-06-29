@@ -15,10 +15,10 @@
     {
       "name": "AUX 1",
       "audio": [
-        "MIX MINUS 1",
-        "MIX MINUS 2",
-        "MIX MINUS 3",
-        "MIX MINUS 4"
+        "AUX OUT 1",
+        "AUX OUT 2",
+        "AUX OUT 3",
+        "AUX OUT 4"
       ]
     },
     {
@@ -32,7 +32,12 @@
     },
     {
       "name": "MV 1",
-      "audio": []
+      "audio": [
+        "MIX MINUS 1",
+        "MIX MINUS 2",
+        "MIX MINUS 3",
+        "MIX MINUS 4"
+      ]
     },
     {
       "name": "ISO 1",

@@ -38,6 +38,18 @@ import { register, addStyles, channelsFor, gatherSources, knob, meterBar, pushTi
         .am-knob::after{content:'';position:absolute;left:50%;top:6px;width:3px;height:18px;background:var(--cyan,#00ffff);
             transform-origin:50% 25px;transform:translateX(-50%) rotate(var(--rot,0deg));border-radius:2px;}
         .am-klabel{font-size:9px;letter-spacing:1px;color:#7e93b5;margin-top:-6px;}
+        /* Stage-box remote-preamp SENS control, revealed with a little magic. */
+        .am-sens{position:relative;margin:4px auto 8px;padding:6px 4px 4px;border-radius:10px;
+            background:rgba(242,183,75,.1);border:1px solid rgba(242,183,75,.5);display:flex;flex-direction:column;align-items:center;}
+        .am-sens-badge{font:bold 8px sans-serif;letter-spacing:1px;color:#F2B74B;margin-bottom:3px;}
+        .am-sens .am-knob{--cyan:#F2B74B;border-color:#8a6a26;}
+        .am-sens-reveal{animation:amSens .85s cubic-bezier(.2,1.4,.4,1) both;}
+        @keyframes amSens{0%{transform:scale(.15);opacity:0;filter:brightness(3)}55%{transform:scale(1.14)}100%{transform:scale(1);opacity:1;filter:none}}
+        .am-sens-reveal::before{content:'';position:absolute;inset:-5px;border-radius:12px;border:2px solid #F2B74B;
+            animation:amRing .85s ease-out forwards;pointer-events:none;}
+        @keyframes amRing{0%{transform:scale(.4);opacity:.95;box-shadow:0 0 18px #F2B74B}100%{transform:scale(1.9);opacity:0}}
+        .am-sens-reveal::after{content:'✦';position:absolute;top:-8px;right:-4px;color:#ffe9b0;font-size:13px;animation:amSpark 1s ease-out forwards;}
+        @keyframes amSpark{0%{transform:scale(0) rotate(0);opacity:0}40%{transform:scale(1.4) rotate(90deg);opacity:1}100%{transform:scale(.6) rotate(180deg);opacity:0}}
         .am-eq{display:flex;gap:8px;}
         .am-eq .am-kw{display:flex;flex-direction:column;align-items:center;}
         .am-eq .am-knob{width:40px;height:40px;}
@@ -99,10 +111,13 @@ import { register, addStyles, channelsFor, gatherSources, knob, meterBar, pushTi
             if (n.classList.contains('dropped-group')) {
                 const head = n.querySelector('.dropped-group-header');
                 const label = ((head ? head.innerText : n.innerText) || '').trim().split('\n')[0].replace(/\s*×\s*\d+\s*$/, '');
-                const children = [...n.querySelectorAll('.dropped-group-children .signal-node')].map(info);
-                out.push({ label, color: window.getComputedStyle(n).color || '#FF9C63', group: true, children });
+                const kids = [...n.querySelectorAll('.dropped-group-children .signal-node')];
+                // A stage box arrives with its PREAMP control — that unlocks the SENS
+                // (remote preamp) control on this channel strip.
+                const preamp = kids.some(k => k.classList.contains('control'));
+                out.push({ label, color: window.getComputedStyle(n).color || '#FF9C63', group: true, children: kids.map(info), preamp });
             } else {
-                out.push(info(n));
+                const c = info(n); c.preamp = n.classList.contains('control'); out.push(c);
             }
         });
         return out;
@@ -206,6 +221,17 @@ import { register, addStyles, channelsFor, gatherSources, knob, meterBar, pushTi
             name.textContent = master ? 'MASTER' : (c.group ? `${c.label} ×${c.children.length}` : c.label);
             name.style.color = master ? '#d8c8ff' : (c.color || '#cfe0ff');
             el.appendChild(name);
+
+            // Stage-box channels light up a remote-preamp SENS knob — revealed with
+            // a little "magic": a glowing ring + a NEW PREAMP badge.
+            if (c.preamp && !master) {
+                const sens = document.createElement('div');
+                sens.className = 'am-sens am-sens-reveal';
+                sens.innerHTML = `<div class="am-sens-badge">⌁ PREAMP ⌁</div>`;
+                const k = knob('SENS', 0.5, '#F2B74B'); k.classList.add('am-sens-knob');
+                sens.appendChild(k);
+                el.appendChild(sens);
+            }
 
             // A group bus carries a SPILL toggle to break its channels out below.
             if (c.group) {

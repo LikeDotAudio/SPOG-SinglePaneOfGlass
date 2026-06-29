@@ -10,7 +10,7 @@
 import { register, addStyles, pushTimer } from './core.js';
 import { CSS } from './camera/styles.js';
 import { mkState } from './camera/state.js';
-import { drawParade, vectorXY } from './camera/scopes.js';
+import { drawParade, drawVectorscope } from './camera/scopes.js';
 import { drawSMPTE, stepDVD } from './camera/bars.js';
 import { topSVG, sideSVG, updateMaps } from './camera/maps.js';
 import { buildShading, buildJoystick, buildTally, buildPresets, buildFunctions } from './camera/controls.js';
@@ -35,13 +35,12 @@ function render(body, twist) {
           <div class="cc-video">
             <div class="cc-scene"><div class="cc-subject"></div></div>
           </div>
-          <div class="cc-smpte"><canvas></canvas></div>
-          <div class="cc-dvd"></div>
+          <div class="cc-smpte"><canvas></canvas><div class="cc-dvd"></div></div>
           <div class="cc-osd"></div>
           <div class="cc-rec">● REC</div>
           <div class="cc-map top"><div class="lbl">TOP-DOWN · PAN / DOLLY</div>${topSVG()}</div>
           <div class="cc-map side"><div class="lbl">SIDE · TILT / PED</div>${sideSVG()}</div>
-          <div class="cc-vec"><div class="cross"></div><div class="dot"></div></div>
+          <canvas class="cc-vec"></canvas>
           <div class="cc-wf-tag">RGB PARADE · IRE</div>
           <canvas class="cc-wf"></canvas>
           <div class="cc-tel-box"><div class="cap">TELEMETRY</div><div class="cc-tel"></div></div>
@@ -78,7 +77,7 @@ function render(body, twist) {
 
     const $ = (s) => body.querySelector(s);
     const scene = $('.cc-scene'), subject = $('.cc-subject'), video = $('.cc-video');
-    const smpte = $('.cc-smpte canvas'), smpteBox = $('.cc-smpte'), wf = $('.cc-wf'), osd = $('.cc-osd'), vecDot = $('.cc-vec .dot'), tel = $('.cc-tel');
+    const smpte = $('.cc-smpte canvas'), smpteBox = $('.cc-smpte'), wf = $('.cc-wf'), osd = $('.cc-osd'), vec = $('.cc-vec'), tel = $('.cc-tel');
     const dvd = $('.cc-dvd'); dvd.textContent = lineage;
 
     function shade() {
@@ -86,8 +85,6 @@ function render(body, twist) {
         const bright = 0.45 + s.iris * 0.9 + s.mgain * 0.5 + (ui.autoiris ? 0.1 : 0);
         const hue = (s.rGain - s.bGain) * 40, sat = 0.7 + (Math.abs(s.rGain - 0.5) + Math.abs(s.bGain - 0.5)) * 1.2, contrast = 0.8 + s.gamma * 0.6;
         scene.style.filter = `brightness(${bright.toFixed(2)}) contrast(${contrast.toFixed(2)}) saturate(${sat.toFixed(2)}) hue-rotate(${hue.toFixed(0)}deg)`;
-        const [vx, vy] = vectorXY(s);
-        vecDot.style.transform = `translate(calc(-50% + ${vx}px), calc(-50% + ${vy}px))`;
     }
 
     const ctx = { S: () => cams[ui.active], ui, knobEls: [], fly: null, body, $, shade };
@@ -169,7 +166,7 @@ function render(body, twist) {
         const zs = 0.7 + s.zoom * 2.6 + s.dolly * 0.4, ty = (s.tilt - 0.5) * -40 + (s.ped - 0.5) * -30;
         subject.style.transform = `translate(-50%,-50%) scale(${zs.toFixed(2)}) translateY(${ty}px)`;
         if (ui.bars) { drawSMPTE(smpte); stepDVD(dvd, smpteBox, ctx.dvdState); }
-        drawParade(wf, s, ui.bars); updateMaps(body, s);
+        drawParade(wf, s, ui.bars); drawVectorscope(vec, s, ui.bars); updateMaps(body, s);
         const focal = Math.round(8 + s.zoom * 280), fstop = (1.8 + (1 - s.iris) * 14).toFixed(1);
         osd.innerHTML = `CAM ${ui.active + 1} &nbsp; LIVE &nbsp; f/${fstop} &nbsp; ${focal}mm`;
         tel.innerHTML = `Focal&nbsp; <b>${focal}mm</b><br>Iris&nbsp;&nbsp; <b>f/${fstop}</b><br>Zoom&nbsp; <b>${Math.round(s.zoom * 100)}%</b><br>`

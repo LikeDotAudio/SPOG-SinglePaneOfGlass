@@ -32,11 +32,8 @@ export const CSS = `
 /* RGB PARADE waveform monitor — overlaid at the bottom */
 .cc-wf{position:absolute;left:0;right:0;bottom:0;height:130px;background:rgba(0,6,12,.66);border-top:1px solid #1d3354;z-index:3;}
 .cc-wf-tag{position:absolute;left:30px;bottom:110px;z-index:4;font:bold 10px 'Courier New',monospace;letter-spacing:2px;color:#6FC8F0;}
-.cc-vec{position:absolute;right:10px;top:26px;width:96px;height:96px;border-radius:50%;background:radial-gradient(circle,rgba(0,0,0,.6),rgba(0,0,0,.85));border:1px solid #2c3e5e;z-index:4;}
-.cc-vec .dot{position:absolute;width:8px;height:8px;border-radius:50%;background:#ffe14d;box-shadow:0 0 6px #ffe14d;left:50%;top:50%;transition:transform .12s;}
-.cc-vec .cross{position:absolute;inset:0;}
-.cc-vec .cross::before,.cc-vec .cross::after{content:'';position:absolute;background:#2c3e5e;}
-.cc-vec .cross::before{left:50%;top:6%;bottom:6%;width:1px;} .cc-vec .cross::after{top:50%;left:6%;right:6%;height:1px;}
+.cc-vec{position:absolute;right:10px;top:26px;width:160px;height:160px;border-radius:50%;
+    background:radial-gradient(circle,rgba(0,0,0,.5),rgba(0,0,0,.85));border:1px solid #2c3e5e;z-index:4;}
 
 /* robotics maps — translucent overlays */
 .cc-map{position:absolute;left:10px;z-index:4;border:1px solid rgba(111,200,240,.32);border-radius:8px;overflow:hidden;background:rgba(3,9,18,.5);}

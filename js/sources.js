@@ -96,6 +96,16 @@ function buildGangCell(data, suffix, color, kind) {
             sub.textContent = l;
             kids.appendChild(sub);
         });
+        // Like a camera's Camera Control, a stage box travels with a PREAMP control
+        // signal — route it to the audio console's Stage Box Control to drive the
+        // remote preamp (gain/+48V/HPF/mic-library) editor.
+        const ctrl = document.createElement('div');
+        ctrl.className = 'signal-node control sub-stream';
+        ctrl.draggable = true;
+        ctrl.id = `pool-${node.id}-preamp`;
+        ctrl.dataset.origin = data.origin || data.name;
+        ctrl.textContent = 'PREAMP CTRL';
+        kids.appendChild(ctrl);
     }
 
     const header = document.createElement('div');

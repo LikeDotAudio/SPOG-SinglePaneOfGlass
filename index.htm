@@ -265,6 +265,21 @@
                 drop-shadow(0 0 4px);
         }
 
+        /* Stage-box PREAMP control signal — same hexagon as camera control, in
+           amber, so a stage box "travels with control" like a camera. */
+        .signal-node.control {
+            clip-path: polygon(22% 0, 78% 0, 100% 50%, 78% 100%, 22% 100%, 0 50%);
+            border-radius: 0;
+            border-color: transparent;
+            background: rgba(242, 183, 75, 0.16);
+            color: #F2B74B;
+            font-weight: bold;
+            padding-left: 18px;
+            padding-right: 18px;
+            filter:
+                drop-shadow(1px 0 0) drop-shadow(-1px 0 0) drop-shadow(0 1px 0) drop-shadow(0 -1px 0) drop-shadow(0 0 4px);
+        }
+
         .signal-node::after {
             content: '';
             position: absolute;
@@ -1031,7 +1046,7 @@
 
     <a class="credit-button" href="https://like.audio/20260627/twist-like-audio/" target="_blank" rel="noopener">CREATED BY ANTHONY PETER KUZUB&nbsp;&nbsp;-&nbsp;&nbsp;WWW.LIKE.AUDIO</a>
 
-    <script type="module" src="js/main.js?v=84"></script>
+    <script type="module" src="js/main.js?v=86"></script>
     <script>
         // Offline cache: after the first load the app serves from the local
         // machine and stops hitting the website. See sw.js.
