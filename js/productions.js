@@ -1,6 +1,7 @@
 import { isFaultStatus } from './globals.js';
 import { slugId, faultTag } from './util/dom.js';
 import { initializeTwists, initRoomDrops } from './matrix.js';
+import { monoEmoji } from './util/mono-emoji.js';
 // Render each production as its own collapsible pool ("super group"), exactly
 // like the VIDEO/AUDIO stage-box pools. The pool's foldable header is made
 // draggable by initializeDraggables(), so dragging the whole program carries all
@@ -69,7 +70,7 @@ export function renderPrograms(programs) {
 
         let html = `
             <div class="program-row${faulted ? ' fault' : ''}" style="--prod-color: ${pgm.color || '#ffaa00'}; position: relative; overflow: hidden; padding: 0; margin-bottom: 10px; flex: 1 1 auto;">
-                <div class="program-title" style="background: ${pgm.color || '#ffaa00'};">${titleText}${faulted ? ' ' : ''}${faultTag(pgm.status)}</div>
+                <div class="program-title" style="background: ${pgm.color || '#ffaa00'};">${monoEmoji(titleText)}${titleText}${faulted ? ' ' : ''}${faultTag(pgm.status)}</div>
                 <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding-right: 60px;">
         `;
         
@@ -102,7 +103,7 @@ export function renderPrograms(programs) {
             const prodAttrs = `data-prod-id="${pgm.id}" data-prod-name="${(titleText || '').replace(/"/g, '&quot;')}"`;
             const twistHtml = `
                     <div class="twist-container${isSmall ? ' monitor-twist' : ''}" ${twistConfig} ${prodAttrs} style="--lcars-color: ${lcarsColor}; ${sizing}">
-                        <div class="twist-title">${twistName}</div>
+                        <div class="twist-title">${monoEmoji(twistName)}${twistName}</div>
                         <div class="twist-lip" title="Fold / unfold strand" onclick="toggleHelix(event, this)"></div>
                         <div class="twist-foldbar" title="Fold / unfold strand" onclick="toggleHelix(event, this)"></div>
                         <div class="matrix-container" id="${pgm.id}-${twistName.replace(/\s+/g, '-').toLowerCase()}"></div>

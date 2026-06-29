@@ -1,5 +1,6 @@
 import { styleSignalNode } from './util/color.js';
 import { makeMediaGroup } from './ui/makeMediaGroup.js';
+import { monoEmoji } from './util/mono-emoji.js';
 
 // Render each Playout as its own collapsible pool, mirroring the VIDEO / AUDIO
 // stage-box pools. A playout holds PLAYERS; each player holds VIDEOS; each video
@@ -56,7 +57,7 @@ export function renderPlayoutPool(data, container) {
     group.className = 'input-group';
     group.innerHTML = `
         <div class="foldable-header" style="--lcars-color: ${color}; background-color: ${color}; font-size: 11px; margin-bottom: 8px;" onclick="togglePool(this)">
-            <span>${data.name}</span>
+            <span>${monoEmoji(data.name)}${data.name}</span>
             <span class="fold-icon" style="transform: rotate(-90deg); display: inline-block; transition: transform 0.2s;">▼</span>
         </div>
         <div class="pool-content" id="${data.id}" style="display: none;"></div>

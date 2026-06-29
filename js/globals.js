@@ -154,6 +154,16 @@ export function toggleSuperPool(event, container) {
     const isOpening = content.style.display === 'none';
 
     if (isOpening) {
+        // Accordion: only ONE super-pool open at a time. Close every sibling
+        // pool (SOUND / VIDEO / PROD / PLAY / PORTALS) before opening this one.
+        const parent = container.parentElement;
+        if (parent) parent.querySelectorAll(':scope > .super-pool-container').forEach(sib => {
+            if (sib === container) return;
+            const c = sib.querySelector(':scope > .super-pool-content');
+            if (c) c.style.display = 'none';
+            const ic = sib.querySelector(':scope > .super-pool-title .fold-icon');
+            if (ic) ic.style.transform = 'rotate(-90deg)';
+        });
         content.style.display = '';
         if (icon) icon.style.transform = 'rotate(0deg)';
     } else {

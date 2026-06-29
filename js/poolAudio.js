@@ -1,6 +1,7 @@
 import { styleSignalNode } from './util/color.js';
 import { isFaultStatus } from './globals.js';
 import { faultTag, slugId } from './util/dom.js';
+import { monoEmoji } from './util/mono-emoji.js';
 // AUDIO_POOL_COLORS now lives in js/util/palette.js; styleSignalNode in
 // js/util/color.js (both loaded first).
 
@@ -50,7 +51,7 @@ export function renderAudioPool(data, container, color) {
     group.className = 'input-group';
     group.innerHTML = `
         <div class="foldable-header${faulted ? ' fault' : ''}" title="${data.status || 'OK'}" style="--lcars-color: ${poolColor}; background-color: ${poolColor}; font-size: 11px; margin-bottom: 8px;" onclick="togglePool(this)">
-            <span>${data.name}${faultTag(data.status)}</span>
+            <span>${monoEmoji(data.name)}${data.name}${faultTag(data.status)}</span>
             <span class="fold-icon" style="transform: rotate(-90deg); display: inline-block; transition: transform 0.2s;">▼</span>
         </div>
         <div class="input-grid-audio pool-content" id="${data.id}" style="display: none;">

@@ -6,6 +6,7 @@
 import { listDirectory, fetchJSON, toggleSuperPool, isFaultStatus } from './globals.js';
 import { AUDIO_POOL_COLORS, SOURCE_POOL_COLORS } from './util/palette.js';
 import { makeMediaGroup } from './ui/makeMediaGroup.js';
+import { monoEmoji } from './util/mono-emoji.js';
 import { stripOrder, slugId } from './util/dom.js';
 import { styleSignalNode } from './util/color.js';
 import { initializeDraggables } from './dragDrop.js';
@@ -133,7 +134,10 @@ export async function renderSourceTree(baseUrl, container, depth, inheritColor, 
         const load = async () => {
             if (loaded) return;
             loaded = true;
-            await renderSourceTree(baseUrl + d.href, content, depth + 1, groupColor, stripOrder(d.name));
+            // Chain the lineage so a deep leaf carries its full path
+            // (e.g. "2nd Floor — STAGEBOX 201"), not just its immediate parent.
+            const childParent = parentLabel ? `${parentLabel} — ${stripOrder(d.name)}` : stripOrder(d.name);
+            await renderSourceTree(baseUrl + d.href, content, depth + 1, groupColor, childParent);
             // Wire the freshly-rendered pool nodes for drag (mouse + touch).
             initializeDraggables();
         };
@@ -147,11 +151,13 @@ export function buildSuperPool(panel, name, color) {
     const container = document.createElement('div');
     container.className = 'super-pool-container';
     container.style.setProperty('--lcars-color', color);
+    // Start collapsed; the accordion (one open at a time) keeps it that way and
+    // renderSourcesPanel opens just the first category.
     container.innerHTML = `
         <div class="super-pool-title foldable-header">
-            <span>${stripOrder(name).toUpperCase()}</span><span class="fold-icon">▼</span>
+            <span>${monoEmoji(name)}${stripOrder(name).toUpperCase()}</span><span class="fold-icon" style="transform:rotate(-90deg);display:inline-block;transition:transform .2s;">▼</span>
         </div>
-        <div class="super-pool-content"></div>
+        <div class="super-pool-content" style="display:none;"></div>
     `;
     container.addEventListener('click', (e) => toggleSuperPool(e, container));
     panel.appendChild(container);
@@ -164,9 +170,16 @@ export async function renderSourcesPanel(panel) {
     if (!panel) return;
     const { dirs } = await listDirectory('Routes/Sources/');
     // Build the super-pools in manifest order, then fill them in parallel.
-    await Promise.all(dirs.map((cat, i) => {
+    const built = dirs.map((cat, i) => {
         const color = SOURCE_POOL_COLORS[i % SOURCE_POOL_COLORS.length];
         const content = buildSuperPool(panel, cat.name, color);
-        return renderSourceTree('Routes/Sources/' + cat.href, content, 0, null, null);
-    }));
+        return { content, url: 'Routes/Sources/' + cat.href };
+    });
+    // Accordion starts with just the first category open (the rest collapse).
+    if (built[0]) {
+        built[0].content.style.display = '';
+        const ic = built[0].content.parentElement.querySelector(':scope > .super-pool-title .fold-icon');
+        if (ic) ic.style.transform = 'rotate(0deg)';
+    }
+    await Promise.all(built.map(b => renderSourceTree(b.url, b.content, 0, null, null)));
 }

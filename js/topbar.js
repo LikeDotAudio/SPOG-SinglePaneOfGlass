@@ -109,10 +109,10 @@ import { switchTab } from './globals.js';
                 color: #000;
                 background: rgb(var(--lcars));
                 opacity: 0.45;
-                padding: 9px 24px;
+                padding: 9px 26px;
                 border: none;
-                /* Asymmetric LCARS pill: rounded ends */
-                border-radius: 16px;
+                /* AND-gate (D-shape): flat back edge, semicircular front. */
+                border-radius: 0 999px 999px 0;
                 cursor: pointer;
                 user-select: none;
                 white-space: nowrap;

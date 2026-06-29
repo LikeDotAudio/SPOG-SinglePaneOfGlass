@@ -28,7 +28,7 @@ export function enforceTwistLimits(dropZone, config, child) {
 // Build one collapsible "where it came from" chip from a set of source nodes:
 // shows "<origin> ×N" and expands to the individual feeds. Used for multiplex
 // boxes and for same-origin plain sources (e.g. STAGEBOX 202's CH 1-12).
-export function buildDroppedGroup(groupName, groupColor, sourceNodes) {
+export function buildDroppedGroup(groupName, groupColor, sourceNodes, parentLabel) {
     const group = document.createElement('div');
     group.className = 'signal-node dropped-group';
     group.style.borderColor = groupColor;
@@ -38,7 +38,17 @@ export function buildDroppedGroup(groupName, groupColor, sourceNodes) {
 
     const head = document.createElement('div');
     head.className = 'dropped-group-header';
-    head.innerText = `${groupName} ×${sourceNodes.length}`;
+    // Lead with the parent lineage (e.g. "2ND FLOOR · STAGEBOX 201") so a routed
+    // feed says WHERE it came from, not just its bare id.
+    if (parentLabel) {
+        const cap = document.createElement('span');
+        cap.className = 'dg-parent';
+        cap.textContent = parentLabel;
+        head.appendChild(cap);
+        head.appendChild(document.createTextNode(`${groupName} ×${sourceNodes.length}`));
+    } else {
+        head.innerText = `${groupName} ×${sourceNodes.length}`;
+    }
 
     const kids = document.createElement('div');
     kids.className = 'dropped-group-children';
@@ -157,7 +167,10 @@ export function initializeTwists() {
                         if (accepted.length) {
                             const headerEl = node.querySelector('.multiplex-header');
                             const groupName = headerEl ? headerEl.innerText : (node.dataset.origin || node.id);
-                            dropZone.appendChild(buildDroppedGroup(groupName, window.getComputedStyle(node).color, accepted));
+                            // The box id (V201-01) is separate from its origin, so the
+                            // whole origin is the parent lineage caption.
+                            const parentCap = (node.dataset.origin || '').split(' — ').map(s => s.trim()).filter(Boolean).join(' · ');
+                            dropZone.appendChild(buildDroppedGroup(groupName, window.getComputedStyle(node).color, accepted, parentCap));
                         }
                     } else if (acceptsType(node)) plain.push(node);
                 });
@@ -165,7 +178,12 @@ export function initializeTwists() {
                 const byOrigin = new Map();
                 plain.forEach(n => { const key = n.dataset.origin || ''; if (!byOrigin.has(key)) byOrigin.set(key, []); byOrigin.get(key).push(n); });
                 byOrigin.forEach((nodes, origin) => {
-                    if (origin && nodes.length >= 2) dropZone.appendChild(buildDroppedGroup(origin, window.getComputedStyle(nodes[0]).color, nodes));
+                    // The origin is the box itself (e.g. "2nd Floor — STAGEBOX 202"):
+                    // last segment = the box name, the rest = its parent lineage.
+                    const parts = String(origin || '').split(' — ').map(s => s.trim()).filter(Boolean);
+                    const boxName = parts[parts.length - 1] || origin;
+                    const parentCap = parts.slice(0, -1).join(' · ');
+                    if (origin && nodes.length >= 2) dropZone.appendChild(buildDroppedGroup(boxName, window.getComputedStyle(nodes[0]).color, nodes, parentCap));
                     else nodes.forEach(n => {
                         const clone = n.cloneNode(true);
                         clone.id = n.id + '-' + Math.random().toString(36).substr(2, 6);

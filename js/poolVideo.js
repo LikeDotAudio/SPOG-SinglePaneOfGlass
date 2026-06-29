@@ -1,6 +1,7 @@
 import { shadeColor, styleSignalNode } from './util/color.js';
 import { isFaultStatus } from './globals.js';
 import { faultTag } from './util/dom.js';
+import { monoEmoji } from './util/mono-emoji.js';
 // shadeColor + styleSignalNode now live in js/util/color.js (loaded first).
 
 export function populateVideoPool(poolId, prefix, count, extraClass, color, status) {
@@ -52,7 +53,7 @@ export function renderVideoPool(data, container) {
     group.className = 'input-group';
     group.innerHTML = `
         <div class="foldable-header${faulted ? ' fault' : ''}" title="${data.status || 'OK'}" style="--lcars-color: ${data.color || 'var(--lcars-color)'}; font-size: 11px; margin-bottom: 8px;" onclick="togglePool(this)">
-            <span>${data.name}${faultTag(data.status)}</span>
+            <span>${monoEmoji(data.name)}${data.name}${faultTag(data.status)}</span>
             <span class="fold-icon" style="transform: rotate(-90deg); display: inline-block; transition: transform 0.2s;">▼</span>
         </div>
         <div class="input-grid-video pool-content" id="${data.id}" style="display: none;">

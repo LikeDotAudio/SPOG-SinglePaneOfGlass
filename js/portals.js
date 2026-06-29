@@ -14,6 +14,7 @@
 import { makeNodeDraggable } from './dragDrop.js';
 import { initializeTwists } from './matrix.js';
 import { toggleSuperPool } from './globals.js';
+import { monoEmoji } from './util/mono-emoji.js';
 
 (function () {
     'use strict';
@@ -49,14 +50,18 @@ import { toggleSuperPool } from './globals.js';
         const container = document.createElement('div');
         container.className = 'super-pool-container portals-pool';
         container.innerHTML = `
-            <div class="super-pool-title foldable-header"><span>PORTALS</span><span class="fold-icon">▼</span></div>
-            <div class="super-pool-content">
+            <div class="super-pool-title foldable-header"><span>${monoEmoji('portal')}PORTALS</span><span class="fold-icon" style="transform:rotate(-90deg);display:inline-block;transition:transform .2s;">▼</span></div>
+            <div class="super-pool-content" style="display:none;">
                 <button class="portal-new">＋ NEW PORTAL</button>
                 <div class="portal-srcs"><div class="portal-empty">no portals yet</div></div>
             </div>`;
         container.addEventListener('click', (e) => toggleSuperPool(e, container));
         container.querySelector('.portal-new').addEventListener('click', (e) => { e.stopPropagation(); createPortal(); });
-        panel.insertBefore(container, panel.firstChild);
+        panel.appendChild(container);
+        // Keep PORTALS as the LAST source pool even as the other pools render in
+        // later (they're appended after this on initApp).
+        new MutationObserver(() => { if (panel.lastElementChild !== container) panel.appendChild(container); })
+            .observe(panel, { childList: true });
         srcWrap = container.querySelector('.portal-srcs');
         return srcWrap;
     }
@@ -72,7 +77,7 @@ import { toggleSuperPool } from './globals.js';
         if (!pane) return;
         pane.innerHTML = `
             <div class="program-row" style="--prod-color:${COLOR}; position:relative; overflow:hidden; padding:0; margin-bottom:10px; flex:1 1 auto;">
-                <div class="program-title" style="background:${COLOR};">PORTAL — ${name}</div>
+                <div class="program-title" style="background:${COLOR};">${monoEmoji('portal')}PORTAL — ${name}</div>
                 <div style="display:flex; flex-wrap:wrap; gap:6px; padding-right:60px;">
                     <div class="twist-container portal-twist" data-prod-id="${id}" data-prod-name="PORTAL — ${name}"
                          style="--lcars-color:${COLOR}; flex:0 0 auto; min-width:240px;">
