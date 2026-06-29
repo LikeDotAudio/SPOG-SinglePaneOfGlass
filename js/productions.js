@@ -39,6 +39,8 @@ export function renderProductionInputs(programs, container) {
                 let subs = '';
                 if (box.video !== false) subs += `<div class="signal-node video video-main sub-stream" draggable="true" data-origin="${orig}" id="${bid}-v" style="border-color:${color};color:${color};">${box.name} V</div>`;
                 (box.audio || []).forEach(a => { subs += `<div class="signal-node audio audio-studio sub-stream" draggable="true" data-origin="${orig}" id="${bid}-${slug(a)}">${box.name} ${a}</div>`; });
+                // signaling/tally control feeds (the room subscribes by routing these in)
+                (box.control || []).forEach(cc => { subs += `<div class="signal-node control sub-stream" draggable="true" data-origin="${orig}" id="${bid}-${slug(cc)}">${box.name} ${cc}</div>`; });
                 items += `<div class="signal-node video multiplex video-main" draggable="true" data-origin="${orig}" id="${bid}" style="border-color:${color};color:${color};"><div class="multiplex-header">${box.name}</div><div class="multiplex-children" style="display:none;">${subs}</div></div>`;
             });
         } else {

@@ -42,7 +42,13 @@ import { register, addStyles, channelsFor, gatherSources, knob, meterBar, pushTi
         .am-sens{position:relative;margin:4px auto 8px;padding:6px 4px 4px;border-radius:10px;
             background:rgba(242,183,75,.1);border:1px solid rgba(242,183,75,.5);display:flex;flex-direction:column;align-items:center;}
         .am-sens-badge{font:bold 8px sans-serif;letter-spacing:1px;color:#F2B74B;margin-bottom:3px;}
-        .am-sens .am-knob{--cyan:#F2B74B;border-color:#8a6a26;}
+        .am-sens-btn{margin-top:2px;width:100%;background:#F2B74B;color:#1a1206;border:none;border-radius:6px;font:bold 9px sans-serif;letter-spacing:1px;padding:7px 6px;cursor:pointer;}
+        .am-sens-btn:hover{filter:brightness(1.08);}
+        .am-pregain{margin:4px auto 6px;padding:5px 4px;border-radius:9px;background:rgba(242,183,75,.1);border:1px solid rgba(242,183,75,.45);display:flex;flex-direction:column;align-items:center;gap:4px;}
+        .am-pregain .am-knob{--cyan:#F2B74B;width:42px;height:42px;border-color:#8a6a26;}
+        .am-pregain .am-knob::after{height:12px;top:4px;transform-origin:50% 16px;}
+        .am-pre-open{width:100%;background:#13233c;color:#F2B74B;border:1px solid #8a6a26;border-radius:5px;font:bold 8px sans-serif;letter-spacing:.5px;padding:5px 4px;cursor:pointer;}
+        .am-pre-open:hover{background:#1b2f4f;}
         .am-sens-reveal{animation:amSens .85s cubic-bezier(.2,1.4,.4,1) both;}
         @keyframes amSens{0%{transform:scale(.15);opacity:0;filter:brightness(3)}55%{transform:scale(1.14)}100%{transform:scale(1);opacity:1;filter:none}}
         .am-sens-reveal::before{content:'';position:absolute;inset:-5px;border-radius:12px;border:2px solid #F2B74B;
@@ -115,9 +121,10 @@ import { register, addStyles, channelsFor, gatherSources, knob, meterBar, pushTi
                 // A stage box arrives with its PREAMP control — that unlocks the SENS
                 // (remote preamp) control on this channel strip.
                 const preamp = kids.some(k => k.classList.contains('control'));
-                out.push({ label, color: window.getComputedStyle(n).color || '#FF9C63', group: true, children: kids.map(info), preamp });
+                out.push({ label, color: window.getComputedStyle(n).color || '#FF9C63', group: true, children: kids.filter(k => !k.classList.contains('control')).map(info), preamp });
             } else {
-                const c = info(n); c.preamp = n.classList.contains('control'); out.push(c);
+                if (n.classList.contains('control')) return;   // preamp control is metadata, not its own fader
+                out.push(info(n));
             }
         });
         return out;
@@ -193,7 +200,8 @@ import { register, addStyles, channelsFor, gatherSources, knob, meterBar, pushTi
             submix.appendChild(h);
             const row = document.createElement('div');
             row.className = 'am-strips am-substrips';
-            group.children.forEach(ch => row.appendChild(stripEl(ch, { compact: true })));
+            const sbChans = group.children.filter(ch => !/PREAMP CTRL/i.test(ch.label));
+            sbChans.forEach(ch => row.appendChild(stripEl(ch, { compact: true, preampGain: group.preamp, siblings: sbChans, origin: group.label })));
             submix.appendChild(row);
             submix.style.display = '';
         }
@@ -222,15 +230,25 @@ import { register, addStyles, channelsFor, gatherSources, knob, meterBar, pushTi
             name.style.color = master ? '#d8c8ff' : (c.color || '#cfe0ff');
             el.appendChild(name);
 
-            // Stage-box channels light up a remote-preamp SENS knob — revealed with
-            // a little "magic": a glowing ring + a NEW PREAMP badge.
-            if (c.preamp && !master) {
+            // A stage box arriving "magically" reveals a PREAMP button on its bus
+            // strip; pressing it (or SPILL) breaks the box out so each channel shows
+            // its individual remote-preamp GAIN.
+            if (c.preamp && c.group && !master) {
                 const sens = document.createElement('div');
                 sens.className = 'am-sens am-sens-reveal';
-                sens.innerHTML = `<div class="am-sens-badge">⌁ PREAMP ⌁</div>`;
-                const k = knob('SENS', 0.5, '#F2B74B'); k.classList.add('am-sens-knob');
-                sens.appendChild(k);
+                sens.innerHTML = `<div class="am-sens-badge">⌁ STAGE BOX ⌁</div><button class="am-sens-btn">PREAMP GAINS ▾</button>`;
+                sens.querySelector('.am-sens-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleSpill(c); });
                 el.appendChild(sens);
+            }
+            // Each spilled stage-box channel carries its own preamp GAIN, and an
+            // OPEN button into the full Stage Box Input digital twin for that channel.
+            if (opts.preampGain && !master) {
+                const pg = document.createElement('div'); pg.className = 'am-pregain';
+                pg.appendChild(knob('GAIN', 0.5, '#F2B74B'));
+                const ob = document.createElement('button'); ob.className = 'am-pre-open'; ob.textContent = '⚙ STAGE BOX';
+                ob.addEventListener('click', (e) => { e.stopPropagation(); if (window.openStageBox) window.openStageBox(c.label, c.color || '#F2B74B', opts.siblings, opts.origin); });
+                pg.appendChild(ob);
+                el.appendChild(pg);
             }
 
             // A group bus carries a SPILL toggle to break its channels out below.

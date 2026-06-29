@@ -55,6 +55,8 @@ function injectGangStyles() {
         .signal-node.gang-cell.expanded > .multiplex-children{display:flex;flex-direction:row;flex-wrap:wrap;gap:4px;}
         .signal-node.gang-cell.expanded .gang-cam-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;width:100%;}
         .signal-node.gang-cell.expanded > .multiplex-children > .sub-stream{flex:1 1 auto;min-width:60px;}
+        /* the PREAMP control spans the whole box — it's THE box control, not a channel */
+        .signal-node.gang-cell .multiplex-children > .signal-node.control{flex-basis:100%;width:100%;order:99;min-height:30px;}
     `;
     document.head.appendChild(s);
 }
@@ -104,7 +106,7 @@ function buildGangCell(data, suffix, color, kind) {
         ctrl.draggable = true;
         ctrl.id = `pool-${node.id}-preamp`;
         ctrl.dataset.origin = data.origin || data.name;
-        ctrl.textContent = 'PREAMP CTRL';
+        ctrl.textContent = '‹ ⌁ PREAMP CTRL ⌁ ›';
         kids.appendChild(ctrl);
     }
 

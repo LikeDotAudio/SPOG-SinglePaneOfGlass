@@ -205,7 +205,9 @@ export function initializeTwists() {
             const acceptsType = (el) => {
                 if (!config || !config.accepts) return true;
                 if (config.accepts === 'video') return el.classList.contains('video');
-                if (config.accepts === 'audio') return el.classList.contains('audio');
+                // Audio destinations also take the stage-box PREAMP control that rides
+                // along with the channels (it unlocks the SENS knob on the strip).
+                if (config.accepts === 'audio') return el.classList.contains('audio') || el.classList.contains('control');
                 if (config.accepts === 'camera') return el.classList.contains('video') || el.classList.contains('camera-control');
                 return true;
             };

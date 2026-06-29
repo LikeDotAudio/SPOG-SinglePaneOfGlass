@@ -74,6 +74,16 @@
         "A3",
         "A4"
       ]
+    },
+    {
+      "name": "SIGNALING",
+      "video": false,
+      "control": [
+        "TALLY",
+        "ON AIR",
+        "PGM",
+        "PVW"
+      ]
     }
   ]
 }

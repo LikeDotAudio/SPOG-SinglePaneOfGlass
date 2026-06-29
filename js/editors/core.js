@@ -66,10 +66,12 @@
         .ed-overlay.open{display:flex;}
         /* Full-width LCARS header rail: solid colour bar spanning the whole width,
            title at the left elbow, the X embedded as the right end-cap. */
-        .ed-topbar{flex:0 0 auto;display:flex;align-items:stretch;height:48px;
+        .ed-topbar{flex:0 0 auto;display:flex;align-items:stretch;height:48px;cursor:pointer;
             background:var(--ed-color,#646DCC);border-radius:0 0 16px 44px;overflow:hidden;}
+        .ed-topbar:hover{filter:brightness(1.06);}
+        .ed-back{display:flex;align-items:center;font-size:32px;font-weight:bold;color:#000;padding:0 4px 0 26px;line-height:1;}
         .ed-title{flex:1;display:flex;align-items:center;font-weight:900;letter-spacing:3px;
-            font-size:17px;text-transform:uppercase;color:#000;padding-left:78px;
+            font-size:17px;text-transform:uppercase;color:#000;padding-left:8px;
             white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
         .ed-close{flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:66px;
             cursor:pointer;font-size:30px;font-weight:bold;line-height:1;color:#000;
@@ -97,13 +99,16 @@
         overlay = document.createElement('div');
         overlay.className = 'ed-overlay';
         overlay.innerHTML = `
-            <div class="ed-topbar">
+            <div class="ed-topbar" title="Click anywhere (or press Esc) to go back">
+                <span class="ed-back">‹</span>
                 <span class="ed-title"></span>
                 <span class="ed-close" title="Close">&times;</span>
             </div>
             <div class="ed-body"></div>`;
         document.body.appendChild(overlay);
-        overlay.querySelector('.ed-close').addEventListener('click', close);
+        // The ENTIRE top bar is an "escape bar" — clicking anywhere on it (not just
+        // the X) closes the editor, same as pressing Esc, returning to where you were.
+        overlay.querySelector('.ed-topbar').addEventListener('click', close);
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && overlay.classList.contains('open')) close();
         });
@@ -134,6 +139,8 @@
         const body = ov.querySelector('.ed-body');
         body.innerHTML = '';
         build(body);
+        // Progressive disclosure — hide controls the current role can't operate.
+        if (window.Auth && window.Auth.applyScope) window.Auth.applyScope(body);
         ov.classList.add('open');
     }
 

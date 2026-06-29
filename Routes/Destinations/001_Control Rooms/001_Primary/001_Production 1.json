@@ -46,6 +46,20 @@
       "cameraInput": true
     },
     {
+      "name": "CAM 7",
+      "accepts": "camera",
+      "maxVideo": 1,
+      "row": "cameras",
+      "cameraInput": true
+    },
+    {
+      "name": "CAM 8",
+      "accepts": "camera",
+      "maxVideo": 1,
+      "row": "cameras",
+      "cameraInput": true
+    },
+    {
       "name": "Video Mixer",
       "accepts": "video",
       "inputs": [
@@ -224,7 +238,7 @@
       "row": "iso"
     },
     {
-      "name": "Encoder",
+      "name": "Signaling",
       "accepts": "both"
     }
   ]

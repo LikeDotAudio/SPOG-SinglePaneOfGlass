@@ -80,7 +80,6 @@ function render(body, twist) {
             <div class="enc-meta">
               <span class="enc-badge on">SCTE-35</span><span class="enc-badge on">CC 608/708</span><span class="enc-badge on">LTC TC</span><span class="enc-badge on">SMPTE 2110</span>
             </div>
-            <div class="enc-scte">⦿ SCTE-35 Ad Trigger</div>
           </div>
         </div>
 
@@ -125,16 +124,6 @@ function render(body, twist) {
     });
     $('.enc-fo').addEventListener('click', e => { const p = e.target.closest('.pill'); if (!p) return; ui.failPrimary = p.classList.contains('prim'); $('.enc-fo .prim').classList.toggle('on', ui.failPrimary); $('.enc-fo .sec').classList.toggle('on', !ui.failPrimary); });
     $('.enc-key.drm').addEventListener('click', e => { ui.drm = !ui.drm; e.target.classList.toggle('on', ui.drm); });
-
-    // SCTE-35 ad trigger — splices an ad-insertion cue into the outgoing manifest.
-    const scte = $('.enc-scte'), mez = $('.enc-mez');
-    scte.addEventListener('click', () => {
-        scte.classList.add('on'); setTimeout(() => scte.classList.remove('on'), 600);
-        const toast = document.createElement('div'); toast.className = 'enc-toast'; toast.textContent = 'SCTE-35 · AD CUE-OUT SPLICED';
-        mez.appendChild(toast); setTimeout(() => toast.remove(), 1800);
-        const badge = [...$('.enc-meta').children].find(b => /SCTE/.test(b.textContent));
-        if (badge) { badge.style.boxShadow = '0 0 12px #ff3b3b'; setTimeout(() => { badge.style.boxShadow = ''; }, 700); }
-    });
 
     const health = $('.enc-health');
     let f = 0;

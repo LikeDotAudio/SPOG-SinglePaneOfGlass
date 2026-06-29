@@ -4,7 +4,7 @@
 // library — blocks ribbon mics), auto impedance match, cable-length HF
 // compensation, stand-based high-pass, a channel alias, a PPM meter with a
 // rolling 30-second history plot, and confidence monitoring.
-import { register, addStyles, pushTimer } from './core.js';
+import { register, addStyles, pushTimer, open } from './core.js';
 
 const MICS = [
     { name: 'Sennheiser MKH 416', type: 'Shotgun', gain: [30, 60], imp: 25, ribbon: false, hpf: 80, sens: -32 },
@@ -50,11 +50,17 @@ const CSS = `
 .sb-hist{flex:1;position:relative;background:#03060f;border:1px solid #1d2942;border-radius:10px;overflow:hidden;min-height:150px;}
 .sb-hist canvas{position:absolute;inset:0;width:100%;height:100%;}
 .sb-hist .cap{position:absolute;left:8px;top:6px;font:bold 10px 'Courier New',monospace;color:#6FC8F0;letter-spacing:1px;z-index:2;}
+/* channel jump bar */
+.sb-nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:0 0 auto;}
+.sb-nav .orig{font:bold 11px 'Courier New',monospace;color:#6FC8F0;letter-spacing:1px;margin-right:8px;}
+.sb-tab{padding:9px 15px;border-radius:8px;border:1px solid #2c3e5e;background:#0c1730;color:#9fb6cc;font:bold 12px sans-serif;letter-spacing:1px;cursor:pointer;}
+.sb-tab:hover{background:#16243d;}
+.sb-tab.sel{background:#F2B74B;color:#1a1206;border-color:#F2B74B;}
+.sb-host .sb{height:100%;}
 `;
 
-function render(body, twist) {
+function buildPanel(body, chName) {
     addStyles('sb-styles', CSS);
-    const chName = ((twist.querySelector('.twist-title') || {}).innerText || 'INPUT').replace(/^[^A-Za-z0-9]*/, '').trim();
     const s = { gain: 0.5, hpf: 0.3, pan: 0.5, phantom: false, conf: false, mic: 0, stand: 'Boom Arm', cable: 15, level: 0.3, target: 0.4, peak: 0.3 };
     const hist = [];
 
@@ -164,5 +170,37 @@ function drawHist(cv, hist) {
     // red peak markers
     ctx.fillStyle = '#ff3b3b'; hist.forEach((v, i) => { if (v > 0.95) ctx.fillRect(i / 300 * w, 2, 2, 6); });
 }
+
+function render(body, twist) {
+    buildPanel(body, ((twist.querySelector('.twist-title') || {}).innerText || 'INPUT').replace(/^[^A-Za-z0-9]*/, '').trim());
+}
+// Open the full Stage Box Input panel for a channel from anywhere (e.g. a mixer
+// strip's preamp GAIN) — the complete digital twin: sensitivity, VU + 30s history,
+// gain, +48V phantom, alias, mic library, cable length, stand, impedance. A channel
+// tab bar lets you jump between the box's channels, and the URL is distinct.
+const sbSlug = (x) => (x || '').toString().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+window.openStageBox = (name, color, channels, origin) => {
+    const list = (channels && channels.length) ? channels : [{ label: name }];
+    const openCh = (chName) => {
+        try { history.replaceState(null, '', '#/stagebox/' + (sbSlug(origin) || 'box') + '/' + sbSlug(chName)); } catch (e) {}
+        open(`${chName} · STAGE BOX INPUT`, color || '#F2B74B', (b) => {
+            b.style.display = 'flex'; b.style.flexDirection = 'column'; b.style.gap = '10px';
+            const nav = document.createElement('div'); nav.className = 'sb-nav';
+            if (origin) { const o = document.createElement('span'); o.className = 'orig'; o.textContent = origin; nav.appendChild(o); }
+            list.forEach(ch => {
+                const t = document.createElement('button');
+                t.className = 'sb-tab' + (ch.label === chName ? ' sel' : '');
+                t.textContent = ch.label;
+                t.addEventListener('click', () => openCh(ch.label));
+                nav.appendChild(t);
+            });
+            b.appendChild(nav);
+            const host = document.createElement('div'); host.className = 'sb-host'; host.style.cssText = 'flex:1;min-height:0;';
+            b.appendChild(host);
+            buildPanel(host, chName);
+        });
+    };
+    openCh(name);
+};
 
 register(n => /stage\s*box|pre.?amp|input asset|mic input/i.test(n), 'STAGE BOX INPUT · SMART OBJECT', render);

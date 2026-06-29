@@ -59,7 +59,7 @@ function render(body, twist) {
             <div class="cc-hint">Drag the puck to Pan / Tilt · twist Zoom · slide Dolly / Ped</div>
           </div>
 
-          <div class="cc-card"><h4>Shading Encoders</h4>
+          <div class="cc-card" data-cap="shade"><h4>Shading Encoders</h4>
             <div class="cc-knobs cc-mono"></div>
             <div class="cc-venn"><div class="cc-venn-bg"><span class="r"></span><span class="g"></span><span class="b"></span></div></div>
           </div>

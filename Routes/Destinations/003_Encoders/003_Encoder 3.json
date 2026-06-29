@@ -3,6 +3,10 @@
   "name": "ENCODER 3",
   "twists": [
     "Video Destination",
-    "Audio Destination"
+    "Audio Destination",
+    {
+      "name": "Encoder",
+      "accepts": "both"
+    }
   ]
 }

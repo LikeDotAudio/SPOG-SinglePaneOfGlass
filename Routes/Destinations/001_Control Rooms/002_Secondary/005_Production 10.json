@@ -4,6 +4,62 @@
   "color": "#6699FF",
   "twists": [
     {
+      "name": "CAM 1",
+      "accepts": "camera",
+      "maxVideo": 1,
+      "row": "cameras",
+      "cameraInput": true
+    },
+    {
+      "name": "CAM 2",
+      "accepts": "camera",
+      "maxVideo": 1,
+      "row": "cameras",
+      "cameraInput": true
+    },
+    {
+      "name": "CAM 3",
+      "accepts": "camera",
+      "maxVideo": 1,
+      "row": "cameras",
+      "cameraInput": true
+    },
+    {
+      "name": "CAM 4",
+      "accepts": "camera",
+      "maxVideo": 1,
+      "row": "cameras",
+      "cameraInput": true
+    },
+    {
+      "name": "CAM 5",
+      "accepts": "camera",
+      "maxVideo": 1,
+      "row": "cameras",
+      "cameraInput": true
+    },
+    {
+      "name": "CAM 6",
+      "accepts": "camera",
+      "maxVideo": 1,
+      "row": "cameras",
+      "cameraInput": true
+    },
+    {
+      "name": "CAM 7",
+      "accepts": "camera",
+      "maxVideo": 1,
+      "row": "cameras",
+      "cameraInput": true
+    },
+    {
+      "name": "CAM 8",
+      "accepts": "camera",
+      "maxVideo": 1,
+      "row": "cameras",
+      "cameraInput": true
+    },
+    {
       "name": "Video Mixer",
       "accepts": "video",
       "inputs": [

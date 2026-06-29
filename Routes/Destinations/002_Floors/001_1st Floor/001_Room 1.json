@@ -80,6 +80,26 @@
       "accepts": "audio",
       "maxAudio": 1,
       "row": "ifb"
+    },
+    {
+      "name": "Lighting",
+      "accepts": "both",
+      "row": "lighting"
+    },
+    {
+      "name": "WYSIWYG Pre-Viz",
+      "accepts": "both",
+      "row": "lighting"
+    },
+    {
+      "name": "On Air Light",
+      "accepts": "both",
+      "row": "signaling"
+    },
+    {
+      "name": "Tally",
+      "accepts": "both",
+      "row": "signaling"
     }
   ],
   "status": "OFFLINE"
