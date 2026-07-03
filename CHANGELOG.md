@@ -1,6 +1,27 @@
 # Changelog
 
-All notable changes to TwistRouting are recorded here.
+All notable changes to SPOG (Single Pane Of Glass) are recorded here.
+
+## [v102] — 2026-07-03
+
+### Changed — the software is now **SPOG · Single Pane Of Glass**
+- The product/architecture is renamed from "TwistRouting" to **SPOG (Single Pane Of
+  Glass)** — the browser title and the login gateway now read SPOG. The connection
+  points where a source meets a destination keep their name: **twists**. (Internal
+  identifiers — `twist-container`, the `TwistBus`, file paths, the repo — are unchanged.)
+
+### Added — destination fixtures & fixture editors
+- **Every destination carries standing fixtures** (`src/ui/console/dest-fixtures.ts`):
+  a live **CLOCK**, a **DUAL COUNTER** (two always-present A/B counters with in-place
+  run/reset, persisted per room), and a per-destination **CHAT LOG** on the TwistBus.
+- **Click a fixture to open its editor** — the clock opens the CLOCK editor, a counter
+  opens the dual-count TIMER editor (via a synthetic twist through the normal dispatch).
+  `#/<room>/clock` and `#/<room>/timer` **deep links** now open those editors too.
+- **Offline rooms blink** their clock + counters (fault status → CSS blink).
+- **Clock editor faces**: Digital, Digital · Sec, LED Ring (ticking second ring), Analog.
+- **Timer**: select a channel by touch and drive it from the physical number pad
+  (0–9 enter time, ✳ switches A/B, ÷ flips direction).
+- Removed the RC1000 model number from all source, help, and data.
 
 ## [v101] — 2026-07-03
 
