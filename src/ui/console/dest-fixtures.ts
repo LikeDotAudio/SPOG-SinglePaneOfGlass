@@ -1,17 +1,25 @@
 // src/ui/console/dest-fixtures — the standing fixtures every destination carries.
 //
 // renderPrograms mounts these into EVERY room's body, so no matter what twists a
-// destination declares it always has: a live CLOCK (time-of-day), a CHRONO
-// landing spot (a count-up display with its own transport), and a per-destination
-// CHAT LOG that rides the retained TwistBus `chat/dest/#` tree and narrates into
-// the Captain's Log. The clock/chrono read-outs reuse the shared seven-segment
-// renderer, and their rAF loops self-terminate when the node leaves the DOM (the
-// pane is rebuilt on every tab activation), so re-rendering never leaks.
+// destination declares it always has:
+//   • CLOCK        — a live time-of-day read-out; click it to open the CLOCK editor.
+//   • DUAL COUNTER — TWO always-present counters (A + B); click a count to open the
+//                    dual-count TIMER editor. Small transports run them in place.
+//   • CHAT LOG     — a per-destination transcript that rides the retained TwistBus
+//                    chat/dest/# tree and narrates into the Captain's Log.
+// When the room is OFFLINE (a fault status), the clock + counters BLINK.
+//
+// Clicking a fixture opens the matching editor by handing renderPrograms's own
+// openEditor a synthetic twist element named "Clock"/"Timer" (the same dispatch
+// path a real twist uses). The clock/counter rAF loops self-terminate when their
+// node leaves the DOM (the pane is rebuilt per activation), so re-rendering leaks
+// nothing.
 
 import { el, addStyles, ctx2d } from '../dom.js';
 import { drawSegString } from '../seven-seg.js';
 import { getBus } from '../../platform/mqtt/index.js';
 import { logAction } from './captains-log.js';
+import type { OpenEditor } from './matrix.js';
 import type { Production } from '../../model/index.js';
 
 const CSS = `
@@ -22,11 +30,15 @@ const CSS = `
   display:flex;align-items:center;gap:8px;}
 .dfx-sub{font:700 8px 'Courier New',monospace;letter-spacing:1px;color:#6b7686;text-transform:uppercase;}
 .dfx-cvs{display:block;background:#000;border-radius:8px;width:100%;height:auto;}
-.dfx-chrono{display:flex;flex-direction:column;gap:6px;}
-.dfx-xport{display:flex;gap:6px;}
-.dfx-btn{flex:1;border:none;border-radius:7px;padding:6px 4px;cursor:pointer;
-  font:800 10px 'Courier New',monospace;letter-spacing:1px;background:#16233d;color:#bcd3ee;text-transform:uppercase;}
-.dfx-btn.run{background:#e33;color:#150404;}
+.dfx-cvs.tap{cursor:pointer;}
+.dfx-chrono{display:flex;flex-direction:column;gap:8px;}
+.dfx-crow{display:flex;align-items:center;gap:6px;}
+.dfx-crow .dfx-cvs{flex:1;min-width:0;}
+.dfx-clab{font:800 11px 'Courier New',monospace;color:#C864C8;width:14px;text-align:center;}
+.dfx-mrow{display:flex;gap:4px;}
+.dfx-mini{border:none;border-radius:6px;padding:5px 7px;cursor:pointer;
+  font:800 10px 'Courier New',monospace;background:#16233d;color:#bcd3ee;}
+.dfx-mini.run{background:#e33;color:#150404;}
 .dfx-chat{display:flex;flex-direction:column;gap:6px;}
 .dfx-log{height:96px;overflow:auto;background:#050506;border:1px solid #201620;border-radius:8px;padding:6px;
   display:flex;flex-direction:column;gap:3px;font:600 10px 'Courier New',monospace;color:#cdd6e6;}
@@ -40,6 +52,8 @@ const CSS = `
 .dfx-in:focus{outline:none;border-color:#C864C8;}
 .dfx-send{border:none;border-radius:7px;padding:6px 12px;cursor:pointer;
   font:800 10px 'Courier New',monospace;letter-spacing:1px;background:#7a1f2a;color:#ffe;}
+@keyframes dfx-blink{0%,49.9%{opacity:1;}50%,100%{opacity:.12;}}
+.dfx-blink{animation:dfx-blink 1s infinite;}
 `;
 
 const pad = (n: number): string => String(n).padStart(2, '0');
@@ -68,45 +82,73 @@ function card(title: string, body: Node, sub?: string): HTMLElement {
   return el('div', { class: 'dfx-card' }, [head, body]);
 }
 
-// ---- CLOCK: live time-of-day -------------------------------------------------
-function clockCard(): HTMLElement {
+/** A detached twist element carrying the room's identity, so renderPrograms's
+ *  openEditor dispatches to the right editor exactly as a real twist would. */
+function synthTwist(pgm: Production, name: string): HTMLElement {
+  const titleText = pgm.parentName ? `${pgm.parentName.toUpperCase()} — ${pgm.name}` : pgm.name;
+  const t = el('div', { class: 'twist-container', dataset: { prodId: pgm.id, prodName: titleText } });
+  if (pgm.parentName) t.dataset.prodFloor = pgm.parentName;
+  if (pgm.color) t.style.setProperty('--lcars-color', pgm.color);
+  if (pgm.tip) t.dataset.prodTip = JSON.stringify(pgm.tip);
+  t.append(el('div', { class: 'twist-title' }, [name]));
+  return t;
+}
+
+// ---- CLOCK: live time-of-day, click to open the clock editor -----------------
+function clockCard(openEdit: () => void, offline: boolean): HTMLElement {
   const { cvs, draw } = readout(220, 58);
+  cvs.classList.add('tap');
+  if (offline) cvs.classList.add('dfx-blink');
+  cvs.title = 'Open clock editor';
+  cvs.addEventListener('click', openEdit);
   let last = '';
   animate(cvs, () => {
     const d = new Date();
     const s = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
     if (s !== last) { last = s; draw(s); }
   });
-  return card('CLOCK', cvs);
+  return card('CLOCK', cvs, 'tap to edit');
 }
 
-// ---- CHRONO: a count-up display in its landing spot, state kept per dest ------
-interface ChronoState { running: boolean; base: number; startedAt: number; }
-const chronoStore = new Map<string, ChronoState>();
-function chronoOf(id: string): ChronoState {
-  let s = chronoStore.get(id);
-  if (!s) { s = { running: false, base: 0, startedAt: 0 }; chronoStore.set(id, s); }
+// ---- DUAL COUNTER: two count-up counters per destination, persistent state ---
+interface CState { running: boolean; base: number; startedAt: number; }
+const counterStore = new Map<string, { A: CState; B: CState }>();
+const mkC = (): CState => ({ running: false, base: 0, startedAt: 0 });
+function countersOf(id: string): { A: CState; B: CState } {
+  let s = counterStore.get(id);
+  if (!s) { s = { A: mkC(), B: mkC() }; counterStore.set(id, s); }
   return s;
 }
-const chronoMs = (s: ChronoState): number => s.base + (s.running ? performance.now() - s.startedAt : 0);
+const cMs = (s: CState): number => s.base + (s.running ? performance.now() - s.startedAt : 0);
 
-function chronoCard(destId: string): HTMLElement {
-  const s = chronoOf(destId);
-  const { cvs, draw } = readout(220, 58);
-  const startStop = el('button', { class: 'dfx-btn' }, ['START']);
-  const reset = el('button', { class: 'dfx-btn' }, ['RESET']);
-  const sync = (): void => { startStop.textContent = s.running ? 'STOP' : 'START'; startStop.classList.toggle('run', s.running); };
-  startStop.addEventListener('click', () => {
-    if (s.running) { s.base = chronoMs(s); s.running = false; }
-    else { s.startedAt = performance.now(); s.running = true; }
+function counterRow(destId: string, id: 'A' | 'B', openEdit: () => void, offline: boolean): HTMLElement {
+  const s = countersOf(destId)[id];
+  const { cvs, draw } = readout(180, 40);
+  cvs.classList.add('tap');
+  if (offline) cvs.classList.add('dfx-blink');
+  cvs.title = 'Open dual count editor';
+  cvs.addEventListener('click', openEdit);
+  const run = el('button', { class: 'dfx-mini' }, ['▶']);
+  const rst = el('button', { class: 'dfx-mini' }, ['↺']);
+  const sync = (): void => { run.textContent = s.running ? '‖' : '▶'; run.classList.toggle('run', s.running); };
+  run.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (s.running) { s.base = cMs(s); s.running = false; } else { s.startedAt = performance.now(); s.running = true; }
     sync();
   });
-  reset.addEventListener('click', () => { s.base = 0; s.startedAt = performance.now(); });
+  rst.addEventListener('click', (e) => { e.stopPropagation(); s.base = 0; s.startedAt = performance.now(); });
   let last = '';
-  animate(cvs, () => { const str = hms(chronoMs(s)); if (str !== last) { last = str; draw(str); } });
+  animate(cvs, () => { const str = hms(cMs(s)); if (str !== last) { last = str; draw(str); } });
   sync();
-  const body = el('div', { class: 'dfx-chrono' }, [cvs, el('div', { class: 'dfx-xport' }, [startStop, reset])]);
-  return card('CHRONO', body, 'landing spot');
+  return el('div', { class: 'dfx-crow' }, [el('span', { class: 'dfx-clab' }, [id]), cvs, el('div', { class: 'dfx-mrow' }, [run, rst])]);
+}
+
+function counterCard(pgm: Production, openEdit: () => void, offline: boolean): HTMLElement {
+  const body = el('div', { class: 'dfx-chrono' }, [
+    counterRow(pgm.id, 'A', openEdit, offline),
+    counterRow(pgm.id, 'B', openEdit, offline),
+  ]);
+  return card('DUAL COUNTER', body, 'tap a count to edit');
 }
 
 // ---- CHAT LOG: per-destination, rides the retained TwistBus ------------------
@@ -174,13 +216,19 @@ function chatCard(pgm: Production): HTMLElement {
   sendBtn.addEventListener('click', doSend);
   input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); doSend(); } });
   const body = el('div', { class: 'dfx-chat' }, [list, el('div', { class: 'dfx-row' }, [input, sendBtn])]);
-  // Once mounted, keep the transcript pinned to the newest line.
   requestAnimationFrame(() => { list.scrollTop = list.scrollHeight; });
   return card('CHAT LOG', body);
 }
 
-/** Mount the three standing fixtures into a destination's program body. */
-export function mountDestFixtures(body: HTMLElement, pgm: Production): void {
+/** Mount the standing fixtures into a destination's program body.
+ *  `openEditor` opens the clock/timer editors; `offline` blinks the clock + counters. */
+export function mountDestFixtures(body: HTMLElement, pgm: Production, openEditor?: OpenEditor, offline = false): void {
   addStyles('twist-dest-fixtures', CSS);
-  body.append(el('div', { class: 'dfx' }, [clockCard(), chronoCard(pgm.id), chatCard(pgm)]));
+  const openClock = (): void => openEditor?.(synthTwist(pgm, 'Clock'));
+  const openTimer = (): void => openEditor?.(synthTwist(pgm, 'Timer'));
+  body.append(el('div', { class: 'dfx' }, [
+    clockCard(openClock, offline),
+    counterCard(pgm, openTimer, offline),
+    chatCard(pgm),
+  ]));
 }
