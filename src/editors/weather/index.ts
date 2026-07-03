@@ -11,9 +11,20 @@
 // hold). Locations come from the routed feed labels (e.g. "TORONTO, ON") AND from
 // a live province / city search box; each is geocoded, then the forecast is
 // fetched for its coordinates in its own local time zone.
+//
+// The data layer (geocode/fetch/model/units/time helpers/dayparts) lives in
+// ./data.ts and the on-air glyph set in ./icons.ts, so this file is just the
+// operator `board` face + editor chrome (audit §7).
 
 import type { EditorPlugin } from '../types.js';
 import { el, addStyles } from '../../ui/dom.js';
+import {
+  type Unit, type GeoMatch, type Forecast, type Location,
+  toDisplay, windDisplay, round, decode,
+  geocode, fetchForecast,
+  clockOf, weekdayOf, timeInZone, dateInZone, isDaytimeHour, hourLabel,
+  seedQueries,
+} from './data.js';
 
 const CSS = `
 .wx{display:flex;flex-direction:column;gap:12px;height:100%;min-height:0;color:#dfe8f5;}
@@ -86,154 +97,6 @@ const CSS = `
 .wx-msg.err{color:#ff9db0;}
 .wx-empty{margin:auto;text-align:center;color:#5a7a99;font:700 12px 'Courier New',monospace;letter-spacing:1px;}
 `;
-
-// ---- units ------------------------------------------------------------------
-type Unit = 'C' | 'F';
-const toDisplay = (c: number, u: Unit): number => (u === 'C' ? c : c * 9 / 5 + 32);
-const windDisplay = (kmh: number, u: Unit): string =>
-  u === 'C' ? `${Math.round(kmh)} km/h` : `${Math.round(kmh * 0.621371)} mph`;
-const round = (n: number): number => Math.round(n);
-
-// ---- WMO weather codes → label + emoji (day / optional night) ---------------
-interface WmoEntry { t: string; d: string; n?: string; }
-const WMO: Record<number, WmoEntry> = {
-  0: { t: 'Clear', d: '☀️', n: '🌙' },
-  1: { t: 'Mainly clear', d: '🌤️', n: '🌙' },
-  2: { t: 'Partly cloudy', d: '⛅', n: '☁️' },
-  3: { t: 'Overcast', d: '☁️' },
-  45: { t: 'Fog', d: '🌫️' }, 48: { t: 'Rime fog', d: '🌫️' },
-  51: { t: 'Light drizzle', d: '🌦️' }, 53: { t: 'Drizzle', d: '🌦️' }, 55: { t: 'Heavy drizzle', d: '🌧️' },
-  56: { t: 'Freezing drizzle', d: '🌧️' }, 57: { t: 'Freezing drizzle', d: '🌧️' },
-  61: { t: 'Light rain', d: '🌦️' }, 63: { t: 'Rain', d: '🌧️' }, 65: { t: 'Heavy rain', d: '🌧️' },
-  66: { t: 'Freezing rain', d: '🌧️' }, 67: { t: 'Freezing rain', d: '🌧️' },
-  71: { t: 'Light snow', d: '🌨️' }, 73: { t: 'Snow', d: '❄️' }, 75: { t: 'Heavy snow', d: '❄️' },
-  77: { t: 'Snow grains', d: '🌨️' },
-  80: { t: 'Rain showers', d: '🌦️' }, 81: { t: 'Rain showers', d: '🌧️' }, 82: { t: 'Violent showers', d: '⛈️' },
-  85: { t: 'Snow showers', d: '🌨️' }, 86: { t: 'Snow showers', d: '❄️' },
-  95: { t: 'Thunderstorm', d: '⛈️' }, 96: { t: 'Thunderstorm, hail', d: '⛈️' }, 99: { t: 'Thunderstorm, hail', d: '⛈️' },
-};
-function decode(code: number, isDay = true): { label: string; icon: string } {
-  const e = WMO[code] ?? { t: '—', d: '🌡️' };
-  return { label: e.t, icon: !isDay && e.n ? e.n : e.d };
-}
-
-// ---- data model -------------------------------------------------------------
-interface GeoMatch {
-  name: string; admin1?: string; country?: string; countryCode?: string;
-  lat: number; lon: number; timezone?: string;
-}
-interface HourPt { hour: string; tempC: number; code: number; }
-interface DayPt { date: string; code: number; hiC: number; loC: number; sunrise: string; sunset: string; }
-interface Forecast {
-  tz: string;
-  cur: { tempC: number; feelsC: number; code: number; isDay: boolean; humidity: number; windKmh: number };
-  today: HourPt[];
-  days: DayPt[];
-}
-interface Location {
-  key: string; name: string; admin1?: string; country?: string; lat: number; lon: number; timezone?: string;
-}
-
-// ---- network ----------------------------------------------------------------
-const GEO_URL = 'https://geocoding-api.open-meteo.com/v1/search';
-const FCT_URL = 'https://api.open-meteo.com/v1/forecast';
-
-async function geocode(query: string, signal: AbortSignal): Promise<GeoMatch[]> {
-  const u = `${GEO_URL}?name=${encodeURIComponent(query)}&count=6&language=en&format=json`;
-  const res = await fetch(u, { signal });
-  if (!res.ok) throw new Error(`geocode ${res.status}`);
-  const j = await res.json() as { results?: Array<Record<string, unknown>> };
-  return (j.results ?? []).map((r) => ({
-    name: String(r.name ?? ''),
-    admin1: r.admin1 ? String(r.admin1) : undefined,
-    country: r.country ? String(r.country) : undefined,
-    countryCode: r.country_code ? String(r.country_code) : undefined,
-    lat: Number(r.latitude), lon: Number(r.longitude),
-    timezone: r.timezone ? String(r.timezone) : undefined,
-  }));
-}
-
-async function fetchForecast(lat: number, lon: number, signal: AbortSignal): Promise<Forecast> {
-  const params = new URLSearchParams({
-    latitude: String(lat), longitude: String(lon),
-    current: 'temperature_2m,apparent_temperature,weather_code,is_day,relative_humidity_2m,wind_speed_10m',
-    hourly: 'temperature_2m,weather_code',
-    daily: 'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset',
-    timezone: 'auto', forecast_days: '6',
-    temperature_unit: 'celsius', wind_speed_unit: 'kmh',
-  });
-  const res = await fetch(`${FCT_URL}?${params}`, { signal });
-  if (!res.ok) throw new Error(`forecast ${res.status}`);
-  const j = await res.json() as any;
-  const c = j.current ?? {};
-  const h = j.hourly ?? {}; const times: string[] = h.time ?? [];
-  // "Rest of today" — the next 10 hourly points from the current hour onward.
-  const nowHour = String(c.time ?? '').slice(0, 13) + ':00';   // e.g. 2026-07-03T14:00
-  let start = times.findIndex((t) => t >= nowHour);
-  if (start < 0) start = 0;
-  const today: HourPt[] = times.slice(start, start + 10).map((t, i) => ({
-    hour: t, tempC: Number(h.temperature_2m?.[start + i]), code: Number(h.weather_code?.[start + i]),
-  }));
-  const d = j.daily ?? {}; const dTimes: string[] = d.time ?? [];
-  const days: DayPt[] = dTimes.slice(0, 5).map((t, i) => ({
-    date: t, code: Number(d.weather_code?.[i]),
-    hiC: Number(d.temperature_2m_max?.[i]), loC: Number(d.temperature_2m_min?.[i]),
-    sunrise: String(d.sunrise?.[i] ?? ''), sunset: String(d.sunset?.[i] ?? ''),
-  }));
-  return {
-    tz: String(j.timezone ?? ''),
-    cur: {
-      tempC: Number(c.temperature_2m), feelsC: Number(c.apparent_temperature),
-      code: Number(c.weather_code), isDay: Number(c.is_day) === 1,
-      humidity: Number(c.relative_humidity_2m), windKmh: Number(c.wind_speed_10m),
-    },
-    today, days,
-  };
-}
-
-// ---- formatting -------------------------------------------------------------
-const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-/** "HH:MM" (local) out of an Open-Meteo ISO string like 2026-07-03T05:42 → 5:42 AM. */
-function clockOf(iso: string): string {
-  const m = iso.match(/T(\d{2}):(\d{2})/);
-  if (!m) return '—';
-  let h = Number(m[1]); const min = m[2]; const ap = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return `${h}:${min} ${ap}`;
-}
-/** Weekday short label for a daily date string (parsed as local, no TZ shift). */
-function weekdayOf(dateStr: string, todayStr: string): string {
-  if (dateStr.slice(0, 10) === todayStr) return 'TODAY';
-  const [y, mo, da] = dateStr.slice(0, 10).split('-').map(Number);
-  const dt = new Date(y!, (mo! - 1), da!);
-  return WEEKDAYS[dt.getDay()] ?? '—';
-}
-/** The current wall-clock in an IANA time zone (falls back to browser time). */
-function timeInZone(tz: string): string {
-  try {
-    return new Intl.DateTimeFormat('en-GB', {
-      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: tz || undefined,
-    }).format(new Date());
-  } catch { return ''; }
-}
-/** The current date (YYYY-MM-DD) in an IANA zone, to mark "TODAY" in the forecast. */
-function dateInZone(tz: string): string {
-  try {
-    return new Intl.DateTimeFormat('en-CA', { timeZone: tz || undefined }).format(new Date());
-  } catch { return ''; }
-}
-
-// ---- deriving locations from routed feeds -----------------------------------
-/** Feed labels → geocode queries, skipping the "set" group label. */
-function seedQueries(sources: ReadonlyArray<{ label: string }>): string[] {
-  const out: string[] = [];
-  for (const s of sources) {
-    const q = s.label.trim();
-    if (!q || /^weather\b.*\bset$/i.test(q) || /^weather set$/i.test(q)) continue;
-    out.push(q);
-  }
-  return out;
-}
 
 let uid = 0;
 const nextKey = (): string => `loc-${++uid}`;
@@ -490,21 +353,5 @@ const plugin: EditorPlugin = {
     ctx.dispose.interval(() => { for (const c of cards.values()) void c.load(); }, 10 * 60 * 1000);
   },
 };
-
-// Rough day/night flag for an hourly point, from that day's sunrise/sunset.
-function isDaytimeHour(iso: string, fc: Forecast): boolean {
-  const day = fc.days.find((d) => d.date.slice(0, 10) === iso.slice(0, 10));
-  if (!day) return true;
-  const hm = iso.slice(11, 16);
-  return hm >= day.sunrise.slice(11, 16) && hm <= day.sunset.slice(11, 16);
-}
-// "3 PM" / "NOW"-ish short hour label from an ISO hourly string.
-function hourLabel(iso: string): string {
-  const m = iso.match(/T(\d{2}):/);
-  if (!m) return '';
-  let h = Number(m[1]); const ap = h >= 12 ? 'p' : 'a';
-  h = h % 12 || 12;
-  return `${h}${ap}`;
-}
 
 export default plugin;
