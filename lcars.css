@@ -185,7 +185,10 @@
 
             html[data-chirality="right"] .twist-container.monitor-twist { padding: 18px 34px 6px 6px; }
             html[data-chirality="right"] .twist-container.monitor-twist::before { border-right-width: 26px; }
-            html[data-chirality="right"] .twist-container.monitor-twist::after { left: auto; right: 64px; }
+            /* Keep the left anchor (from the general ::after rule) so the rail has
+               width — `left:auto` collapsed the empty pseudo-element to nothing,
+               dropping the whole top rail on the small kit-row twists. */
+            html[data-chirality="right"] .twist-container.monitor-twist::after { right: 64px; }
             html[data-chirality="right"] .twist-container.monitor-twist .twist-title { left: auto; right: 70px; }
 
             /* Top-rail furniture flips too: the SOURCES stats label to the LEFT end
