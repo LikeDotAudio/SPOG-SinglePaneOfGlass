@@ -57,7 +57,7 @@ const EXPECT: Array<[string, string | null]> = [
   ['World Clock', 'clock'],
   ['Chronos', 'chronos'],         // CHRONOS graphic set → dual A/B chrono + local time
   ['Chrono A', 'chronos'],
-  ['Timer', 'timer'],             // RC1000 dual-channel up/down production timer
+  ['Timer', 'timer'],             // dual-channel up/down production timer
   ['Countdown', 'timer'],
 ];
 

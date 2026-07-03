@@ -1,7 +1,7 @@
-// src/editors/timer — the RC1000 Dual-Channel Up/Down Timer (a graphics source).
+// src/editors/timer — the Dual-Channel Up/Down production timer (a graphics source).
 //
 // TWO independent keypads on screen at once — one per channel, no A/B switch. Each
-// panel is a full RC1000 face: a 6-digit red LED read-out, the GPI · SEC-FRM ·
+// panel is a full timer face: a 6-digit red LED read-out, the GPI · SEC-FRM ·
 // UP-DN · INPUT · CLR function row, and the calculator keypad (PRESET · INC · DEC ·
 // SHIFT · START/STOP), driving its own channel directly. The count math is the pure
 // timer-core; the per-channel state machine + every named SHIFT command is engine.ts.
@@ -49,10 +49,10 @@ const CSS = `
 
 const plugin: EditorPlugin = {
   id: 'timer',
-  title: 'TIMER · RC1000 DUAL COUNT',
+  title: 'TIMER · DUAL COUNT',
   order: 7,
-  blurb: 'RC1000 dual-channel up/down production timer — two independent 6-digit count keypads, presets, follow buffer, calculator, GPI on the bus.',
-  match: (n) => /\btimer\b|count.?down|count.?up|stopwatch|rc1000/i.test(n),
+  blurb: 'Dual-channel up/down production timer — two independent 6-digit count keypads, presets, follow buffer, calculator, GPI on the bus.',
+  match: (n) => /\btimer\b|count.?down|count.?up|stopwatch/i.test(n),
   render(host, ctx) {
     addStyles('twist-editor-timer', CSS);
 

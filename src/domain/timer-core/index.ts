@@ -1,11 +1,11 @@
-// src/domain/timer-core — the PURE dual-timer count engine (RC1000 audit T0).
+// src/domain/timer-core — the PURE dual-timer count engine (audit T0).
 //
-// Zero DOM, zero globals — the frame-accurate count math the RC1000 editor drives,
+// Zero DOM, zero globals — the frame-accurate count math the timer editor drives,
 // extracted so it is unit-testable and WASM-portable (the sibling of routing-core).
 // The single source of truth for a count is an INTEGER FRAME value; every view
 // (HH:MM:SS vs MM:SS.FF, leading-zero blanking, 12/24h) is a projection over it,
 // and every mutation (advance, add/sub, nudge, keypad entry, calculator) is frame
-// math. Storing a count as a formatted string is the classic RC1000-port bug this
+// math. Storing a count as a formatted string is the classic count-engine bug this
 // module exists to prevent.
 
 export type Fps = 24 | 25 | 30;
@@ -13,14 +13,14 @@ export type Direction = 'up' | 'down';
 /** HH:MM:SS (smallest unit = second) or MM:SS.FF (smallest unit = frame). */
 export type TimeFormat = 'hms' | 'msf';
 
-/** RC1000 rollover: 23:59:29 → 00:00:00 and under-run the other way (manual §1.2). */
+/** Rollover: 23:59:29 → 00:00:00 and under-run the other way. */
 export const ROLLOVER_HOURS = 24;
 
 export function maxFrames(fps: Fps): number {
   return ROLLOVER_HOURS * 3600 * fps;
 }
 
-/** Wrap a frame count into [0, 24h) — the RC1000 roll-over / roll-under.
+/** Wrap a frame count into [0, 24h) — the roll-over / roll-under.
     Keeps fractional frames (a running count advances by sub-frame deltas); callers
     round for display via `decompose`. */
 export function wrap(frames: number, fps: Fps): number {

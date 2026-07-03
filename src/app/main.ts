@@ -65,7 +65,7 @@ const BLURBS: Record<string, string> = {
   'prompter': 'Teleprompter source — a script + live playhead fanned to prompt heads (mirrored) & confidence.',
   'clock': 'Broadcast clock source — UTC + local ±3h zones as an LED ring (ticking) or a smooth analog sweep.',
   'chronos': 'Chronos graphic set — dual A/B chronometers + local time on configurable seven-segment or Arial faces (red/white on black).',
-  'timer': 'RC1000 dual-channel up/down production timer — two 6-digit counts, 20 presets, follow buffer, calculator, and GPI on the bus.',
+  'timer': 'Dual-channel up/down production timer — two 6-digit counts, 20 presets, follow buffer, calculator, and GPI on the bus.',
 };
 
 /** Cross-editor services (M1): replaces the legacy window.openStageBox global. */

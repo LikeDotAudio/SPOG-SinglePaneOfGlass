@@ -1,13 +1,13 @@
 // src/editors/chronos — the CHRONOS graphic set (a graphics source).
 //
 // A dual chronometer (Channel A + Channel B) plus the local time-of-day, rendered
-// as big broadcast readouts on black — the Masterclock rack-panel look. Each face
+// as big broadcast readouts on black — the classic timer rack-panel look. Each face
 // is CONFIGURABLE on two axes: FONT (authentic seven-segment vs Arial) and COLOR
 // (red vs white). Opened when a CHRONOS feed (extraClass:"chronos-source") is
 // routed onto a twist, or a twist is literally named "Chronos".
 //
 // The A/B chronos are count-up stopwatches with START/STOP + RESET (a minimal
-// transport — the RC1000 audit's timer-core promotes this to a full up/down count
+// transport — the timer-core promotes this to a full up/down count
 // engine later). LOCAL is time-of-day. Drawing is self-contained canvas: a real
 // 7-segment digit renderer (lit + ghost segments, per real LED displays) and an
 // Arial fallback, so the same time string reads either way.
@@ -38,14 +38,14 @@ const CSS = `
 `;
 
 // Faces (seven-segment + Arial, red/white on black) come from the shared
-// `ui/seven-seg` renderer — the same read-out the RC1000 timer editor draws.
+// `ui/seven-seg` renderer — the same read-out the timer editor draws.
 type Font = SegFont;
 type Color = SegColor;
 const drawFace = drawSegString;
 
 // ---- time model -------------------------------------------------------------
 const pad = (n: number): string => String(n).padStart(2, '0');
-/** ms → HH:MM:SS (clamped to a 2-digit hour like the RC1000's 99h ceiling). */
+/** ms → HH:MM:SS (clamped to a 2-digit hour, a 99h ceiling). */
 function fmt(ms: number): string {
   const total = Math.floor(ms / 1000);
   const h = Math.floor(total / 3600) % 100, m = Math.floor(total / 60) % 60, s = total % 60;
