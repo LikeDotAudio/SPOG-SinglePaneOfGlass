@@ -160,6 +160,26 @@ function twistCleanName(twistEl: HTMLElement): string {
   return name;
 }
 
+/** The standing per-destination fixtures (clock, dual-count timer) are NOT twists
+ *  in the room JSON, so a #/<room>/clock deep link has no `.twist-container` to
+ *  match. Map those slugs to the editor to open for the room instead. */
+const FIXTURE_EDITOR: Record<string, string> = { clock: 'Clock', timer: 'Timer', counter: 'Timer' };
+
+/** A detached twist element carrying a production's identity (copied off any of its
+ *  real twists), so openEditorForTwist can open a fixture editor for that room. */
+function synthTwistFor(rep: HTMLElement, name: string): HTMLElement {
+  const t = document.createElement('div');
+  t.className = 'twist-container';
+  for (const k of ['prodId', 'prodName', 'prodFloor', 'prodTip'] as const) {
+    if (rep.dataset[k]) t.dataset[k] = rep.dataset[k];
+  }
+  const color = rep.style.getPropertyValue('--lcars-color');
+  if (color) t.style.setProperty('--lcars-color', color);
+  const title = el('div', { class: 'twist-title' }, [name]);
+  t.append(title);
+  return t;
+}
+
 /** Open the editor named by a #/<prod>/<twist> deep link (lazy-loads destinations if needed). */
 function openFromHash(): void {
   if (document.querySelector('.ed-overlay.open')) return;   // already open
@@ -167,9 +187,16 @@ function openFromHash(): void {
   const prodSlug = m?.[1], twistSlug = m?.[2];
   if (!prodSlug || !twistSlug) return;
   const tryOpen = (): boolean => {
-    const tw = [...document.querySelectorAll<HTMLElement>('.twist-container')].find(
+    const containers = [...document.querySelectorAll<HTMLElement>('.twist-container')];
+    const tw = containers.find(
       (t) => slug(t.dataset.prodName ?? '') === prodSlug && slug(twistCleanName(t)) === twistSlug);
     if (tw) { openEditorForTwist(tw); return true; }
+    // Fixture editors (clock / dual-count) aren't twists — open them for the room.
+    const fixture = FIXTURE_EDITOR[twistSlug];
+    if (fixture) {
+      const rep = containers.find((t) => slug(t.dataset.prodName ?? '') === prodSlug);
+      if (rep) { openEditorForTwist(synthTwistFor(rep, fixture)); return true; }
+    }
     return false;
   };
   if (tryOpen()) return;
