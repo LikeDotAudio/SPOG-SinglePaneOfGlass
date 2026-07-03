@@ -1,0 +1,33 @@
+{
+  "id": "prompter-sports-desk",
+  "name": "SPORTS DESK",
+  "title": "TELEPROMPTER ENGINE",
+  "color": "#3E8E6E",
+  "kind": "video",
+  "extraClass": "prompter-source",
+  "wpm": 165,
+  "video": [
+    "PROMPT HEAD ▷ MIRRORED",
+    "CONFIDENCE ▷ DIRECT",
+    "PROGRAM ▷ CLEAN"
+  ],
+  "blocks": [
+    {
+      "id": "b1",
+      "slug": "OPEN",
+      "presenter": "HOST",
+      "camera": "CAM 2",
+      "status": "ready",
+      "text": "Welcome to the sports desk."
+    },
+    {
+      "id": "b2",
+      "slug": "SCORES",
+      "presenter": "HOST",
+      "camera": "CAM 2",
+      "status": "ready",
+      "text": "Around the league tonight."
+    }
+  ],
+  "status": "OK"
+}

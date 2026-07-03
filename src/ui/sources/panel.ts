@@ -222,6 +222,11 @@ export async function renderSourcesPanel(panel: HTMLElement, onRendered?: Render
     const content = buildSuperPool(panel, cat.name, color);
     return { content, url: 'Routes/Sources/' + cat.href };
   });
+  // People are ONE unified model (source + destination in a single file); the
+  // sources panel projects the `source{}` feeds from the canonical Routes/People
+  // tree. The destinations console projects `kit{}` from the SAME files.
+  const peopleContent = buildSuperPool(panel, 'People', paletteAt(SOURCE_POOL_COLORS, built.length));
+  built.push({ content: peopleContent, url: 'Routes/People/' });
   const first = built[0];
   if (first) {
     first.content.style.display = '';

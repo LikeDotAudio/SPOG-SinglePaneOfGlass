@@ -1,0 +1,79 @@
+{
+  "id": "grace-oluwole",
+  "name": "GRACE OLUWOLE",
+  "role": "correspondent",
+  "color": "#6FC8F0",
+  "title": "CORRESPONDENT",
+  "lowerThird": {
+    "line1": "GRACE OLUWOLE",
+    "line2": "CORRESPONDENT",
+    "style": "default"
+  },
+  "source": {
+    "audio": [
+      "MIC",
+      "PROCESSED",
+      "IFB RET"
+    ],
+    "video": [
+      "CAM"
+    ]
+  },
+  "kit": {
+    "twists": [
+      {
+        "name": "PERSON",
+        "accepts": "both",
+        "inputs": [
+          "MIC",
+          "PROCESSED OUT"
+        ]
+      },
+      {
+        "name": "IFB / IEM",
+        "accepts": "audio",
+        "row": "kit",
+        "inputs": [
+          "PROGRAM",
+          "MIX-MINUS",
+          "INTERRUPT"
+        ]
+      },
+      {
+        "name": "PROMPTER",
+        "accepts": "both",
+        "row": "kit",
+        "inputs": [
+          "RUNDOWN",
+          "SCRIPT",
+          "CLOCK"
+        ]
+      },
+      {
+        "name": "CAMERA 1",
+        "accepts": "camera",
+        "row": "kit",
+        "cameraInput": true,
+        "maxVideo": 1
+      },
+      {
+        "name": "LOWER THIRD",
+        "accepts": "video",
+        "row": "kit",
+        "maxVideo": 1
+      },
+      {
+        "name": "LIGHTING",
+        "accepts": "both",
+        "row": "kit",
+        "inputs": [
+          "KEY",
+          "FILL",
+          "BACK",
+          "HAIR"
+        ]
+      }
+    ]
+  },
+  "status": "OK"
+}

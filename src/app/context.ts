@@ -30,6 +30,27 @@ function resolveSources(config: TwistConfig | null, color: Hex): Feed[] {
   return [];
 }
 
+/** Feeds actually routed into a twist's crosspoints (DOM), so editors reflect the
+ *  live trickle-down cascade. Groups expand to their children; each node's own
+ *  colour is kept so the positioner/console bundle by source. */
+function routedFeeds(twistEl: HTMLElement): Feed[] {
+  const dz = twistEl.querySelector<HTMLElement>('.drop-zone');
+  if (!dz) return [];
+  const out: Feed[] = [];
+  const push = (n: HTMLElement, i: number): void => {
+    const label = (n.textContent ?? '').trim().split('\n')[0]?.trim() ?? '';
+    if (!label) return;
+    const color = (n.style.color || n.style.borderColor || getComputedStyle(n).color || '#4d94ff');
+    out.push({ id: n.id || `xp-${i}`, label, color });
+  };
+  dz.querySelectorAll<HTMLElement>(':scope > .signal-node').forEach((n, i) => {
+    if (n.classList.contains('dropped-group')) {
+      n.querySelectorAll<HTMLElement>('.dropped-group-children .signal-node').forEach((c, j) => push(c, i * 100 + j));
+    } else push(n, i);
+  });
+  return out;
+}
+
 /** The same-kind siblings of a twist (those dispatching to the same editor). */
 function resolveSiblings(prod: Production, selfName: string, color: Hex): Sibling[] {
   const selfPlugin = pluginFor(selfName);
@@ -49,13 +70,16 @@ export function buildContext(
   twist: string | TwistConfig,
   dispose: Disposer,
   services: EditorServices,
+  twistEl?: HTMLElement,
 ): EditorContext {
   const name = twistName(twist);
   const config = twistConfig(twist);
   const color = (prod.color ?? '#646DCC') as Hex;
+  // Prefer live routed crosspoints (the cascade); fall back to configured inputs.
+  const routed = twistEl ? routedFeeds(twistEl) : [];
   return {
     twist: { name, config },
-    sources: resolveSources(config, color),
+    sources: routed.length ? routed : resolveSources(config, color),
     production: { name: prod.name, color },
     siblings: resolveSiblings(prod, name, color),
     can,

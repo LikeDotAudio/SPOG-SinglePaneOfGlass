@@ -108,8 +108,20 @@ export function injectGraphicsStyles(): void {
   font-weight:900;letter-spacing:2px;font-size:clamp(10px,1.7vw,15px);}
 .gfx-ticker-track{flex:1;overflow:hidden;white-space:nowrap;}
 .gfx-ticker-crawl{display:inline-block;padding-left:100%;color:#eaf3ff;font-weight:700;letter-spacing:1px;
-  font-size:clamp(11px,1.8vw,16px);animation:gfxcrawl 16s linear infinite;}
+  font-size:clamp(11px,1.8vw,16px);animation:gfxcrawl 22s linear infinite;}
 @keyframes gfxcrawl{to{transform:translateX(-100%);}}
+.gfx-crawl-el{white-space:nowrap;}
+.gfx-crawl-sep{color:#ffd400;font-weight:900;}
+
+/* credit roll (audit §2C) — one card at a time; NEXT transitions the next over */
+.gfx-credit-card{position:absolute;left:0;right:0;top:0;bottom:0;display:flex;flex-direction:column;gap:10px;
+  align-items:center;justify-content:center;padding:0 12%;text-align:center;}
+.gfx-credit-row{display:flex;align-items:baseline;width:100%;max-width:80%;gap:6px;
+  font-size:clamp(13px,2.6vw,26px);color:#fff;}
+.gfx-credit-role{font-weight:600;color:#C89CE0;letter-spacing:2px;text-transform:uppercase;white-space:nowrap;}
+.gfx-credit-lead{flex:1;border-bottom:2px dotted rgba(200,156,224,.55);transform:translateY(-4px);}
+.gfx-credit-name{font-weight:900;letter-spacing:1px;white-space:nowrap;text-shadow:0 2px 8px rgba(0,0,0,.6);}
+.gfx-credit-line{font-weight:800;font-size:clamp(14px,3vw,30px);color:#fff;letter-spacing:2px;}
 
 /* full-screen title (audit §2A) */
 .gfx-fs{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
@@ -126,6 +138,20 @@ export function injectGraphicsStyles(): void {
 .gfx-score-pts{font-size:clamp(14px,2.6vw,22px);color:#ffd400;min-width:22px;text-align:center;}
 .gfx-score-clock{display:flex;align-items:center;padding:0 12px;background:#C864C8;color:#03060f;font-weight:900;
   font-family:'Courier New',monospace;letter-spacing:1px;}
+
+/* ---- crawl item editor (ticker): running list, enable + reorder for NEXT ---- */
+.gfx-crawl{display:flex;flex-direction:column;gap:5px;background:#0a1326;border:1px solid #1d2942;border-radius:10px;
+  padding:10px 12px;max-height:280px;overflow-y:auto;}
+.gfx-crawl-h{color:#C864C8;font:700 11px 'Courier New',monospace;letter-spacing:2px;text-transform:uppercase;margin-bottom:2px;}
+.gfx-crawl-row{display:flex;align-items:center;gap:8px;}
+.gfx-crawl-row input[type=checkbox]{width:15px;height:15px;accent-color:#C864C8;cursor:pointer;flex:0 0 auto;}
+.gfx-crawl-n{font:bold 10px 'Courier New',monospace;color:#5a6f88;min-width:16px;text-align:right;}
+.gfx-crawl-text{flex:1;min-width:0;background:#0c1322;color:#eaf3ff;border:1px solid #2c3e5e;border-radius:6px;
+  padding:5px 8px;font:12px sans-serif;}
+.gfx-crawl-row.off .gfx-crawl-text{opacity:.45;}
+.gfx-crawl-mv{flex:0 0 auto;width:24px;height:24px;border:none;border-radius:6px;background:#16233d;color:#bcd3ee;
+  cursor:pointer;font-size:12px;line-height:1;}
+.gfx-crawl-mv:hover{filter:brightness(1.35);}
 `,
   );
 }

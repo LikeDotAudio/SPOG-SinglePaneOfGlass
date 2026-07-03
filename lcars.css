@@ -236,12 +236,22 @@
                 drop-shadow(0 -1px 0)
                 drop-shadow(0 0 4px);
         }
-        /* LCARS data-row leaves: square segments separated by gaps, the LAST one
-           curved on its trailing edge to cap the row — i.e. [ ][ ]   ) */
+        /* Audio reads as an INVERTED trapezoid (/ \) — narrow top, wide bottom,
+           like the letter A — mirroring video's V (\ /) so category is obvious. */
         .signal-node.audio:not(.multiplex):not(.dropped-group) {
-            border-radius: 2px;
+            clip-path: polygon(10% 0, 90% 0, 100% 100%, 0 100%);
+            border-radius: 0;
+            border-color: transparent; /* real border is clipped on the slants */
             padding-left: 12px;
             padding-right: 12px;
+            /* clip-path clips the border, so trace the trapezoid silhouette with a
+               1px drop-shadow outline (currentColor = the node's source colour). */
+            filter:
+                drop-shadow(1px 0 0)
+                drop-shadow(-1px 0 0)
+                drop-shadow(0 1px 0)
+                drop-shadow(0 -1px 0)
+                drop-shadow(0 0 4px);
         }
         /* Only the top-level pool grid gets the row cap — sub-streams inside an
            expanded box stay uniform (no odd last-one-different shape). */
@@ -843,7 +853,7 @@
             position: absolute;
             top: 0;
             left: 0;
-            width: 130px;
+            width: 95px;
             height: 100%;
             border-left: 60px solid var(--lcars-color, #ffaa00);
             border-top: 25px solid var(--lcars-color, #ffaa00);
@@ -857,7 +867,7 @@
             content: '';
             position: absolute;
             top: 0;
-            left: 140px;
+            left: 105px;
             right: 0;
             height: 25px;
             background-color: var(--lcars-color, #ffaa00);

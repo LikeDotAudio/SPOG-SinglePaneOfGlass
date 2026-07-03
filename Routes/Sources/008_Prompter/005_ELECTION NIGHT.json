@@ -1,0 +1,33 @@
+{
+  "id": "prompter-election-night",
+  "name": "ELECTION NIGHT",
+  "title": "TELEPROMPTER ENGINE",
+  "color": "#C25BA6",
+  "kind": "video",
+  "extraClass": "prompter-source",
+  "wpm": 155,
+  "video": [
+    "PROMPT HEAD ▷ MIRRORED",
+    "CONFIDENCE ▷ DIRECT",
+    "PROGRAM ▷ CLEAN"
+  ],
+  "blocks": [
+    {
+      "id": "b1",
+      "slug": "OPEN",
+      "presenter": "ANCHOR 1",
+      "camera": "CAM 1",
+      "status": "ready",
+      "text": "Polls are closing across the country."
+    },
+    {
+      "id": "b2",
+      "slug": "DESK",
+      "presenter": "ANCHOR 2",
+      "camera": "CAM 2",
+      "status": "ready",
+      "text": "To the decision desk."
+    }
+  ],
+  "status": "OK"
+}

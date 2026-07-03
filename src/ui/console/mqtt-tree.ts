@@ -53,13 +53,12 @@ function resolveUrl(raw: string): string | null {
 
 const escapeHtml = (s: string): string => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] ?? c));
 
-// The chip is pinned bottom-RIGHT, directly above the .ptp-clock read-out (which
-// sits at bottom:42px) so the two live together as the bottom-right status stack.
-// Stacking above the clock (rather than left of it) keeps it clear of the clock's
-// variable width as its format cycles. lcars-pulse.ts nudges both `right` offsets
-// inward past the 20px edge pulse (mirrors its .ptp-clock rule).
+// The chip is pinned bottom-RIGHT and sits to the LEFT of the .ptp-clock read-out
+// (both share bottom:42px). The clock publishes its live width as --ptp-clock-w
+// (clock.ts) so the chip clears the clock as its format cycles (variable width).
+// lcars-pulse.ts nudges both `right` offsets inward past the 20px edge pulse.
 const MQ_CSS = `
-.mq-chip{position:fixed;right:14px;bottom:76px;z-index:1600;display:inline-flex;align-items:center;gap:7px;
+.mq-chip{position:fixed;right:calc(28px + var(--ptp-clock-w,180px));bottom:42px;z-index:1600;display:inline-flex;align-items:center;gap:7px;
     background:#0c1730;border:1px solid #2c3e5e;border-radius:6px 14px 14px 6px;color:#bcd3ee;
     font:bold 10px sans-serif;letter-spacing:1px;text-transform:uppercase;padding:6px 12px;cursor:pointer;
     box-shadow:0 3px 12px rgba(0,0,0,.5);}

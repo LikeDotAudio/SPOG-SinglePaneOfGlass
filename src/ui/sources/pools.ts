@@ -41,6 +41,18 @@ const tagOrigin = (root: ParentNode, origin: string): void => {
   root.querySelectorAll<HTMLElement>('.signal-node').forEach((n) => { n.dataset.origin = origin; });
 };
 
+// A prompter feed reads as a beam-splitter/prompter-glass silhouette (angled
+// trapezoid hood) so it is instantly distinguishable from a plain video node,
+// both in the source pool and once dropped onto a twist.
+const PROMPTER_NODE_CSS = `
+.signal-node.prompter-source{
+  clip-path:polygon(10% 0,90% 0,100% 100%,0 100%);
+  border-radius:0 !important;padding-left:16px;padding-right:16px;
+  text-align:center;letter-spacing:.5px;position:relative;}
+.signal-node.prompter-source::before{
+  content:'';position:absolute;left:12%;right:12%;top:5px;height:2px;
+  background:currentColor;opacity:.45;pointer-events:none;}`;
+
 // ---- VIDEO pool -------------------------------------------------------------
 /** Build `count` camera multiplex boxes (video + 4 audio + camera-control) into grid. */
 export function fillVideoCameras(
@@ -92,7 +104,27 @@ export function renderVideoPool(data: SourceLeaf, container: HTMLElement): void 
   wireFold(group);
   const grid = group.querySelector<HTMLElement>('.pool-content');
   if (grid) {
-    fillVideoCameras(grid, data.prefix ?? '', data.count ?? 0, data.extraClass ?? '', data.color ?? '', data.status);
+    // Named video feeds (e.g. a teleprompter engine's prompt-head / confidence /
+    // clean-program renders — one playhead, many synchronised outputs) live in the
+    // dedicated `video[]` field (kept SEPARATE from audio `items[]`) and render as
+    // plain draggable video nodes; otherwise fall back to the camera-stack fill.
+    if (data.video && data.video.length > 0) {
+      const poolColor = data.color || '#CC99CC';
+      addStyles('prompter-node-shape', PROMPTER_NODE_CSS);
+      data.video.forEach((label) => {
+        const node = document.createElement('div');
+        node.className = `signal-node video ${data.extraClass ?? ''}`;
+        node.innerText = label;
+        node.id = `pool-${data.id}-${slugId(label)}`;
+        node.draggable = true;
+        styleSignalNode(node, poolColor);
+        node.dataset.status = data.status || 'OK';
+        if (faulted) node.classList.add('fault');
+        grid.appendChild(node);
+      });
+    } else {
+      fillVideoCameras(grid, data.prefix ?? '', data.count ?? 0, data.extraClass ?? '', data.color ?? '', data.status);
+    }
     tagOrigin(grid, data.origin || data.name);
   }
 }
@@ -133,6 +165,51 @@ export function renderAudioPool(data: SourceLeaf, container: HTMLElement, color?
     }
   }
   tagOrigin(grid, data.origin || data.name);
+}
+
+// ---- PERSON pool ------------------------------------------------------------
+// A declared Person, once processed, is a routable SOURCE. Its audio (mic /
+// processed / IFB return) and video (camera) feeds are rendered as FLAT, sibling
+// signal-nodes — never a multiplex where video "contains" audio — so audio routes
+// to audio destinations and video to video destinations independently. An ISO
+// recorder (accepts:"both") is the one place both of a person's feeds can co-land.
+export function renderPersonPool(data: SourceLeaf, container: HTMLElement, color?: string): void {
+  const poolColor = color || data.color || '#F2B74B';
+  const faulted = isFaultStatus(data.status);
+  const origin = data.origin || data.name;
+  const group = document.createElement('div');
+  group.className = 'input-group';
+  group.innerHTML = `
+    <div class="foldable-header${faulted ? ' fault' : ''}" title="${data.status || 'OK'}" style="--lcars-color: ${poolColor}; background-color: ${poolColor}; font-size: 11px; margin-bottom: 8px;">
+      <span>${monoEmoji(data.name)}${data.name}${faultTag(data.status)}</span>
+      <span class="fold-icon" style="transform: rotate(-90deg); display: inline-block; transition: transform 0.2s;">▼</span>
+    </div>
+    <div class="input-grid-audio pool-content" id="${data.id}" style="display: none;"></div>`;
+  container.appendChild(group);
+  wireFold(group);
+  const grid = group.querySelector<HTMLElement>('.pool-content');
+  if (!grid) return;
+  const mk = (label: string, kind: 'audio' | 'video', extra: string): void => {
+    const node = document.createElement('div');
+    node.className = `signal-node ${kind} ${extra}`;
+    node.innerText = label;
+    node.id = `pool-${data.id}-${slugId(label)}`;
+    node.draggable = true;
+    node.dataset.origin = origin;
+    styleSignalNode(node, poolColor);
+    node.dataset.status = data.status || 'OK';
+    if (faulted) node.classList.add('fault');
+    grid.appendChild(node);
+  };
+  // Video (camera) feeds first, then audio — separate, flat siblings. Feeds come
+  // from the unified `source{audio,video}` projection (falling back to the legacy
+  // flat items[]/video[]). Every person has a camera: default to one CAM if none
+  // declared, so the person is routable to video destinations independent of mic.
+  const audioFeeds = data.source?.audio ?? data.items ?? [];
+  const declaredVideo = (data.source?.video && data.source.video.length ? data.source.video : data.video) ?? [];
+  const videos = declaredVideo.length ? declaredVideo : ['CAM'];
+  videos.forEach((label) => mk(label, 'video', data.extraClass?.includes('video') ? data.extraClass : 'video-person'));
+  audioFeeds.forEach((label) => mk(label, 'audio', 'audio-person'));
 }
 
 // ---- PLAYOUT pool -----------------------------------------------------------
@@ -197,14 +274,15 @@ export function renderProductionInputs(data: SourceLeaf, container: HTMLElement)
   group.className = 'input-group';
   let items = '', gridClass = 'input-grid-audio';
   if (Array.isArray(data.boxes)) {
-    gridClass = 'input-grid-video';
+    // Video and audio are SEPARATE, flat sibling nodes — never a multiplex where a
+    // video box "contains" its embedded audio. Each box contributes one video feed
+    // (name + " V") plus its audio/control feeds as independent draggable nodes, so
+    // video routes to video destinations and audio to audio destinations on its own.
     data.boxes.forEach((box: ProductionBox) => {
       const bid = `prodsrc-${data.id}-${slugId(box.name)}`, orig = `${data.name} — ${box.name}`;
-      let subs = '';
-      if (box.video !== false) subs += `<div class="signal-node video video-main sub-stream" draggable="true" data-origin="${orig}" id="${bid}-v" style="border-color:${color};color:${color};">${box.name} V</div>`;
-      (box.audio ?? []).forEach((a) => { subs += `<div class="signal-node audio audio-studio sub-stream" draggable="true" data-origin="${orig}" id="${bid}-${slugId(a)}">${box.name} ${a}</div>`; });
-      (box.control ?? []).forEach((cc) => { subs += `<div class="signal-node control sub-stream" draggable="true" data-origin="${orig}" id="${bid}-${slugId(cc)}">${box.name} ${cc}</div>`; });
-      items += `<div class="signal-node video multiplex video-main" draggable="true" data-origin="${orig}" id="${bid}" style="border-color:${color};color:${color};"><div class="multiplex-header">${box.name}</div><div class="multiplex-children" style="display:none;">${subs}</div></div>`;
+      if (box.video !== false) items += `<div class="signal-node video video-main" draggable="true" data-origin="${orig}" id="${bid}-v" style="border-color:${color};color:${color};">${box.name} V</div>`;
+      (box.audio ?? []).forEach((a) => { items += `<div class="signal-node audio audio-studio" draggable="true" data-origin="${orig}" id="${bid}-${slugId(a)}">${box.name} ${a}</div>`; });
+      (box.control ?? []).forEach((cc) => { items += `<div class="signal-node control" draggable="true" data-origin="${orig}" id="${bid}-${slugId(cc)}">${box.name} ${cc}</div>`; });
     });
   } else {
     (outs.video ?? DEFAULT_OUTPUTS.video).forEach((o) => {
@@ -294,6 +372,16 @@ export function inferPoolKind(data: SourceLeaf | null | undefined): PoolKind {
   if ((data.outputs && typeof data.outputs === 'object') || Array.isArray(data.boxes)) return 'productions';
   if (Array.isArray(data.streams)) return 'streams';
   const ec = (data.extraClass || '').toLowerCase();
+  // A Person leaf carries BOTH audio (items) and video (camera) feeds, kept
+  // separate — its own renderer emits them as flat, independent nodes. Detect it
+  // by the person extraClass, or by carrying both a video[] AND an audio items[]
+  // (a video-ONLY leaf like a teleprompter engine is NOT a person → see below).
+  if (data.source && typeof data.source === 'object') return 'person';   // unified person model
+  if (ec.includes('person') || (Array.isArray(data.video) && Array.isArray(data.items))) return 'person';
+  // Explicit video wins over the items→audio default: a source can declare its
+  // named VIDEO feeds (e.g. a teleprompter engine's prompt-head / confidence /
+  // clean-program outputs) in `video[]` via kind:"video" or a "…video…" extraClass.
+  if (data.kind === 'video' || ec.includes('video') || Array.isArray(data.video)) return 'video';
   if (ec.includes('audio') || Array.isArray(data.items)) return 'audio';
   return 'video';
 }
@@ -302,6 +390,7 @@ export function renderSourceLeaf(data: SourceLeaf, container: HTMLElement, kind:
   if (kind === 'playout') return renderPlayoutPool(data, container);
   if (kind === 'productions') return renderProductionInputs(data, container);
   if (kind === 'streams') return renderStreamsPool(data, container);
+  if (kind === 'person') return renderPersonPool(data, container, color);
   if (kind === 'audio') return renderAudioPool(data, container, color);
   return renderVideoPool(data, container);
 }

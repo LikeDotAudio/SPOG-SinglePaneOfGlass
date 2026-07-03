@@ -130,7 +130,31 @@
       ]
     },
     {
-      "name": "Multi Viewer",
+      "name": "Multi Viewer 1",
+      "accepts": "both",
+      "inputs": [
+        "MV 1",
+        "MV 2",
+        "MV 3",
+        "MV 4",
+        "MV 5",
+        "MV 6"
+      ]
+    },
+    {
+      "name": "Multi Viewer 2",
+      "accepts": "both",
+      "inputs": [
+        "MV 1",
+        "MV 2",
+        "MV 3",
+        "MV 4",
+        "MV 5",
+        "MV 6"
+      ]
+    },
+    {
+      "name": "Multi Viewer 3",
       "accepts": "both",
       "inputs": [
         "MV 1",
@@ -310,6 +334,48 @@
         "TRK 16"
       ],
       "row": "iso"
+    },
+    {
+      "name": "CRAWL",
+      "accepts": "both",
+      "inputs": [
+        "TICKER"
+      ],
+      "row": "graphics"
+    },
+    {
+      "name": "TITLE",
+      "accepts": "both",
+      "inputs": [
+        "FULL-SCREEN TITLE",
+        "LOWER THIRD"
+      ],
+      "row": "graphics"
+    },
+    {
+      "name": "SUPERS",
+      "accepts": "both",
+      "inputs": [
+        "NAME SUPER",
+        "LOWER THIRD"
+      ],
+      "row": "graphics"
+    },
+    {
+      "name": "GRAPHICS",
+      "accepts": "both",
+      "inputs": [
+        "LOWER THIRD",
+        "NAME SUPER",
+        "UP NEXT",
+        "PARTICIPANT LIST",
+        "BUG / DOG",
+        "TICKER",
+        "FULL-SCREEN TITLE",
+        "SCORE BUG",
+        "CREDIT ROLL"
+      ],
+      "row": "graphics"
     },
     {
       "name": "Signaling",

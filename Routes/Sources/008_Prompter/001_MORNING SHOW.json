@@ -1,0 +1,41 @@
+{
+  "id": "prompter-morning-show",
+  "name": "MORNING SHOW",
+  "title": "TELEPROMPTER ENGINE",
+  "color": "#C9A227",
+  "kind": "video",
+  "extraClass": "prompter-source",
+  "wpm": 150,
+  "video": [
+    "PROMPT HEAD ▷ MIRRORED",
+    "CONFIDENCE ▷ DIRECT",
+    "PROGRAM ▷ CLEAN"
+  ],
+  "blocks": [
+    {
+      "id": "b1",
+      "slug": "OPEN",
+      "presenter": "ANCHOR 1",
+      "camera": "CAM 1",
+      "status": "ready",
+      "text": "Good morning and welcome to the broadcast."
+    },
+    {
+      "id": "b2",
+      "slug": "HEADLINES",
+      "presenter": "ANCHOR 2",
+      "camera": "CAM 2",
+      "status": "ready",
+      "text": "Our top stories this hour."
+    },
+    {
+      "id": "b3",
+      "slug": "WEATHER",
+      "presenter": "ANCHOR 1",
+      "camera": "CAM 3",
+      "status": "draft",
+      "text": "Now to the forecast."
+    }
+  ],
+  "status": "OK"
+}

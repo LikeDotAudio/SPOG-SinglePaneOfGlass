@@ -47,6 +47,12 @@ const EXPECT: Array<[string, string | null]> = [
   ['TITLE EDITOR', 'graphics-engine'],     // name-super / lower-third authoring
   ['Lower Third', 'graphics-engine'],
   ['Name Super', 'graphics-engine'],
+  ['CRAWL', 'graphics-engine'],    // per-production graphics engines: crawl/title/supers
+  ['SUPERS', 'graphics-engine'],
+  ['Credit Roll', 'graphics-engine'],
+  ['PERSON', 'person'],           // talent entity → virtual channel strip
+  ['Talent', 'person'],
+  ['PROMPTER', 'prompter'],       // teleprompter feed (person kit)
   ['Clock', null],                // no dedicated editor → generic matrix fallback
 ];
 
@@ -57,8 +63,8 @@ describe('editor dispatch', () => {
     }
   });
 
-  it('registers all 17 editors', () => {
-    expect(PLUGINS.length).toBe(17);
+  it('registers all 19 editors', () => {
+    expect(PLUGINS.length).toBe(19);
   });
 
   it('orders plugins by ascending precedence (legacy import order)', () => {

@@ -22,7 +22,7 @@ const PULSE_CSS = `
 .credit-button{right:${WIDTH + 14}px !important;}
 .rv-btn{right:${WIDTH + 14}px !important;}
 .ptp-clock{right:${WIDTH + 14}px !important;}
-.mq-chip{right:${WIDTH + 14}px !important;}
+.mq-chip{right:calc(${WIDTH + 28}px + var(--ptp-clock-w,180px)) !important;}
 .mqt{right:${WIDTH + 14}px !important;}
 @media (prefers-reduced-motion: reduce){ .lcp-lines::after{animation:none;} }`;
 

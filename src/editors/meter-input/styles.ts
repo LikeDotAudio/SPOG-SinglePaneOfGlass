@@ -13,16 +13,22 @@ export function injectMeterInputStyles(): void {
 .mi-title{font:900 14px sans-serif;letter-spacing:3px;text-transform:uppercase;color:#1a1206;
     background:#f2a25a;padding:9px 22px;border-radius:6px 6px 6px 18px;white-space:nowrap;}
 .mi-title-line{flex:1 1 60px;min-width:40px;height:14px;border-radius:7px;background:#f2a25a;opacity:.85;}
-.mi-grp{display:flex;align-items:center;gap:12px;padding:8px 14px 8px 0;border-radius:10px;
+.mi-bar-groups{align-items:flex-start;gap:14px;}
+.mi-grp{display:flex;flex-direction:column;align-items:stretch;gap:9px;padding:10px 14px 12px 20px;border-radius:10px;
     position:relative;overflow:hidden;background:rgba(var(--acc),.07);}
 .mi-grp::before{content:'';position:absolute;left:0;top:0;bottom:0;width:9px;background:rgb(var(--acc));}
-.mi-grp-lbl{margin-left:24px;font:900 11px sans-serif;letter-spacing:2px;text-transform:uppercase;color:rgb(var(--acc));}
-.mi-grp-btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.mi-grp-lbl{font:900 11px sans-serif;letter-spacing:2px;text-transform:uppercase;color:rgb(var(--acc));}
+.mi-grp-btns{display:flex;flex-direction:column;align-items:stretch;gap:8px;}
 .mi-grp-src{--acc:224,150,60;} .mi-grp-pre{--acc:186,150,214;} .mi-grp-sens{--acc:224,110,90;}
 .mi-pill{font:bold 11px sans-serif;letter-spacing:1px;text-transform:uppercase;padding:8px 15px;border-radius:14px;
-    border:none;background:#1b2740;color:#cbd8ef;cursor:pointer;white-space:nowrap;transition:filter .15s,background .15s;}
+    border:none;background:#1b2740;color:#cbd8ef;cursor:pointer;white-space:nowrap;
+    transition:filter .15s,background .15s,margin-left .2s cubic-bezier(.3,.8,.3,1),padding-left .2s,border-radius .2s;}
 .mi-pill:hover{filter:brightness(1.28);}
 .mi-pill.on{background:rgb(var(--acc,224,150,60));color:#161006;box-shadow:0 0 10px rgba(var(--acc,224,150,60),.5);}
+/* Selected pill TUCKS INTO the group's colour spine: slides left to meet it and
+   squares its left edge so pill + spine read as one continuous LCARS accent bar. */
+.mi-grp .mi-pill.on{margin-left:-11px;padding-left:26px;border-radius:0 14px 14px 0;
+    box-shadow:inset 4px 0 8px rgba(0,0,0,.3),0 0 10px rgba(var(--acc,224,150,60),.5);}
 .mi-url{font:11px monospace;background:#0c1322;color:#cfe6ff;border:1px solid #2c3e5e;border-radius:12px;padding:8px 12px;min-width:200px;}
 .mi-stat{font:11px sans-serif;color:#e6a13a;}
 /* ── floating cards ────────────────────────────────────────────────────── */
@@ -36,7 +42,7 @@ export function injectMeterInputStyles(): void {
 .mi-btnicon{cursor:pointer;color:#0a1120;background:rgba(0,0,0,.18);border-radius:6px;font-weight:900;
     font-size:12px;line-height:1;padding:3px 6px;}
 .mi-btnicon:hover{background:rgba(0,0,0,.38);}
-.mi-restore{margin-left:auto;}
+.mi-x{margin-left:auto;}
 .mi-vid{flex:1 1 auto;min-height:0;width:100%;height:100%;border-radius:8px;background:#000;display:block;object-fit:contain;}
 .mi-preview{display:none;}
 .mi-grid{position:relative;min-height:660px;}
@@ -54,6 +60,8 @@ export function injectMeterInputStyles(): void {
 .mi-lumin-track{flex:1;height:16px;border-radius:8px;background:#0c1730;overflow:hidden;box-shadow:inset 0 0 4px #000;}
 .mi-lumin-bar{display:block;height:100%;width:0;border-radius:8px;background:linear-gradient(90deg,#2a3f66,#8fcdf0);transition:width .12s;}
 .mi-lumin-val{font:bold 13px 'Courier New',monospace;color:#cfe6ff;min-width:58px;text-align:right;}
+.mi-lumin-range{display:flex;gap:18px;font:11px sans-serif;color:#9fb6cc;}
+.mi-lumin-range b{color:#8fcdf0;font:bold 12px 'Courier New',monospace;margin-left:4px;}
 .mi-lumin-sens{display:flex;align-items:center;gap:8px;flex-wrap:wrap;--acc:224,110,90;margin-top:2px;}
 .mi-lumin-count,.mi-lumin-tempo{font:11px sans-serif;color:#9fb6cc;}
 .mi-lumin-count b{color:#f2955c;font:bold 12px 'Courier New',monospace;}
@@ -74,8 +82,7 @@ export function injectMeterInputStyles(): void {
     font:11px/1.55 'Courier New',monospace;white-space:pre;box-shadow:0 10px 28px rgba(0,0,0,.6);}
 .mi-layout.open{display:block;}
 /* ── hover-help + tooltip ──────────────────────────────────────────────── */
-.mi-help::after{content:'ⓘ';margin-left:6px;color:#3a2a10;font-size:10px;vertical-align:top;}
-.mi-help:hover::after{color:#0a1120;}
+.mi-help{cursor:help;}
 .mi-tip{position:fixed;z-index:100000;display:none;max-width:340px;pointer-events:none;
     background:#0b1526;border:1px solid #2c4370;border-radius:9px;padding:11px 13px;
     color:#cfe0f2;font:11px/1.55 Arial,Helvetica,sans-serif;box-shadow:0 12px 34px rgba(0,0,0,.7);}

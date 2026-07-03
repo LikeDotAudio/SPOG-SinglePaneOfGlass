@@ -1,0 +1,33 @@
+{
+  "id": "prompter-panel-talk",
+  "name": "PANEL TALK",
+  "title": "TELEPROMPTER ENGINE",
+  "color": "#5A6ACF",
+  "kind": "video",
+  "extraClass": "prompter-source",
+  "wpm": 130,
+  "video": [
+    "PROMPT HEAD ▷ MIRRORED",
+    "CONFIDENCE ▷ DIRECT",
+    "PROGRAM ▷ CLEAN"
+  ],
+  "blocks": [
+    {
+      "id": "b1",
+      "slug": "OPEN",
+      "presenter": "MODERATOR",
+      "camera": "CAM 4",
+      "status": "ready",
+      "text": "Welcome to the panel."
+    },
+    {
+      "id": "b2",
+      "slug": "AD-LIB",
+      "presenter": "MODERATOR",
+      "camera": "CAM 4",
+      "status": "ready",
+      "text": "[AD-LIB] Introduce todays guests."
+    }
+  ],
+  "status": "OK"
+}

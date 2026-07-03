@@ -36,6 +36,14 @@ export function initClock(onScheduleOpen?: () => void): void {
   el.innerHTML = `<span class="ck-time"></span><span class="ck-dots"></span>`;
   document.body.appendChild(el);
 
+  // Publish the clock's live width so right-anchored neighbours (the MQTT chip)
+  // can sit to its LEFT without overlapping as the format cycles (widths differ).
+  const publishWidth = (): void => {
+    document.documentElement.style.setProperty('--ptp-clock-w', `${Math.ceil(el.getBoundingClientRect().width)}px`);
+  };
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(publishWidth).observe(el);
+  publishWidth();
+
   const timeEl = el.querySelector<HTMLElement>('.ck-time')!;
   const dotsEl = el.querySelector<HTMLElement>('.ck-dots')!;
   const dots: HTMLElement[] = [];

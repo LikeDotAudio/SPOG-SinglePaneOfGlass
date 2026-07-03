@@ -73,8 +73,11 @@ export function createLiveInput(AW = 256, AH = 144): LiveInput {
   let streamSrc: MediaStreamAudioSourceNode | null = null;
   let curSrc: AudioNode | null = null;
 
-  // --- line-up tone: a 1 kHz sine at −22 dBFS on the test pattern; 5 s LEFT,
-  //     5 s RIGHT, 5 s SILENCE, looping (a standard L/R identification tone). ---
+  // --- line-up tone: a 1 kHz sine at −22 dBFS on the test pattern; sequence is
+  //     110 s BOTH (L+R) · 45 s LEFT · 5 s RIGHT · 1 s SILENCE, looping. It drives
+  //     the METERS ONLY — routed to the sound card through a muted gain so nothing
+  //     is audible, yet the Web Audio graph is still pulled so the analysers read
+  //     it (a bare source→analyser tap with no destination path won't update). ---
   const TONE_LEVEL = Math.pow(10, -22 / 20);   // −22 dBFS ≈ 0.0794 linear
   let toneStarted = false;
   let toneGL: GainNode | null = null;   // left-channel gate
@@ -89,16 +92,20 @@ export function createLiveInput(AW = 256, AH = 144): LiveInput {
     toneGL.connect(merger, 0, 0); toneGR.connect(merger, 0, 1);
     const split = actx.createChannelSplitter(2);
     merger.connect(split); split.connect(anL, 0); split.connect(anR, 1);   // per-channel meters/scopes
-    merger.connect(anTime); merger.connect(actx.destination);               // sum + audible
+    const mute = actx.createGain(); mute.gain.value = 0;                     // silent at the sound card
+    merger.connect(anTime); merger.connect(mute); mute.connect(actx.destination);   // meters only — never audible
     osc.start();
     toneStarted = true;
   }
   function silenceTone(): void { if (toneGL) toneGL.gain.value = 0; if (toneGR) toneGR.gain.value = 0; }
   function updateTone(now: number): void {
     if (!toneGL || !toneGR) return;
-    const phase = (now % 15000) / 1000;   // 0..15 s
-    toneGL.gain.value = phase < 5 ? TONE_LEVEL : 0;               // 0–5 s: LEFT
-    toneGR.gain.value = phase >= 5 && phase < 10 ? TONE_LEVEL : 0;   // 5–10 s: RIGHT; 10–15 s: OFF
+    const phase = (now % 161000) / 1000;   // 0..161 s cycle
+    // 0–110 s: BOTH · 110–155 s: LEFT · 155–160 s: RIGHT · 160–161 s: SILENCE
+    const left = phase < 155;
+    const right = phase < 110 || (phase >= 155 && phase < 160);
+    toneGL.gain.value = left ? TONE_LEVEL : 0;
+    toneGR.gain.value = right ? TONE_LEVEL : 0;
   }
 
   function ensureAudio(): void {

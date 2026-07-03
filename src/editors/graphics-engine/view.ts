@@ -16,10 +16,12 @@ import {
   type GfxTemplate, type Values,
 } from './templates.js';
 
-export type Mode = 'presets' | 'title' | 'graphic';
+export type Mode = 'presets' | 'title' | 'supers' | 'crawl' | 'graphic';
 
 export function modeFor(twistName: string): Mode {
   const n = twistName.toUpperCase();
+  if (n.includes('CRAWL')) return 'crawl';
+  if (n.includes('SUPER')) return 'supers';
   if (n.includes('PRESET')) return 'presets';
   if (n.includes('TITLE')) return 'title';
   return 'graphic';
@@ -40,8 +42,10 @@ function railEntries(mode: Mode, ctx: EditorContext): RailEntry[] {
       return { label: p.name, tpl, values: { ...defaults(tpl), ...p.values }, sub: tpl.name };
     });
   }
-  const pool = mode === 'title'
-    ? TEMPLATES.filter((t) => t.kind === 'lower-third' || t.kind === 'name-super')
+  const pool =
+    mode === 'crawl' ? TEMPLATES.filter((t) => t.kind === 'ticker')
+    : mode === 'supers' ? TEMPLATES.filter((t) => t.kind === 'name-super' || t.kind === 'lower-third')
+    : mode === 'title' ? TEMPLATES.filter((t) => t.kind === 'fullscreen' || t.kind === 'lower-third')
     : TEMPLATES;
   const fromRouted = labels.map((l) => templateForLabel(l)).filter((t): t is GfxTemplate => !!t)
     .filter((t) => pool.includes(t));
@@ -56,7 +60,9 @@ export function buildEngine(host: HTMLElement, ctx: EditorContext): void {
   const entries = railEntries(mode, ctx);
   let active: RailEntry | null = entries[0] ?? null;
 
-  const railHead = mode === 'presets' ? 'RUNDOWN' : mode === 'title' ? 'TITLES' : 'TEMPLATES';
+  const railHead =
+    mode === 'presets' ? 'RUNDOWN' : mode === 'crawl' ? 'CRAWL'
+    : mode === 'supers' ? 'SUPERS' : mode === 'title' ? 'TITLES' : 'TEMPLATES';
 
   // ---- panes ----
   const rail = el('div', { class: 'gfx-rail' });
@@ -65,10 +71,11 @@ export function buildEngine(host: HTMLElement, ctx: EditorContext): void {
   const statusBar = el('div', { class: 'gfx-status' });
   const fields = el('div', { class: 'gfx-fields' });
 
+  const crawlBox = el('div', { class: 'gfx-crawl', style: 'display:none' });
   const left = el('div', { class: 'gfx-col' }, [el('h4', {}, [railHead]), rail]);
   const centre = el('div', { class: 'gfx-col gfx-center' }, [
     el('h4', {}, [mode === 'presets' ? 'PROGRAM' : 'PREVIEW']),
-    stageWrap, transport, statusBar,
+    stageWrap, transport, statusBar, crawlBox,
   ]);
   const right = el('div', { class: 'gfx-col' }, [
     el('h4', {}, ['DATA FIELDS']), fields,
@@ -135,11 +142,47 @@ export function buildEngine(host: HTMLElement, ctx: EditorContext): void {
     });
   }
 
+  // ---- crawl item editor (ticker only): a running list you enable + reorder for NEXT ----
+  const crawlItems: Array<{ text: string; enabled: boolean }> = [
+    'ROUTING MATRIX ONLINE', 'ALL STAGEBOXES LOCKED', 'PGM CLEAN', 'STANDBY FOR TAKE',
+    'REMOTE 1 FRAME-SYNCED', 'LOUDNESS AT -23 LUFS', 'CAM 3 IRIS AUTO', 'ISO REC ARMED',
+    'MULTIVIEWER 2 ONLINE', 'INTERCOM CH 4 OPEN',
+  ].map((text) => ({ text, enabled: true }));
+  // One element per line; the on-air separator char + spacing come from the data
+  // fields (sep/gap) and are applied at render time (see templates renderGraphic).
+  const composeCrawl = (): string => crawlItems.filter((i) => i.enabled).map((i) => i.text.trim()).filter(Boolean).join('\n');
+  const applyCrawl = (): void => {
+    if (!active || active.tpl.kind !== 'ticker') return;
+    active.values['text'] = composeCrawl();
+    if (stage.state() === 'live' && active.tpl.updatable) stage.update(active.values); else stage.load(active.tpl, active.values);
+  };
+  function renderCrawl(): void {
+    crawlBox.replaceChildren(el('div', { class: 'gfx-crawl-h' }, ['Crawl Items · ticked show in NEXT']));
+    crawlItems.forEach((it, i) => {
+      const cb = el('input', { type: 'checkbox' }) as HTMLInputElement; cb.checked = it.enabled;
+      const tx = el('input', { class: 'gfx-crawl-text', type: 'text', value: it.text }) as HTMLInputElement;
+      const up = el('button', { class: 'gfx-crawl-mv', title: 'Move up' }, ['↑']);
+      const dn = el('button', { class: 'gfx-crawl-mv', title: 'Move down' }, ['↓']);
+      const row = el('div', { class: `gfx-crawl-row${it.enabled ? '' : ' off'}` }, [cb, el('span', { class: 'gfx-crawl-n' }, [String(i + 1)]), tx, up, dn]);
+      cb.onchange = () => { it.enabled = cb.checked; row.classList.toggle('off', !it.enabled); applyCrawl(); };
+      tx.oninput = () => { it.text = tx.value; applyCrawl(); };
+      up.onclick = () => { if (i > 0) { const a = crawlItems[i - 1]!, b = crawlItems[i]!; crawlItems[i - 1] = b; crawlItems[i] = a; renderCrawl(); applyCrawl(); } };
+      dn.onclick = () => { if (i < crawlItems.length - 1) { const a = crawlItems[i + 1]!, b = crawlItems[i]!; crawlItems[i + 1] = b; crawlItems[i] = a; renderCrawl(); applyCrawl(); } };
+      crawlBox.append(row);
+    });
+  }
+  const refreshCrawl = (): void => {
+    const on = !!active && active.tpl.kind === 'ticker';
+    crawlBox.style.display = on ? '' : 'none';
+    if (on) { renderCrawl(); applyCrawl(); }
+  };
+
   // ---- rail selection ----
   function select(entry: RailEntry): void {
     active = entry;
     stage.load(entry.tpl, entry.values);
     ctx.services.publishParam?.('template', entry.tpl.name);
+    refreshCrawl();   // compose ticker text first so the fields reflect it
     renderFields();
     syncSel();
   }
@@ -164,6 +207,7 @@ export function buildEngine(host: HTMLElement, ctx: EditorContext): void {
 
   // initial state
   if (active) { stage.load(active.tpl, active.values); }
+  refreshCrawl();
   renderFields();
   syncSel();
   // prime button disabled-state

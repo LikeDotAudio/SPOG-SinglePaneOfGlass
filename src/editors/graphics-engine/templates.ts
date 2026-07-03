@@ -10,7 +10,7 @@ import { el } from '../../ui/dom.js';
 
 export type TemplateKind =
   | 'lower-third' | 'name-super' | 'up-next' | 'participant'
-  | 'bug' | 'ticker' | 'fullscreen' | 'score';
+  | 'bug' | 'ticker' | 'fullscreen' | 'score' | 'credits';
 
 export interface FieldSpec {
   key: string;
@@ -29,6 +29,8 @@ export interface GfxTemplate {
   updatable: boolean;
   /** true ⇒ multi-state; NEXT reveals the next row (lists). */
   stateful: boolean;
+  /** true ⇒ NEXT replaces (the next card "takes over"), not accumulates. */
+  replace?: boolean;
   fields: FieldSpec[];
 }
 
@@ -36,6 +38,10 @@ export type Values = Record<string, string>;
 
 const lines = (v: string | undefined): string[] =>
   (v ?? '').split('\n').map((s) => s.trim()).filter(Boolean);
+
+/** Split a credit-roll text into cards on a "----" separator line (≥3 dashes). */
+const cardsOf = (v: string | undefined): string[] =>
+  (v ?? '').split(/\n\s*-{3,}\s*(?:\n|$)/).map((s) => s.trim()).filter(Boolean);
 
 // ---- The starter catalog (audit §8 G1) --------------------------------------
 
@@ -79,11 +85,13 @@ export const TEMPLATES: GfxTemplate[] = [
     ],
   },
   {
+    // Elements come from the crawl-item editor (view.ts) → values.text is the
+    // enabled items joined by "\n"; sep/gap below control the on-air spacing.
     id: 'ticker', name: 'TICKER', kind: 'ticker', updatable: true, stateful: false,
     fields: [
       { key: 'tag', label: 'Tag', type: 'text', default: 'BREAKING' },
-      { key: 'text', label: 'Crawl text', type: 'textarea',
-        default: 'ROUTING MATRIX ONLINE  •  ALL STAGEBOXES LOCKED  •  PGM CLEAN  •  STANDBY FOR TAKE' },
+      { key: 'sep', label: 'Spacing character', type: 'text', default: '•' },
+      { key: 'gap', label: 'Space between elements (px)', type: 'text', default: '26' },
     ],
   },
   {
@@ -101,6 +109,15 @@ export const TEMPLATES: GfxTemplate[] = [
       { key: 'away', label: 'Away', type: 'text', default: 'AWAY' },
       { key: 'awayScore', label: 'Away score', type: 'text', default: '1' },
       { key: 'clock', label: 'Clock', type: 'text', default: "12'" },
+    ],
+  },
+  {
+    // A full text of credit CARDS separated by a "----" line. NEXT transitions one
+    // card over the next ("takes over"); each "ROLE | NAME" line gets a dot leader.
+    id: 'credits', name: 'CREDIT ROLL', kind: 'credits', updatable: false, stateful: true, replace: true,
+    fields: [
+      { key: 'credits', label: 'Credits — ROLE | NAME · separate cards with a "----" line', type: 'textarea',
+        default: 'PRODUCED BY | ANTHONY KUZUB\n------------------------\nDIRECTED BY | JANE DOE\n------------------------\nGRAPHICS | SAM LEE\n------------------------\nAUDIO | PAT MORGAN' },
     ],
   },
 ];
@@ -123,8 +140,8 @@ export const PRESETS: Preset[] = [
     values: { name: 'THE FORECAST', title: 'NEXT 24 HOURS' } },
   { name: 'LOWER-THIRD KIT', templateId: 'lower-third',
     values: { name: 'GUEST NAME', title: 'GUEST TITLE' } },
-  { name: 'CREDITS ROLL', templateId: 'up-next',
-    values: { heading: 'CREDITS', items: 'DIRECTOR\nPRODUCER\nGRAPHICS\nAUDIO' } },
+  { name: 'CREDITS ROLL', templateId: 'credits',
+    values: { credits: 'PRODUCED BY | ANTHONY KUZUB\n------------------------\nDIRECTED BY | JANE DOE\n------------------------\nGRAPHICS | SAM LEE\n------------------------\nAUDIO | PAT MORGAN' } },
 ];
 
 // ---- Matching routed labels → templates -------------------------------------
@@ -217,13 +234,39 @@ export function renderGraphic(tpl: GfxTemplate, values: Values, reveal: number):
       break;
     }
     case 'ticker': {
-      const crawl = el('div', { class: 'gfx-ticker-crawl' }, [values.text || '']);
+      const els = lines(values.text);
+      const sep = values.sep ?? '•';
+      const gap = Math.max(0, parseInt(values.gap ?? '', 10) || 0);
+      const crawl = el('div', { class: 'gfx-ticker-crawl' });
+      els.forEach((txt, i) => {
+        if (i > 0 && sep) crawl.append(el('span', { class: 'gfx-crawl-sep', style: `margin:0 ${gap}px` }, [sep]));
+        crawl.append(el('span', { class: 'gfx-crawl-el' }, [txt]));
+      });
       g.append(
         el('div', { class: 'gfx-ticker-bar' }, [
           el('div', { class: 'gfx-ticker-tag' }, [values.tag || 'NEWS']),
           el('div', { class: 'gfx-ticker-track' }, [crawl]),
         ]),
       );
+      break;
+    }
+    case 'credits': {
+      const cards = cardsOf(values.credits);
+      const idx = Math.min(Math.max(0, reveal - 1), Math.max(0, cards.length - 1));
+      const card = el('div', { class: 'gfx-credit-card' });
+      lines(cards[idx]).forEach((ln) => {
+        if (ln.includes('|')) {
+          const [role, name] = ln.split('|').map((s) => s.trim());
+          card.append(el('div', { class: 'gfx-credit-row' }, [
+            el('span', { class: 'gfx-credit-role' }, [role || '']),
+            el('span', { class: 'gfx-credit-lead' }),
+            el('span', { class: 'gfx-credit-name' }, [name || '']),
+          ]));
+        } else {
+          card.append(el('div', { class: 'gfx-credit-line' }, [ln]));
+        }
+      });
+      g.append(card);
       break;
     }
     case 'fullscreen': {
@@ -255,5 +298,6 @@ export function renderGraphic(tpl: GfxTemplate, values: Values, reveal: number):
 export function stateCount(tpl: GfxTemplate, values: Values): number {
   if (tpl.kind === 'up-next') return Math.max(1, lines(values.items).length);
   if (tpl.kind === 'participant') return Math.max(1, lines(values.people).length);
+  if (tpl.kind === 'credits') return Math.max(1, cardsOf(values.credits).length);
   return 1;
 }

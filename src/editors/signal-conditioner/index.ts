@@ -69,8 +69,13 @@ const CSS = `
 .sc-led{width:11px;height:11px;border-radius:50%;background:#2a6f4f;box-shadow:0 0 8px rgba(57,211,83,.8);}
 .sc-led.warn{background:#c9a227;box-shadow:0 0 8px rgba(230,200,60,.8);}
 .sc-note{font:11px sans-serif;color:#6b82a3;}
-.sc-preview{height:120px;border-radius:8px;border:1px solid #1d2942;
+.sc-body.sc-proc-body{flex-direction:row;align-items:stretch;flex-wrap:wrap;gap:16px;}
+.sc-proc-controls{flex:1 1 260px;min-width:0;display:flex;flex-direction:column;gap:12px;justify-content:center;}
+.sc-preview{position:relative;flex:0 0 auto;aspect-ratio:1/1;width:230px;max-width:60vw;border-radius:8px;
+  border:1px solid #1d2942;overflow:hidden;}
+.sc-bars{position:absolute;inset:0;
   background:linear-gradient(90deg,#bfbfbf 0 14.28%,#bfbf00 14.28% 28.57%,#00bfbf 28.57% 42.85%,#00bf00 42.85% 57.14%,#bf00bf 57.14% 71.42%,#bf0000 71.42% 85.71%,#0000bf 85.71% 100%);}
+.sc-scope{position:absolute;inset:0;width:100%;height:100%;}
 .sc-presets{display:flex;flex-wrap:wrap;gap:11px;}
 .sc-preset{font:bold 13px sans-serif;letter-spacing:1.5px;text-transform:uppercase;padding:13px 22px;border:none;border-radius:14px;background:#16233d;color:#bcd3ee;cursor:pointer;transition:filter .15s;}
 .sc-preset:hover{filter:brightness(1.3);}
@@ -130,10 +135,14 @@ const plugin: EditorPlugin = {
     const [bRow, bIn, bVal] = slider('Black', -50, 50, 1);
     const [sRow, sIn, sVal] = slider('Chroma / Sat', 0, 200, 1);
     const [hRow, hIn, hVal] = slider('Hue', -180, 180, 1);
-    const preview = el('div', { class: 'sc-preview' });
+    // 1:1 preview: colour bars (which take the CSS proc-amp filter) with an RGB
+    // OVERLAY scope drawn on top — the R/G/B levels of the (proc-amped) bars.
+    const previewBars = el('div', { class: 'sc-bars' });
+    const previewScope = el('canvas', { class: 'sc-scope' });
+    const preview = el('div', { class: 'sc-preview' }, [previewBars, previewScope]);
     const procCard = el('div', { class: 'sc-card sc-wide', style: '--hc:#64c8a0' }, [
       el('h4', {}, ['Proc Amp · Colour Legalize']),
-      el('div', { class: 'sc-body' }, [preview, gRow, bRow, sRow, hRow]),
+      el('div', { class: 'sc-body sc-proc-body' }, [preview, el('div', { class: 'sc-proc-controls' }, [gRow, bRow, sRow, hRow])]),
     ]);
 
     // Presets
@@ -170,6 +179,60 @@ const plugin: EditorPlugin = {
       p('gain', s.gain); p('black', s.black); p('sat', s.sat); p('hue', s.hue);
     };
 
+    // The seven 75% SMPTE bars as linear 0..1 RGB (matches the CSS gradient).
+    const BARS: Array<[number, number, number]> = [
+      [.75, .75, .75], [.75, .75, 0], [0, .75, .75], [0, .75, 0], [.75, 0, .75], [.75, 0, 0], [0, 0, .75],
+    ];
+    const clamp01 = (x: number): number => Math.max(0, Math.min(1, x));
+    // Apply the proc-amp to an RGB triple in the SAME order as the CSS filter
+    // (brightness → contrast → saturate → hue-rotate) so the overlay tracks the bars.
+    function applyProc(r: number, g: number, b: number): [number, number, number] {
+      if (s.bypass) return [r, g, b];
+      const bright = (s.gain / 100) + (s.black / 400);
+      const contrast = 1 - (s.black / 200);
+      let R = r * bright, G = g * bright, B = b * bright;
+      R = (R - .5) * contrast + .5; G = (G - .5) * contrast + .5; B = (B - .5) * contrast + .5;
+      const sat = s.sat / 100, y = 0.2126 * R + 0.7152 * G + 0.0722 * B;
+      R = y + (R - y) * sat; G = y + (G - y) * sat; B = y + (B - y) * sat;
+      const a = s.hue * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a);
+      const m = [
+        0.213 + c * 0.787 - sn * 0.213, 0.715 - c * 0.715 - sn * 0.715, 0.072 - c * 0.072 + sn * 0.928,
+        0.213 - c * 0.213 + sn * 0.143, 0.715 + c * 0.285 + sn * 0.140, 0.072 - c * 0.072 - sn * 0.283,
+        0.213 - c * 0.213 - sn * 0.787, 0.715 - c * 0.715 + sn * 0.715, 0.072 + c * 0.928 + sn * 0.072,
+      ];
+      return [
+        clamp01(R * m[0]! + G * m[1]! + B * m[2]!),
+        clamp01(R * m[3]! + G * m[4]! + B * m[5]!),
+        clamp01(R * m[6]! + G * m[7]! + B * m[8]!),
+      ];
+    }
+    // Draw the RGB overlay waveform (per-bar R/G/B levels) over the bars.
+    function drawOverlay(): void {
+      const dpr = window.devicePixelRatio || 1;
+      const w = previewScope.clientWidth, h = previewScope.clientHeight;
+      if (!w || !h) return;
+      previewScope.width = Math.round(w * dpr); previewScope.height = Math.round(h * dpr);
+      const g = previewScope.getContext('2d'); if (!g) return;
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.clearRect(0, 0, w, h);
+      // graticule at 0 / 50 / 100 IRE
+      g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 1;
+      [0, .5, 1].forEach((lvl) => { const y = Math.round(h - lvl * h) + .5; g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); });
+      const bw = w / BARS.length;
+      g.globalCompositeOperation = 'lighter'; g.lineWidth = 2.5; g.lineCap = 'round';
+      const plot = (x0: number, x1: number, lvl: number, color: string): void => {
+        const y = h - lvl * h; g.strokeStyle = color; g.beginPath(); g.moveTo(x0 + 3, y); g.lineTo(x1 - 3, y); g.stroke();
+      };
+      BARS.forEach((base, i) => {
+        const [R, G, B] = applyProc(base[0], base[1], base[2]);
+        const x0 = i * bw, x1 = (i + 1) * bw;
+        plot(x0, x1, R, 'rgba(255,64,64,.95)');
+        plot(x0, x1, G, 'rgba(64,255,96,.95)');
+        plot(x0, x1, B, 'rgba(96,140,255,.98)');
+      });
+      g.globalCompositeOperation = 'source-over';
+    }
+
     // Reflect state → DOM + live preview (+ publish when the change is local).
     function sync(publish = false): void {
       root.classList.toggle('bypass', s.bypass);
@@ -189,7 +252,8 @@ const plugin: EditorPlugin = {
       // Proc-amp preview via CSS filters (bypass → clean pass-through).
       const bright = s.bypass ? 1 : (s.gain / 100) + (s.black / 400);
       const contrast = s.bypass ? 1 : 1 - (s.black / 200);
-      preview.style.filter = s.bypass ? 'none' : `brightness(${bright.toFixed(3)}) contrast(${contrast.toFixed(3)}) saturate(${(s.sat / 100).toFixed(3)}) hue-rotate(${s.hue}deg)`;
+      previewBars.style.filter = s.bypass ? 'none' : `brightness(${bright.toFixed(3)}) contrast(${contrast.toFixed(3)}) saturate(${(s.sat / 100).toFixed(3)}) hue-rotate(${s.hue}deg)`;
+      drawOverlay();
       if (publish) pub();
     }
 

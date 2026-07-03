@@ -39,22 +39,34 @@ export function createStage(host: HTMLElement, label: string, dispose: Disposer)
   let cur: LifecycleState = 'clear';
   let outTimer = 0;
   let listeners: Array<(s: LifecycleState, r: number, t: number) => void> = [];
+  let pendingTicker: Values | null = null;   // ticker edits wait for the loop boundary
 
   const total = (): number => (tpl ? stateCount(tpl, values) : 1);
   const emit = (): void => listeners.forEach((cb) => cb(cur, reveal, total()));
+
+  // Swap the crawl's element spans for the pending values WITHOUT touching the
+  // animated element — so the position keeps running; called at each loop wrap so
+  // the change lands after the current pass completes (never a mid-scroll jump).
+  function applyPendingTicker(crawl: HTMLElement): void {
+    if (!pendingTicker || !tpl) return;
+    values = pendingTicker; pendingTicker = null;
+    const fresh = renderGraphic(tpl, values, reveal).querySelector('.gfx-ticker-crawl');
+    if (fresh) crawl.replaceChildren(...Array.from(fresh.childNodes));
+  }
 
   function paint(animateIn: boolean): void {
     if (!tpl) return;
     layer.replaceChildren();
     const g = renderGraphic(tpl, values, reveal);
     layer.append(g);
-    if (animateIn) {
-      // force reflow so the transition from the off-state actually plays
-      void g.offsetWidth;
-      g.classList.add('on');
-    } else {
-      g.classList.add('on');
+    // The crawl restarts its scroll only on a real (re)paint; edits while live are
+    // deferred to the wrap via applyPendingTicker (see update()).
+    if (tpl.kind === 'ticker') {
+      const crawl = g.querySelector<HTMLElement>('.gfx-ticker-crawl');
+      crawl?.addEventListener('animationiteration', () => applyPendingTicker(crawl));
     }
+    if (animateIn) void g.offsetWidth;   // force reflow so the IN transition plays
+    g.classList.add('on');
   }
 
   return {
@@ -73,19 +85,29 @@ export function createStage(host: HTMLElement, label: string, dispose: Disposer)
       emit();
     },
     update(v) {
+      if (cur !== 'live') { values = { ...v }; return; }
+      const crawl = layer.querySelector<HTMLElement>('.gfx-ticker-crawl');
+      if (tpl?.kind === 'ticker' && crawl) {
+        // Don't restart the crawl: update the (non-animated) tag now, queue the
+        // element/spacing change for the next loop wrap (audit §5A, in-place).
+        pendingTicker = { ...v };
+        const tag = layer.querySelector<HTMLElement>('.gfx-ticker-tag');
+        if (tag) tag.textContent = (v.tag ?? '') || 'NEWS';
+        emit();
+        return;
+      }
       values = { ...v };
-      if (cur !== 'live') return;
-      const g = layer.firstElementChild as HTMLElement | null;
       // update-in-place: swap content, flash, no full out/in (audit §5A)
       paint(false);
       const ng = layer.firstElementChild as HTMLElement | null;
       if (ng) { ng.classList.add('gfx-updated'); window.setTimeout(() => ng.classList.remove('gfx-updated'), 450); }
-      void g;
       emit();
     },
     next() {
       if (!tpl || cur !== 'live') return;
-      if (reveal < total()) { reveal += 1; paint(false); emit(); }
+      // "replace" templates (credits) animate each card IN as it takes over; list
+      // templates just reveal the next row in place.
+      if (reveal < total()) { reveal += 1; paint(!!tpl.replace); emit(); }
     },
     out() {
       const g = layer.firstElementChild as HTMLElement | null;

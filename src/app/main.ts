@@ -16,7 +16,6 @@ import { renderSourcesPanel } from '../ui/sources/panel.js';
 import { wireSourceNodes } from '../ui/sources/interact.js';
 import { Footer, loadAllDestinations } from '../ui/console/footer.js';
 import { buildDestinations } from '../ui/console/destinations.js';
-import { initDestSelector } from '../ui/console/dest-selector.js';
 import { initClock } from '../ui/console/clock.js';
 import { showSchedule } from '../ui/console/schedule.js';
 import { initAuthPanel, applyScope } from '../ui/console/auth-panel.js';
@@ -72,7 +71,11 @@ function openEditorForTwist(twistEl: HTMLElement): void {
       if (c.name) name = c.name;
     } catch { /* keep the title-derived name */ }
   }
-  const plugin = pluginFor(name);
+  // Content-aware dispatch: a prompter feed routed onto ANY twist (e.g. a plain
+  // MONITOR) opens the PROMPTER engine editor so the op can drive the script —
+  // the twist's own name-editor is overridden by what's plugged into it.
+  const hasPrompter = twistEl.querySelector('.signal-node.prompter-source');
+  const plugin = hasPrompter ? (pluginFor('PROMPTER') ?? pluginFor(name)) : pluginFor(name);
   if (!plugin) return;
   const prodName = twistEl.dataset.prodName ?? '';
   const color = (twistEl.style.getPropertyValue('--lcars-color').trim() || '#646DCC') as Hex;
@@ -81,7 +84,7 @@ function openEditorForTwist(twistEl: HTMLElement): void {
   openOverlay(
     { title: prodName ? `${prodName} · ${plugin.title}` : plugin.title, color, prodName, twistName: name },
     (body, dispose) => {
-      const ctx = buildContext(prod, twist, dispose, twistSvc);
+      const ctx = buildContext(prod, twist, dispose, twistSvc, twistEl);
       const blocked = (plugin.requiredCaps ?? []).find((c) => !ctx.can(c));
       if (blocked) { body.innerHTML = `<div class="ed-h">ACCESS DENIED — requires "${blocked}"</div>`; return; }
       plugin.render(body, ctx);
@@ -141,7 +144,6 @@ async function buildConsole(): Promise<void> {
     renderSourcesPanel(ingress, () => wireSourceNodes(ingress)).then(() => wireSourceNodes(ingress)),
     buildDestinations(openEditorForTwist),
   ]);
-  initDestSelector();
   // Bottom-right UTC clock; the seconds-dots open the production schedule.
   initClock(showSchedule);
   // User control: the role badge (top-right) + login/rights overlays. Default Captain.

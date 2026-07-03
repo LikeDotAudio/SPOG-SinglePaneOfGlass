@@ -34,9 +34,12 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
       if (t.accepts && acceptColor[t.accepts]) lcars = acceptColor[t.accepts] as string;
       rowKey = t.row || (t.monitor ? 'monitors' : null);
       if (rowKey === 'remotes') lcars = '#64C8A0';   // signal-conditioner green, distinct from camera blue
+      if (rowKey === 'graphics') lcars = '#39D353';   // graphics engines — green, horizontal small row
     }
     const isSmall = !!rowKey;
-    const sizing = isSmall ? 'flex: 1 1 0; min-width: 0;' : 'flex: 0 0 auto; min-width: 200px;';
+    // Big (function) twists flow ~3-across (≈⅓ width) and wrap horizontally;
+    // small (row) twists share their row equally.
+    const sizing = isSmall ? 'flex: 1 1 0; min-width: 0;' : 'flex: 1 1 30%; min-width: 240px; max-width: 33%;';
     const prodAttrs = `data-prod-id="${pgm.id}" data-prod-name="${(titleText || '').replace(/"/g, '&quot;')}"`;
     const matrixId = `${pgm.id}-${name.replace(/\s+/g, '-').toLowerCase()}`;
     const twistHtml = `
@@ -57,7 +60,7 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
       <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding-right: 60px;">`;
   if (rows['cameras']) html += `<div class="monitor-row camera-row">${rows['cameras']}</div>`;
   if (rows['remotes']) html += `<div class="monitor-row remote-row">${rows['remotes']}</div>`;   // conditioned remotes, directly under the cameras
-  html += bigHtml;
+  if (bigHtml) html += `<div style="display:flex;flex-wrap:wrap;gap:6px;width:100%;align-items:flex-start;">${bigHtml}</div>`;
   rowOrder.forEach((k) => { if (k !== 'cameras' && k !== 'remotes') html += `<div class="monitor-row">${rows[k]}</div>`; });
   html += `</div></div>`;
   pane.innerHTML = html;
@@ -81,6 +84,8 @@ export async function addDestinationTree(
           void fetchJSON<Production>(baseUrl + f.href).then((data) => {
             if (!data) return;
             data.id = id;
+            // Unified person model: its destination twists live under `kit`.
+            if (!data.twists && data.kit?.twists) data.twists = data.kit.twists;
             if (parentName) data.parentName = parentName;
             data.color = color;
             const pane = document.getElementById('tab-' + id);
@@ -104,4 +109,9 @@ export async function buildDestinations(openEditor?: OpenEditor): Promise<void> 
     const catGroup = Footer.addGroup(stripOrder(cat.name).toUpperCase(), { color: colorRgb, collapsed: true });
     return addDestinationTree('Routes/Destinations/' + cat.href, catGroup, colorRgb, undefined, openEditor);
   }));
+  // People: ONE unified model — the destinations console projects `kit{}` twists
+  // from the canonical Routes/People tree (same files the sources panel reads).
+  const pColor = rgbAt(DEST_GROUP_COLORS, destDir.dirs.length);
+  const peopleGroup = Footer.addGroup('PEOPLE', { color: pColor, collapsed: true });
+  await addDestinationTree('Routes/People/', peopleGroup, pColor, undefined, openEditor);
 }

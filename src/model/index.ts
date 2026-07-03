@@ -32,6 +32,17 @@ export interface Production {
   status?: Status;
   outputs?: { video?: string[]; audio?: string[]; intercom?: string[] };
   twists?: Array<string | TwistConfig>;
+  // A Person's destination projection lives under `kit` (see PersonLeaf); the
+  // destinations loader normalises `kit.twists` → `twists` on load.
+  kit?: { twists?: Array<string | TwistConfig> };
+}
+
+/** A name-super / lower-third graphic tied to a person (drives the LOWER THIRD
+    twist + the graphics-engine CG — authored once, on the person). */
+export interface LowerThird {
+  line1: string;
+  line2?: string;
+  style?: string;
 }
 
 // ---- Source leaves (the *.json under Routes/Sources/**) ----------------------
@@ -80,7 +91,17 @@ export interface SourceLeaf {
   prefix?: string;
   count?: number;
   extraClass?: string;
-  items?: string[];
+  items?: string[];               // audio feeds (mic/processed/return) for a person/audio leaf
+  video?: string[];               // video feeds (camera) — kept SEPARATE from `items`, never nested
+  kind?: 'video' | 'audio';       // explicit pool kind — overrides the shape heuristic
+  title?: string;                 // name-super / lower-third title (a graphical element)
+  role?: string;                  // talent type (host, co-host, correspondent, …)
+  // person (SINGLE unified model — a person is both a source and a destination):
+  // `source` is the source projection (feeds), `kit` the destination projection
+  // (twists), `lowerThird`/`title` the shared identity. See Routes/People/**.
+  source?: { audio?: string[]; video?: string[] };
+  kit?: { twists?: Array<string | TwistConfig> };
+  lowerThird?: LowerThird;
   // playout
   players?: PlayoutPlayer[];
   // production
@@ -108,7 +129,7 @@ export interface TwistConfig {
 /** A folder manifest (index.json): entries ending "/" are directories. */
 export type Manifest = string[];
 
-export type PoolKind = 'video' | 'audio' | 'playout' | 'productions' | 'streams';
+export type PoolKind = 'video' | 'audio' | 'playout' | 'productions' | 'streams' | 'person';
 
 // ---- Access / capabilities (legacy js/auth.js) ------------------------------
 

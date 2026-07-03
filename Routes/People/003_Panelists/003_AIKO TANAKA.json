@@ -1,0 +1,79 @@
+{
+  "id": "aiko-tanaka",
+  "name": "AIKO TANAKA",
+  "role": "panelist",
+  "color": "#C9A227",
+  "title": "PANELIST",
+  "lowerThird": {
+    "line1": "AIKO TANAKA",
+    "line2": "PANELIST",
+    "style": "default"
+  },
+  "source": {
+    "audio": [
+      "MIC",
+      "PROCESSED",
+      "IFB RET"
+    ],
+    "video": [
+      "CAM"
+    ]
+  },
+  "kit": {
+    "twists": [
+      {
+        "name": "PERSON",
+        "accepts": "both",
+        "inputs": [
+          "MIC",
+          "PROCESSED OUT"
+        ]
+      },
+      {
+        "name": "IFB / IEM",
+        "accepts": "audio",
+        "row": "kit",
+        "inputs": [
+          "PROGRAM",
+          "MIX-MINUS",
+          "INTERRUPT"
+        ]
+      },
+      {
+        "name": "PROMPTER",
+        "accepts": "both",
+        "row": "kit",
+        "inputs": [
+          "RUNDOWN",
+          "SCRIPT",
+          "CLOCK"
+        ]
+      },
+      {
+        "name": "CAMERA 1",
+        "accepts": "camera",
+        "row": "kit",
+        "cameraInput": true,
+        "maxVideo": 1
+      },
+      {
+        "name": "LOWER THIRD",
+        "accepts": "video",
+        "row": "kit",
+        "maxVideo": 1
+      },
+      {
+        "name": "LIGHTING",
+        "accepts": "both",
+        "row": "kit",
+        "inputs": [
+          "KEY",
+          "FILL",
+          "BACK",
+          "HAIR"
+        ]
+      }
+    ]
+  },
+  "status": "OK"
+}

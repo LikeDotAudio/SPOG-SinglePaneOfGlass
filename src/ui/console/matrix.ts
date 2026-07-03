@@ -35,9 +35,22 @@ const XP_CSS = `
     box-sizing:border-box;border-radius:8px;background:#6FC8F0;color:#04121f;font:bold 9px sans-serif;
     display:flex;align-items:center;justify-content:center;padding:0 3px;z-index:4;box-shadow:0 1px 3px rgba(0,0,0,.55);pointer-events:none;}
 .drop-zone > .signal-node[draggable=true]{cursor:grab;}
-.drop-zone > .signal-node.xp-drag{opacity:.5;}
+.drop-zone > .signal-node.xp-drag{opacity:.4;}
+/* Word-processor insertion caret: a blinking vertical bar marking where the
+   dragged feed will land between the existing crosspoints. */
+.drop-zone > .xp-caret{flex:0 0 auto;width:3px;align-self:stretch;min-height:22px;margin:0 -1px;border-radius:2px;
+    background:#6FC8F0;box-shadow:0 0 7px #6FC8F0;pointer-events:none;animation:xp-caret-blink 1s steps(2,start) infinite;}
+@keyframes xp-caret-blink{50%{opacity:.2;}}
 `;
 let draggingXp: HTMLElement | null = null;
+let xpCaret: HTMLElement | null = null;
+
+/** The shared blinking caret element (created once, re-parented as it moves). */
+function ensureCaret(): HTMLElement {
+  if (!xpCaret) { xpCaret = document.createElement('div'); xpCaret.className = 'xp-caret'; }
+  return xpCaret;
+}
+function removeCaret(): void { xpCaret?.remove(); }
 
 /** Number every crosspoint (drop-zone child) 1..N in add (DOM) order. */
 export function renumberCrosspoints(dz: HTMLElement): void {
@@ -46,7 +59,7 @@ export function renumberCrosspoints(dz: HTMLElement): void {
 
 /** Which sibling the dragged crosspoint should be inserted before (flex-wrap aware). */
 function xpInsertBefore(dz: HTMLElement, x: number, y: number): HTMLElement | null {
-  const els = [...dz.querySelectorAll<HTMLElement>(':scope > .signal-node')].filter((e) => e !== draggingXp);
+  const els = [...dz.querySelectorAll<HTMLElement>(':scope > .signal-node')].filter((e) => e !== draggingXp && e !== xpCaret);
   for (const el of els) {
     const r = el.getBoundingClientRect();
     if (y < r.top + r.height / 2) return el;                       // pointer above this row
@@ -65,6 +78,7 @@ function makeCrosspointDraggable(node: HTMLElement): void {
   });
   node.addEventListener('dragend', () => {
     node.classList.remove('xp-drag'); draggingXp = null;
+    removeCaret();
     const dz = node.parentElement; if (dz) renumberCrosspoints(dz);
   });
 }
@@ -74,15 +88,24 @@ function makeCrosspointDraggable(node: HTMLElement): void {
 function wireDropZoneReorder(dz: HTMLElement): void {
   if (dz.dataset.reorderWired) return;
   dz.dataset.reorderWired = '1';
+  // The dragged feed stays put (dimmed); a blinking caret previews the drop point.
   dz.addEventListener('dragover', (e) => {
     if (!draggingXp || draggingXp.parentElement !== dz) return;
     e.preventDefault(); e.stopPropagation();
+    const caret = ensureCaret();
     const before = xpInsertBefore(dz, e.clientX, e.clientY);
-    if (before) dz.insertBefore(draggingXp, before); else dz.appendChild(draggingXp);
+    if (before) dz.insertBefore(caret, before); else dz.appendChild(caret);
+  });
+  dz.addEventListener('dragleave', (e) => {
+    // Only drop the caret when the pointer actually leaves the zone (not on hops
+    // between child crosspoints), so it doesn't flicker mid-drag.
+    if (draggingXp && !dz.contains(e.relatedTarget as Node | null)) removeCaret();
   });
   dz.addEventListener('drop', (e) => {
     if (!draggingXp || draggingXp.parentElement !== dz) return;
     e.preventDefault(); e.stopPropagation();
+    if (xpCaret && xpCaret.parentElement === dz) dz.insertBefore(draggingXp, xpCaret);
+    removeCaret();
     renumberCrosspoints(dz);
     const twist = dz.closest<HTMLElement>('.twist-container');
     if (twist) { updateTwistVisuals(twist); publishCrosspoints(twist); }
@@ -182,6 +205,58 @@ export function placeSourceInTwist(twist: HTMLElement, node: HTMLElement): boole
   refreshCrosspoints(dropZone);   // number 1..N + make reorderable
   publishCrosspoints(twist);
   return true;
+}
+
+// Trickle-down targets: a CAM/REMOTE input auto-routes VIDEO to the vision/
+// multiviewer twists and AUDIO to the monitor/positioner twists — "audio goes to
+// audio, video goes to video" (matched by twist name).
+const CASCADE: Array<{ re: RegExp; kind: 'video' | 'audio' }> = [
+  { re: /video\s*mix|vision|switch/i, kind: 'video' },
+  { re: /multi\s*view/i, kind: 'video' },
+  { re: /monitor\s*console|audio\s*mix/i, kind: 'audio' },
+  { re: /audio\s*position|positioner/i, kind: 'audio' },
+];
+
+/** Split a dropped bundle (ids, multiplex-aware) into its video + audio leaf feeds. */
+function leafFeeds(ids: string[]): { videos: HTMLElement[]; audios: HTMLElement[] } {
+  const videos: HTMLElement[] = [], audios: HTMLElement[] = [];
+  ids.forEach((id) => {
+    const node = document.getElementById(id); if (!node) return;
+    const pool = node.classList.contains('multiplex') ? [...node.querySelectorAll<HTMLElement>('.sub-stream')] : [node];
+    pool.forEach((n) => { if (n.classList.contains('video')) videos.push(n); else if (n.classList.contains('audio')) audios.push(n); });
+  });
+  return { videos, audios };
+}
+
+/** Route given nodes to a production's downstream twists (all matches — e.g. all 3 Multi Viewers). */
+function cascadeNodes(inputTwist: HTMLElement, videos: HTMLElement[], audios: HTMLElement[]): void {
+  const scope: ParentNode = inputTwist.closest('.program-row') ?? inputTwist.closest('[id^="tab-"]') ?? document;
+  const twists = [...scope.querySelectorAll<HTMLElement>('.twist-container')];
+  for (const { re, kind } of CASCADE) {
+    const nodes = kind === 'video' ? videos : audios;
+    if (!nodes.length) continue;
+    const targets = twists.filter((t) => t !== inputTwist && re.test((t.querySelector('.twist-title')?.textContent ?? '')));
+    for (const target of targets) { nodes.forEach((n) => placeSourceInTwist(target, n)); updateTwistVisuals(target); }
+  }
+}
+
+/** Fan a dropped bundle across the production's CAM/REMOTE inputs — ONE video feed
+ *  per input from the drop target onward, until feeds or input slots run out — then
+ *  send the whole audio bundle to the monitor console + audio positioner. */
+function fanOutToInputs(startTwist: HTMLElement, ids: string[]): void {
+  const scope: ParentNode = startTwist.closest('.program-row') ?? startTwist.closest('[id^="tab-"]') ?? document;
+  const inputs = [...scope.querySelectorAll<HTMLElement>('.twist-container')]
+    .filter((t) => { const c = parseConfig(t); return !!c && (!!c.cameraInput || c.row === 'remotes'); });
+  const start = Math.max(0, inputs.indexOf(startTwist));
+  const { videos, audios } = leafFeeds(ids);
+  for (let i = 0; i < videos.length && start + i < inputs.length; i++) {
+    const target = inputs[start + i]!, video = videos[i]!;
+    ensureDropZone(target).replaceChildren();   // one input per camera / remote
+    placeSourceInTwist(target, video);
+    updateTwistVisuals(target);
+    cascadeNodes(target, [video], []);          // this input's video → vision + multiviewers
+  }
+  if (audios.length) cascadeNodes(startTwist, [], audios);   // audio bundle → console + positioner
 }
 
 const acceptsFor = (config: TwistConfig | null) => (el: HTMLElement): boolean => {
@@ -288,6 +363,14 @@ export function initializeTwists(root: ParentNode, onOpenEditor?: OpenEditor): v
           });
         }
       });
+
+      // A CAM / REMOTE holds ONE input: a dropped bundle FANS OUT one feed per input
+      // across the cameras + remotes (from here onward), each trickling its video to
+      // the vision/multiviewer twists and the audio bundle to the console/positioner.
+      if (config && (config.cameraInput || config.row === 'remotes')) {
+        dropZone.replaceChildren();   // discard the default placement; fan-out re-places
+        fanOutToInputs(twist, ids);
+      }
 
       // Redraw the DNA strand for the new routed set, then a brief confirm flash.
       updateTwistVisuals(twist);

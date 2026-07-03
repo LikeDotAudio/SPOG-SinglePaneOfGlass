@@ -91,6 +91,9 @@ export function openOverlay(
   return dispose;
 }
 
+/** #/<prod>/<twist> — an editor deep-link, as opposed to the plain console. */
+const isEditorHash = (h: string | null): boolean => !!h && /^#\/[^/]+\/[^/]+/.test(h);
+
 export function close(): void {
   if (activeDisposer) {
     activeDisposer.dispose();
@@ -98,7 +101,13 @@ export function close(): void {
   }
   if (handle) handle.root.classList.remove('open');
   if (prevHash !== null) {
-    history.replaceState(null, '', prevHash || location.pathname + location.search);
+    // Return to where we came from — the console. If we were deep-linked straight
+    // into an editor (prevHash IS an editor URL), don't restore that (it would
+    // leave the closed editor in the address bar / relaunch on reload); clear to
+    // the base console instead. Otherwise restore the prior (console) URL.
+    const base = location.pathname + location.search;
+    const restore = isEditorHash(prevHash) ? base : (prevHash || base);
+    history.replaceState(null, '', restore);
     prevHash = null;
   }
 }

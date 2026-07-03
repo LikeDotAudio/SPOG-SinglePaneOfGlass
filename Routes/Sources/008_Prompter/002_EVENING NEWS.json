@@ -1,0 +1,33 @@
+{
+  "id": "prompter-evening-news",
+  "name": "EVENING NEWS",
+  "title": "TELEPROMPTER ENGINE",
+  "color": "#B0553A",
+  "kind": "video",
+  "extraClass": "prompter-source",
+  "wpm": 160,
+  "video": [
+    "PROMPT HEAD ▷ MIRRORED",
+    "CONFIDENCE ▷ DIRECT",
+    "PROGRAM ▷ CLEAN"
+  ],
+  "blocks": [
+    {
+      "id": "b1",
+      "slug": "COLD OPEN",
+      "presenter": "ANCHOR 1",
+      "camera": "CAM 1",
+      "status": "ready",
+      "text": "Good evening. Our top story tonight."
+    },
+    {
+      "id": "b2",
+      "slug": "FIELD TOSS",
+      "presenter": "ANCHOR 1",
+      "camera": "CAM 1",
+      "status": "ready",
+      "text": "We go live to the field."
+    }
+  ],
+  "status": "OK"
+}

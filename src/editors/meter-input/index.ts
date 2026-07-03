@@ -25,22 +25,18 @@ const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.m
 
 // A card becomes drag-move (via its header) + resize (native corner handle); its
 // position/size is set by a layout preset (see PRESETS / applyPreset). Double-
-// clicking the header — or the ⤢ button — snaps it back to the preset spot.
+// double-clicking the header snaps it back to the preset spot.
 function floatCard(card: HTMLElement, bringToFront: () => number, onRestore: () => void): void {
   Object.assign(card.style, { position: 'absolute', margin: '0', resize: 'both', overflow: 'hidden' });
   const handle = card.querySelector<HTMLElement>('h4');
   if (!handle) return;
   handle.style.cursor = 'move'; handle.style.userSelect = 'none';
-  // ⤢ restores this card to its preset position/size; × closes (hides) it.
-  const restore = document.createElement('span');
-  restore.className = 'mi-btnicon mi-restore'; restore.textContent = '⤢'; restore.title = 'Restore to preset view (or double-click the title)';
-  restore.addEventListener('pointerdown', (e) => e.stopPropagation());
-  restore.addEventListener('click', (e) => { e.stopPropagation(); onRestore(); });
+  // × closes (hides) this card; double-clicking the title (or a preset) restores it.
   const x = document.createElement('span');
   x.className = 'mi-btnicon mi-x'; x.textContent = '×'; x.title = 'Close (a preset restores it)';
   x.addEventListener('pointerdown', (e) => e.stopPropagation());
   x.addEventListener('click', (e) => { e.stopPropagation(); card.style.display = 'none'; });
-  handle.append(restore, x);
+  handle.append(x);
   handle.addEventListener('dblclick', (e) => { e.preventDefault(); onRestore(); });
   handle.addEventListener('pointerdown', (e) => {
     e.preventDefault();
@@ -113,12 +109,15 @@ const plugin: EditorPlugin = {
     // Edit detector — average luminance (AVG bar) + a time-stamped log of scene cuts.
     const luminBar = el('i', { class: 'mi-lumin-bar' });
     const luminVal = el('span', { class: 'mi-lumin-val' }, ['—']);
+    const luminMin = el('b', {}, ['—']);
+    const luminMax = el('b', {}, ['—']);
     const luminCount = el('b', {}, ['0']);
     const luminTempo = el('b', {}, ['0.0']);
     const cardLumin = el('div', { class: 'mi-card' }, [
       el('h4', {}, ['Luminance']),
       el('div', { class: 'mi-lumin' }, [
         el('div', { class: 'mi-luminrow' }, [el('span', { class: 'mi-lumin-lbl' }, ['AVG']), el('div', { class: 'mi-lumin-track' }, [luminBar]), luminVal]),
+        el('div', { class: 'mi-lumin-range' }, [el('span', {}, ['LOW ', luminMin]), el('span', {}, ['HIGH ', luminMax])]),
         el('div', { class: 'mi-lumin-count' }, ['edits detected: ', luminCount]),
         el('div', { class: 'mi-lumin-tempo' }, ['edit tempo: ', luminTempo, ' / min']),
         // Edit-detection sensitivity lives with the luminance meter (drives the edit log below).
@@ -141,9 +140,13 @@ const plugin: EditorPlugin = {
       el('div', { class: `mi-grp ${cls}` }, [el('span', { class: 'mi-grp-lbl' }, [label]), el('div', { class: 'mi-grp-btns' }, btns)]);
     host.append(el('div', { class: 'mi' }, [
       el('div', { class: 'mi-bar' }, [
-        el('div', { class: 'mi-bar-row' }, [el('div', { class: 'mi-title' }, ['Edit Detector']), el('div', { class: 'mi-title-line' }), bLayout]),
-        el('div', { class: 'mi-bar-row' }, [grp('mi-grp-src', 'Source', [bBars, bCap, bFile, url, bUrl, file])]),
-        el('div', { class: 'mi-bar-row' }, [grp('mi-grp-pre', 'Presets', [pDef, pAud, pVid, pCol, pLum])]),
+        // SOURCE + PRESETS sit side-by-side, each dropping its buttons downward.
+        // (The editor's name is already in the overlay top bar — no title tab here.)
+        el('div', { class: 'mi-bar-row mi-bar-groups' }, [
+          grp('mi-grp-src', 'Source', [bBars, bCap, bFile, url, bUrl, file]),
+          grp('mi-grp-pre', 'Presets', [pDef, pAud, pVid, pCol, pLum]),
+          bLayout,
+        ]),
         el('div', { class: 'mi-bar-row mi-bar-stat' }, [stat]),
       ]),
       grid,
@@ -262,7 +265,7 @@ const plugin: EditorPlugin = {
     const INTRO =
       'These scopes can look intimidating, but they are just different ways of visualizing the same audio &amp; video data. ' +
       'Once you can read them they become an objective source of truth — showing what your eyes/ears miss due to monitor calibration or room acoustics. ' +
-      'Hover any scope’s title (ⓘ) for how to read it.';
+      'Hover any scope’s title for how to read it.';
     const HELP: Record<string, Help> = {
       video: { t: 'Analyzed Source', lead: 'The actual frames + audio every scope reads (test pattern, captured tab, file, or URL). Everything else on this bench is measured from this signal.' },
       wave: { t: 'Luma Waveform', lead: 'Brightness only (colour ignored). Horizontal = left→right position in the frame; vertical = 0 (black) → 100 (white).', good: 'Detail well-distributed; faces sit ~40–70.', bad: 'Trace pinned at 100 (highlights clipped) or 0 (shadows crushed) — that data is gone.' },
@@ -361,6 +364,12 @@ const plugin: EditorPlugin = {
     let prevG: Float32Array | null = null;   // previous frame's normalised luma histogram
     let editStart = performance.now();        // fallback clock when the source has no timeline
     let lastCutT = -1, editCount = 0, curLuma = 0;
+    let luMin = 101, luMax = -1;              // running lowest / highest average luminance
+    // Random SPATIAL sample: a stable set of random columns whose per-column mean luma
+    // we track frame-to-frame. Catches transitions the global histogram misses (a cut
+    // between shots of similar overall brightness but different content).
+    let sampleCols: number[] | null = null;
+    let prevSample: Float32Array | null = null;
     const editTimes: number[] = [];           // source-time (s) of recent cuts → tempo
     const srcTime = (now: number): number => {
       const m = li.mode();
@@ -374,9 +383,11 @@ const plugin: EditorPlugin = {
       return span > 0 ? 60 * (editTimes.length - 1) / span : 0;   // cuts per minute
     };
     const resetEdits = (): void => {
-      prevG = null; lastCutT = -1; editCount = 0; editStart = performance.now(); editTimes.length = 0;
+      prevG = null; prevSample = null; lastCutT = -1; editCount = 0; editStart = performance.now(); editTimes.length = 0;
+      luMin = 101; luMax = -1;
       editList.replaceChildren(el('div', { class: 'mi-edit-empty' }, ['watching for edits…']));
       editCountEl.textContent = '0 events'; luminCount.textContent = '0'; luminTempo.textContent = '0.0';
+      luminMin.textContent = '—'; luminMax.textContent = '—';
     };
     const addEdit = (t: number, luma: number): void => {
       editCount++; editTimes.push(t); if (editTimes.length > 40) editTimes.shift();
@@ -543,10 +554,26 @@ const plugin: EditorPlugin = {
           let diff = 0;
           if (prevG) { for (let i = 0; i < BINS; i++) diff += Math.abs((g[i] ?? 0) - (prevG[i] ?? 0)); diff *= 0.5; }
           prevG = g;
+          // Random spatial sampling: per-column mean luma over a stable random column
+          // set → a spatial change metric that fires on cuts the histogram alone misses.
+          if (!sampleCols) { sampleCols = []; for (let i = 0; i < 48; i++) sampleCols.push(Math.floor(Math.random() * AWc)); }
+          const cur = new Float32Array(sampleCols.length);
+          let sDiff = 0;
+          for (let si = 0; si < sampleCols.length; si++) {
+            const base = (sampleCols[si] ?? 0) * BINS; let ct = 0, sum = 0;
+            for (let bin = 0; bin < BINS; bin++) { const cnt = d.yH[base + bin] ?? 0; ct += cnt; sum += cnt * (bin / (BINS - 1)); }
+            const m = ct > 0 ? sum / ct : 0; cur[si] = m;
+            if (prevSample) sDiff += Math.abs(m - (prevSample[si] ?? 0));
+          }
+          if (prevSample) sDiff /= sampleCols.length;   // 0..1 spatial change
+          prevSample = cur;
+          luMin = Math.min(luMin, mean); luMax = Math.max(luMax, mean);
           luminBar.style.width = `${clamp(mean, 0, 100)}%`;
           luminVal.textContent = `${mean.toFixed(1)}%`;
+          luminMin.textContent = `${luMin.toFixed(1)}%`; luminMax.textContent = `${luMax.toFixed(1)}%`;
           const st = srcTime(now);
-          if (diff > editSens && st - lastCutT > 0.4) { lastCutT = st; addEdit(st, mean); }   // 0.4s debounce
+          const change = Math.max(diff, sDiff);   // histogram OR spatial transition
+          if (change > editSens && st - lastCutT > 0.4) { lastCutT = st; addEdit(st, mean); }   // 0.4s debounce
           luminTempo.textContent = editTempo().toFixed(1);
         }
         else if (li.isTainted()) setStat('cross-origin source without CORS — use Capture Tab or Load File', true);
