@@ -6,11 +6,11 @@
 // module-global timer list.
 
 import type { Disposer } from '../../ui/timers.js';
-import type { Sibling } from '../types.js';
+import type { Sibling, EditorServices } from '../types.js';
 import type { Feed, RouteGraph } from '../../domain/routing-core/index.js';
 import { mixMinus } from '../../domain/routing-core/index.js';
 import { qs } from '../../ui/dom.js';
-import { PRIO, dB, initialState, type DialKey } from './state.js';
+import { PRIO, dB, initialState, DIAL_PARAM, TALK_VALUES, stripPrefix, type DialKey } from './state.js';
 
 /** Resolve the feeds for this IFB — sources, then config.inputs, then a default. */
 function resolveFeeds(sib: Sibling): Feed[] {
@@ -71,9 +71,29 @@ function drawDuck(cv: HTMLCanvasElement, hist: readonly number[]): void {
   ctx.stroke();
 }
 
-/** Build one full IFB editor into `body` for a single talent (sibling) twist. */
-export function buildOne(body: HTMLElement, sib: Sibling, dispose: Disposer): void {
+/** Build one full IFB editor into `body` for a single talent (sibling) twist.
+ *  `services` + `idx` scope this strip's MQTT params to the flat `t<N>_…` topics
+ *  advertised once by the plugin (audit §4.5). */
+export function buildOne(
+  body: HTMLElement,
+  sib: Sibling,
+  dispose: Disposer,
+  services: EditorServices,
+  idx: number,
+): void {
   const s = initialState();
+
+  // This strip's param prefix + publish helpers (guarded — absent w/o MQTT).
+  const pfx = stripPrefix(idx);
+  const pubDial = (key: DialKey): void =>
+    services.publishParam?.(`${pfx}${DIAL_PARAM[key]}`, +s[key].toFixed(3));
+  // Talk is a one-shot key press/release — publish un-throttled (discrete event).
+  const pubTalk = (): void =>
+    services.publishParam?.(`${pfx}talk`, TALK_VALUES[s.talk] ?? 'clear', { throttle: false });
+  const subscribe = (name: string, cb: (v: unknown) => void): void => {
+    const off = services.onParam?.(name, cb);
+    if (off) dispose.add(off);
+  };
 
   // Data-in mix-minus: route every feed into this dest, then drop the talent mic.
   const feeds = resolveFeeds(sib);
@@ -116,6 +136,7 @@ export function buildOne(body: HTMLElement, sib: Sibling, dispose: Disposer): vo
     ['intGain', 'Interrupt', '#ff6a6a'],
     ['threshold', 'Threshold', '#ffd400'],
   ];
+  const dialPaint = new Map<DialKey, () => void>();
   for (const [key, label, c] of dialDefs) {
     const kn = document.createElement('div');
     kn.className = 'ifb-kn';
@@ -144,6 +165,7 @@ export function buildOne(body: HTMLElement, sib: Sibling, dispose: Disposer): vo
       if (!dr) return;
       s[key] = Math.max(0, Math.min(1, sv + (sy - e.clientY) / 130));
       paint();
+      pubDial(key); // throttled — safe inside the drag loop
     };
     const onUp = (): void => {
       dr = false;
@@ -155,7 +177,18 @@ export function buildOne(body: HTMLElement, sib: Sibling, dispose: Disposer): vo
       window.removeEventListener('mouseup', onUp);
     });
     knobs.appendChild(kn);
+    dialPaint.set(key, paint);
     paint();
+  }
+
+  // Inbound encoder writes from the bus / other consoles → set + repaint (no echo).
+  for (const [key] of dialDefs) {
+    subscribe(`${pfx}${DIAL_PARAM[key]}`, (v) => {
+      if (typeof v === 'number') {
+        s[key] = Math.max(0, Math.min(1, v));
+        dialPaint.get(key)?.();
+      }
+    });
   }
 
   const talks = qs(body, '.ifb-talks');
@@ -172,11 +205,13 @@ export function buildOne(body: HTMLElement, sib: Sibling, dispose: Disposer): vo
     const down = (): void => {
       s.talk = pr.p;
       refresh();
+      pubTalk();
     };
     const up = (): void => {
       if (s.talk === pr.p) {
         s.talk = 0;
         refresh();
+        pubTalk();
       }
     };
     t.addEventListener('mousedown', down);
@@ -189,6 +224,15 @@ export function buildOne(body: HTMLElement, sib: Sibling, dispose: Disposer): vo
     t.addEventListener('touchend', up);
     talks.appendChild(t);
   }
+
+  // Inbound interrupt (talk) writes → adopt the named priority + repaint (no echo).
+  subscribe(`${pfx}talk`, (v) => {
+    const p = TALK_VALUES.indexOf(v as (typeof TALK_VALUES)[number]);
+    if (p >= 0) {
+      s.talk = p;
+      refresh();
+    }
+  });
 
   const status = qs<HTMLElement>(body, '.ifb-status');
   const mmMask = qs<HTMLElement>(body, '.ifb-mm .mask');

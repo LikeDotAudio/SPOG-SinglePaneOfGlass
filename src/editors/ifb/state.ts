@@ -44,3 +44,22 @@ export const PRIO: readonly Prio[] = [
 /** Linear level → relative dB readout (verbatim from the legacy editor). */
 export const dB = (v: number): string =>
   v <= 0.001 ? '-∞ dB' : `${Math.round((v - 1) * 48)} dB`;
+
+// ---- MQTT param naming (audit §4.5) ---------------------------------------
+// The IFB window is a GRID of talent strips (one per same-kind sibling), yet all
+// strips share ONE twist topic. So every param is flat-indexed by strip — `t<N>_…`
+// (1-based) — mirroring the ch<N>_ scheme used by the audio-positioner.
+
+/** Topic prefix for the strip at grid index `idx` (0-based → `t1_`, `t2_`, …). */
+export const stripPrefix = (idx: number): string => `t${idx + 1}_`;
+
+/** Encoder key → snake_case param leaf (the three driveable IFB encoders). */
+export const DIAL_PARAM: Record<DialKey, string> = {
+  progGain: 'prog_gain',
+  intGain: 'int_gain',
+  threshold: 'threshold',
+};
+
+/** The interrupt/talk state as an enum — index doubles as the `talk` priority
+ *  (0 = clear, 1..3 = held key), so `TALK_VALUES[s.talk]` names the current state. */
+export const TALK_VALUES = ['clear', 'p1', 'p2', 'p3'] as const;

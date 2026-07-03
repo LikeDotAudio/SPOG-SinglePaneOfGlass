@@ -9,6 +9,7 @@
 // ctx.dispose so the host tears the interval down on close.
 
 import type { EditorPlugin } from '../types.js';
+import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { el, qs } from '../../ui/dom.js';
 import { injectEncoderStyles } from './styles.js';
 import { RENDITIONS, DESTS, deriveFeeds } from './state.js';
@@ -16,10 +17,15 @@ import { RENDITIONS, DESTS, deriveFeeds } from './state.js';
 interface TileRef {
   kbps: number;
   name: string;
+  param: string;   // snake_case MQTT param that arms/stops this rung
   on: boolean;
   err: boolean;
   el: HTMLDivElement;
 }
+
+// snake_case a rendition name for its param (2160p, 1080×1920 → 1080x1920, 1080² → 1080sq).
+const slug = (n: string): string =>
+  n.toLowerCase().replace(/×/g, 'x').replace(/²/g, 'sq').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 
 const plugin: EditorPlugin = {
   id: 'encoder',
@@ -94,10 +100,12 @@ const plugin: EditorPlugin = {
         tile.innerHTML =
           `<div class="led"></div><div class="ar"><span class="arbox" style="width:${sq[0]}px;height:${sq[1]}px"></span><div><b>${r.name}</b><div class="codec">${r.ar} · ${r.codec}</div></div></div>` +
           `<div class="br">${(r.kbps / 1000).toFixed(1)} Mbps</div><div class="dest">${destName}</div>`;
-        const ref: TileRef = { kbps: r.kbps, name: r.name, on: true, err: false, el: tile };
+        const param = (streams.length > 1 ? `s${si + 1}_` : '') + slug(r.name);
+        const ref: TileRef = { kbps: r.kbps, name: r.name, param, on: true, err: false, el: tile };
         tile.addEventListener('click', () => {
-          ref.on = !ref.on;
-          tile.classList.toggle('off', !ref.on);
+          armRung(ref, !ref.on);
+          // Discrete start/stop of an ABR rung — one-shot, don't throttle.
+          ctx.services.publishParam?.(ref.param, ref.on, { throttle: false });
         });
         grid.appendChild(tile);
         tiles.push(ref);
@@ -106,32 +114,46 @@ const plugin: EditorPlugin = {
 
     // destination vault
     const dest = qs(host, '.enc-dest');
+    // Reflect a destination selection to the DOM (shared by the click handler and
+    // inbound MQTT writes so an external console can re-point the egress).
+    const selectDest = (i: number): void => {
+      ui.dest = i;
+      dest.querySelectorAll('.enc-d').forEach((x, j) => x.classList.toggle('sel', j === i));
+    };
     DESTS.forEach((d, i) => {
       const item = el('div', { class: 'enc-d' + (i === 0 ? ' sel' : '') });
       item.innerHTML = `<span class="lk">🔒</span><div class="nm">${d}</div><span class="pr">${/SRT/.test(d) ? 'SRT' : 'RTMP'}</span>`;
       item.addEventListener('click', () => {
-        ui.dest = i;
-        dest.querySelectorAll('.enc-d').forEach((x, j) => x.classList.toggle('sel', j === i));
+        selectDest(i);
+        ctx.services.publishParam?.('destination', DESTS[i], { throttle: false });
       });
       dest.appendChild(item);
     });
 
     // hitless failover PRIMARY / SECONDARY toggle
     const fo = qs(host, '.enc-fo');
+    const applyFailover = (primary: boolean): void => {
+      ui.failPrimary = primary;
+      qs(host, '.enc-fo .prim').classList.toggle('on', primary);
+      qs(host, '.enc-fo .sec').classList.toggle('on', !primary);
+    };
     fo.addEventListener('click', (e) => {
       const target = e.target as HTMLElement | null;
       const p = target?.closest('.pill');
       if (!p) return;
-      ui.failPrimary = p.classList.contains('prim');
-      qs(host, '.enc-fo .prim').classList.toggle('on', ui.failPrimary);
-      qs(host, '.enc-fo .sec').classList.toggle('on', !ui.failPrimary);
+      applyFailover(p.classList.contains('prim'));
+      ctx.services.publishParam?.('failover', ui.failPrimary ? 'primary' : 'secondary', { throttle: false });
     });
 
     // AES-128 / DRM toggle
     const drmKey = qs(host, '.enc-key.drm');
+    const applyDrm = (on: boolean): void => {
+      ui.drm = on;
+      drmKey.classList.toggle('on', on);
+    };
     drmKey.addEventListener('click', () => {
-      ui.drm = !ui.drm;
-      drmKey.classList.toggle('on', ui.drm);
+      applyDrm(!ui.drm);
+      ctx.services.publishParam?.('drm', ui.drm, { throttle: false });
     });
 
     // live stream-health monitoring + random packet-drop simulation
@@ -146,6 +168,8 @@ const plugin: EditorPlugin = {
       const errs = tiles.filter((t) => t.on && t.err);
       const first = errs[0];
       const totalMbps = tiles.filter((t) => t.on).reduce((a, t) => a + t.kbps, 0) / 1000;
+      // Aggregate egress bitrate as read-only telemetry (throttled — it ticks live).
+      ctx.services.publishParam?.('egress_mbps', +totalMbps.toFixed(1));
       health.innerHTML =
         `Frozen Frame &nbsp;<span class="${errs.length ? 'bad' : 'ok'}">${first ? 'CHECK ' + first.name : 'OK'}</span><br>` +
         `Black Video &nbsp;<span class="ok">OK</span><br>` +
@@ -154,6 +178,46 @@ const plugin: EditorPlugin = {
         `Encryption &nbsp;<span class="${ui.drm ? 'ok' : 'bad'}">${ui.drm ? 'AES-128' : 'CLEAR'}</span><br>` +
         `Egress Total &nbsp;<b style="color:#cfe6ff">${totalMbps.toFixed(1)} Mbps</b>`;
     }, 220);
+
+    // ── MQTT param bridge (audit §4.5) ──────────────────────────────────────
+    // Arm/stop an ABR rung (bitrate + codec + resolution are fixed rendition
+    // attributes, so the driveable value is the rung's start/stop enable).
+    function armRung(ref: TileRef, on: boolean): void {
+      ref.on = on;
+      ref.el.classList.toggle('off', !on);
+    }
+
+    // Advertise the operator-driveable schema: destination + failover + DRM are
+    // R/W enums/bools; each ABR rung is a start/stop bool; egress is read-only.
+    const specs: ParamSpec[] = [
+      { name: 'destination', type: 'enum', values: [...DESTS], writable: true, cap: 'route' },
+      { name: 'failover', type: 'enum', values: ['primary', 'secondary'], writable: true },
+      { name: 'drm', type: 'bool', writable: true },
+      ...tiles.map((t): ParamSpec => ({ name: t.param, type: 'bool', writable: true, cap: 'route' })),
+      { name: 'egress_mbps', type: 'number', unit: 'Mbps', writable: false },
+    ];
+    ctx.services.advertiseParams?.(specs);
+
+    // Publish current state once (retained) so the bus reflects power-on config.
+    const pub = ctx.services.publishParam;
+    if (pub) {
+      pub('destination', DESTS[ui.dest]);
+      pub('failover', ui.failPrimary ? 'primary' : 'secondary');
+      pub('drm', ui.drm);
+      for (const t of tiles) pub(t.param, t.on);
+    }
+
+    // Honour inbound writes from the bus / other consoles — apply to state + DOM
+    // WITHOUT re-publishing (the apply helpers never call publishParam).
+    ctx.services.onParam?.('destination', (v) => {
+      const i = DESTS.indexOf(String(v));
+      if (i >= 0) selectDest(i);
+    });
+    ctx.services.onParam?.('failover', (v) => {
+      if (v === 'primary' || v === 'secondary') applyFailover(v === 'primary');
+    });
+    ctx.services.onParam?.('drm', (v) => applyDrm(!!v));
+    for (const t of tiles) ctx.services.onParam?.(t.param, (v) => armRung(t, !!v));
   },
 };
 

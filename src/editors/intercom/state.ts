@@ -15,6 +15,11 @@ export interface IntercomState {
   groups: TalkGroup[];
   selecting: boolean;
   picked: Set<number>;
+  /** Per-key operator state (indexed to `keys`) — the driveable/MQTT-published
+      values: TALK latch, LISTEN latch, and the channel level fader (0..100). */
+  talk: boolean[];
+  listen: boolean[];
+  level: number[];
 }
 
 /** Legacy fallback key set when no sources are routed (verbatim). */
@@ -34,5 +39,14 @@ export const DEFAULT_KEYS: readonly string[] = [
 ];
 
 export function createIntercomState(keys: string[]): IntercomState {
-  return { keys, groups: [], selecting: false, picked: new Set<number>() };
+  return {
+    keys,
+    groups: [],
+    selecting: false,
+    picked: new Set<number>(),
+    talk: keys.map(() => false),
+    listen: keys.map(() => false),
+    // Legacy default fader spread (verbatim from the view's initial slider value).
+    level: keys.map((_, i) => 60 + ((i * 7) % 35)),
+  };
 }

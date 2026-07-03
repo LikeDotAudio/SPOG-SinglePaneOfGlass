@@ -1,0 +1,15 @@
+{
+  "id": "gfx-timers",
+  "name": "PRODUCTION TIMERS",
+  "title": "RC1000 DUAL UP/DOWN TIMER",
+  "color": "#C864C8",
+  "kind": "video",
+  "extraClass": "timer-source",
+  "video": [
+    "TIMER ▸ A/B PANEL",
+    "TIMER A ▾ COUNT",
+    "TIMER B ▾ COUNT",
+    "SHOW CLOCK ▾ BACKTIME"
+  ],
+  "status": "OK"
+}

@@ -44,6 +44,16 @@ function renderVisionMixer(host: HTMLElement, ctx: EditorContext): void {
   };
   const labelOf = (i: number): string => srcs[i]?.label ?? '—';
 
+  // MQTT live-value publishing (mirror of signal-conditioner): every operator
+  // action is pushed to the bus. Bus selections travel as their SOURCE LABEL
+  // (the advertised enum value), not the raw index. Discrete button presses use
+  // { throttle: false }; the T-bar drag rides the default throttle.
+  const publish = (name: string, value: unknown, opts?: { throttle?: boolean }): void =>
+    ctx.services.publishParam?.(name, value, opts);
+  const publishBus = (kind: 'pgm' | 'pvw'): void =>
+    publish(kind, labelOf(state[kind]), { throttle: false });
+  const indexOfLabel = (label: unknown): number => srcs.findIndex((s) => s.label === label);
+
   // Stage: PROGRAM monitor | big central T-BAR | PREVIEW monitor.
   const pgmFeed = el('div', { class: 'vm-feed' });
   const dsk = el('div', { class: 'vm-dsk' });
@@ -93,6 +103,7 @@ function renderVisionMixer(host: HTMLElement, ctx: EditorContext): void {
       b.addEventListener('click', () => {
         state[kind] = i;
         sync();
+        publishBus(kind);
       });
       btns.push(b);
       bus.appendChild(b);
@@ -132,6 +143,19 @@ function renderVisionMixer(host: HTMLElement, ctx: EditorContext): void {
   ]);
   host.appendChild(ctl);
 
+  // Advertise every driveable control as an R/W param (audit CR.6). Bus selects
+  // are enums over the resolved source labels so a controller can pick by name;
+  // a TAKE is represented by the resulting pgm/pvw swap (both re-published), so
+  // there is no separate retained "take" command to mis-fire on reconnect.
+  ctx.services.advertiseParams?.([
+    { name: 'pgm', type: 'enum', values: srcs.map((s) => s.label), writable: true, cap: 'switch' },
+    { name: 'pvw', type: 'enum', values: srcs.map((s) => s.label), writable: true, cap: 'switch' },
+    { name: 'transition', type: 'enum', values: transDefs, writable: true, cap: 'switch' },
+    { name: 'tbar', type: 'number', unit: '%', min: 0, max: 100, writable: true, cap: 'switch' },
+    { name: 'dsk1', type: 'bool', writable: true, cap: 'switch' },
+    { name: 'dsk2', type: 'bool', writable: true, cap: 'switch' },
+  ]);
+
   function take(): void {
     const t = state.pgm;
     state.pgm = state.pvw;
@@ -143,22 +167,33 @@ function renderVisionMixer(host: HTMLElement, ctx: EditorContext): void {
     b.addEventListener('click', () => {
       state.trans = transDefs[idx]!;
       transBtns.forEach((x) => x.classList.toggle('sel', x === b));
+      publish('transition', state.trans, { throttle: false });
     });
   });
-  takeBtn.addEventListener('click', take);
+  // TAKE (button or T-bar throw): publish the resulting bus swap discretely.
+  takeBtn.addEventListener('click', () => {
+    take();
+    publishBus('pgm');
+    publishBus('pvw');
+  });
   keyBtns.forEach((k, i) => {
     k.addEventListener('click', () => {
       state.keys[i] = !state.keys[i];
       sync();
+      publish(i === 0 ? 'dsk1' : 'dsk2', state.keys[i], { throttle: false });
     });
   });
 
   tbar.addEventListener('input', () => {
     pct.textContent = `${tbar.value}%`;
+    publish('tbar', +tbar.value); // continuous drag → default throttle
     if (+tbar.value >= 100) {
       take();
+      publishBus('pgm');
+      publishBus('pvw');
       tbar.value = '0';
       pct.textContent = '0%';
+      publish('tbar', 0, { throttle: false }); // settle the reset
     }
   });
 
@@ -173,6 +208,22 @@ function renderVisionMixer(host: HTMLElement, ctx: EditorContext): void {
     keyBtns.forEach((k, i) => k.classList.toggle('on', state.keys[i]));
   }
   sync();
+
+  // External control: honour writes from the bus / other consoles, applying to
+  // local state + DOM WITHOUT re-publishing (no echo loop).
+  ctx.services.onParam?.('pgm', (v) => { const i = indexOfLabel(v); if (i >= 0) { state.pgm = i; sync(); } });
+  ctx.services.onParam?.('pvw', (v) => { const i = indexOfLabel(v); if (i >= 0) { state.pvw = i; sync(); } });
+  ctx.services.onParam?.('transition', (v) => {
+    if (transDefs.includes(v as Transition)) {
+      state.trans = v as Transition;
+      transBtns.forEach((x, idx) => x.classList.toggle('sel', transDefs[idx] === state.trans));
+    }
+  });
+  ctx.services.onParam?.('tbar', (v) => {
+    if (typeof v === 'number') { tbar.value = String(v); pct.textContent = `${Math.round(v)}%`; }
+  });
+  ctx.services.onParam?.('dsk1', (v) => { state.keys[0] = !!v; sync(); });
+  ctx.services.onParam?.('dsk2', (v) => { state.keys[1] = !!v; sync(); });
 }
 
 const plugin: EditorPlugin = {

@@ -12,6 +12,7 @@
 import type { EditorPlugin } from '../types.js';
 import { el } from '../../ui/dom.js';
 import type { EditorContext } from '../types.js';
+import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { injectAudioPositionerStyles } from './styles.js';
 
 const NEAR_RADIUS = 120;
@@ -147,6 +148,29 @@ const plugin: EditorPlugin = {
       a += span;
     });
 
+    // Advertise every fader's position as R/W MQTT params so an external
+    // controller can place channels too (one triplet per channel, indexed 1-based):
+    //   azimuth = where it sits around the listener, level = intensity, depth = NEAR→FAR.
+    ctx.services.advertiseParams?.(faders.flatMap((_, i): ParamSpec[] => {
+      const n = i + 1;
+      return [
+        { name: `ch${n}_azimuth`, type: 'number', unit: 'deg', min: 0, max: 360, writable: true },
+        { name: `ch${n}_level`, type: 'number', unit: '%', min: 0, max: 100, writable: true },
+        { name: `ch${n}_depth`, type: 'number', unit: '%', min: 0, max: 100, writable: true },
+      ];
+    }));
+    // Publish a fader's current position (called from every local drag/wheel change).
+    // Throttled by default — safe inside the drag `mousemove` loop.
+    const pubFader = (f: Fader): void => {
+      const p = ctx.services.publishParam; if (!p) return;
+      const i = faders.indexOf(f); if (i < 0) return;
+      const n = i + 1;
+      let az = f.angle % 360; if (az < 0) az += 360;
+      p(`ch${n}_azimuth`, +az.toFixed(1));
+      p(`ch${n}_level`, +f.rot.toFixed(1));
+      p(`ch${n}_depth`, +f.val.toFixed(1));
+    };
+
     // ----- Group panel: visibility / solo / select / rename / rotate -----
     const groupPanel = el('div', { class: 'ap-grouppanel' });
     let selectedGroup = -1;
@@ -239,13 +263,14 @@ const plugin: EditorPlugin = {
       if (hit) { active = hit; startX = mx; startY = my; startVal = hit.val; startRot = hit.rot; hit.dragging = true; }
     };
     const onMove = (e: MouseEvent): void => {
-      if (groupDrag) { const dx = e.clientX - groupDrag.x; faders.forEach((f) => { if (f.group === groupDrag!.gi) { f.angle += dx * 0.5; f.updatePosition(cx, cy); } }); groupDrag.x = e.clientX; return; }
+      if (groupDrag) { const dx = e.clientX - groupDrag.x; faders.forEach((f) => { if (f.group === groupDrag!.gi) { f.angle += dx * 0.5; f.updatePosition(cx, cy); pubFader(f); } }); groupDrag.x = e.clientX; return; }
       const [mx, my] = at(e);
       if (!active) { hovered = topAt(mx, my); faders.forEach((f) => (f.hovered = f === hovered)); canvas.style.cursor = hovered ? 'pointer' : 'default'; return; }
       const f = active, isAlt = e.altKey, isRight = e.buttons === 2, isLeft = e.buttons === 1, isMid = e.buttons === 4;
       if ((isAlt && isLeft) || isMid) { f.angle = Math.atan2(my - cy, mx - cx) * 180 / Math.PI; f.updatePosition(cx, cy); }
       else if (isRight) { f.rot = clamp(startRot + (mx - startX) * 0.5); }
       else if (isLeft) { const rad = f.angle * Math.PI / 180; const proj = (mx - startX) * Math.cos(rad) + (my - startY) * Math.sin(rad); f.val = clamp(startVal - proj / f.trackLen * 100); }
+      pubFader(f);
     };
     const onUp = (): void => { if (active) { active.dragging = false; active = null; } groupDrag = null; };
     const onDbl = (e: MouseEvent): void => {
@@ -254,7 +279,7 @@ const plugin: EditorPlugin = {
     };
     const onWheel = (e: WheelEvent): void => {
       e.preventDefault(); const d = -Math.sign(e.deltaY);
-      if (hovered) { if (e.altKey || e.ctrlKey) { hovered.angle += d * 3; hovered.updatePosition(cx, cy); } else hovered.rot = clamp(hovered.rot + d * 5); }
+      if (hovered) { if (e.altKey || e.ctrlKey) { hovered.angle += d * 3; hovered.updatePosition(cx, cy); } else hovered.rot = clamp(hovered.rot + d * 5); pubFader(hovered); }
     };
     canvas.addEventListener('mousedown', onDown);
     canvas.addEventListener('dblclick', onDbl);
@@ -263,6 +288,17 @@ const plugin: EditorPlugin = {
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     ctx.dispose.add(() => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); });
+
+    // External control: honour position writes from the bus / other consoles. The
+    // draw loop redraws continuously, so we only mutate state (no explicit re-render).
+    faders.forEach((f, i) => {
+      const n = i + 1;
+      ctx.services.onParam?.(`ch${n}_azimuth`, (v) => { if (typeof v === 'number') { f.angle = v; f.updatePosition(cx, cy); } });
+      ctx.services.onParam?.(`ch${n}_level`, (v) => { if (typeof v === 'number') f.rot = clamp(v); });
+      ctx.services.onParam?.(`ch${n}_depth`, (v) => { if (typeof v === 'number') f.val = clamp(v); });
+    });
+    // Seed the bus with each channel's initial placement (retained).
+    faders.forEach(pubFader);
 
     // ----- draw loop -----
     const drawFace = (): void => {

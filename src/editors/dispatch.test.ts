@@ -53,7 +53,12 @@ const EXPECT: Array<[string, string | null]> = [
   ['PERSON', 'person'],           // talent entity → virtual channel strip
   ['Talent', 'person'],
   ['PROMPTER', 'prompter'],       // teleprompter feed (person kit)
-  ['Clock', null],                // no dedicated editor → generic matrix fallback
+  ['Clock', 'clock'],             // WORLD CLOCKS time source → clock/time-generator face
+  ['World Clock', 'clock'],
+  ['Chronos', 'chronos'],         // CHRONOS graphic set → dual A/B chrono + local time
+  ['Chrono A', 'chronos'],
+  ['Timer', 'timer'],             // RC1000 dual-channel up/down production timer
+  ['Countdown', 'timer'],
 ];
 
 describe('editor dispatch', () => {
@@ -63,8 +68,8 @@ describe('editor dispatch', () => {
     }
   });
 
-  it('registers all 19 editors', () => {
-    expect(PLUGINS.length).toBe(19);
+  it('registers all 22 editors', () => {
+    expect(PLUGINS.length).toBe(22);
   });
 
   it('orders plugins by ascending precedence (legacy import order)', () => {

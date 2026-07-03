@@ -8,9 +8,11 @@
 // one full IFB strip per same-kind sibling twist (no DOM scraping).
 
 import type { EditorPlugin } from '../types.js';
+import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { gridCells } from '../../ui/grid.js';
 import { injectIfbStyles } from './styles.js';
 import { buildOne } from './view.js';
+import { stripPrefix, TALK_VALUES } from './state.js';
 
 const plugin: EditorPlugin = {
   id: 'ifb',
@@ -21,9 +23,22 @@ const plugin: EditorPlugin = {
   render(host, ctx) {
     injectIfbStyles();
     const cells = gridCells(host, ctx.siblings.length);
+    // Advertise EVERY strip's driveable controls in ONE call — the twist's
+    // `…/config` is retained and replaced, so per-strip advertises would clobber
+    // each other. Each talent strip exposes the three encoders + the interrupt
+    // (talk) state, flat-indexed `t<N>_…` (audit §4.5).
+    ctx.services.advertiseParams?.(ctx.siblings.flatMap((_, i): ParamSpec[] => {
+      const pfx = stripPrefix(i);
+      return [
+        { name: `${pfx}prog_gain`, type: 'number', unit: '%', min: 0, max: 1, writable: true },
+        { name: `${pfx}int_gain`, type: 'number', unit: '%', min: 0, max: 1, writable: true },
+        { name: `${pfx}threshold`, type: 'number', unit: '%', min: 0, max: 1, writable: true },
+        { name: `${pfx}talk`, type: 'enum', values: [...TALK_VALUES], writable: true },
+      ];
+    }));
     ctx.siblings.forEach((sib, i) => {
       const cell = cells[i];
-      if (cell) buildOne(cell, sib, ctx.dispose);
+      if (cell) buildOne(cell, sib, ctx.dispose, ctx.services, i);
     });
   },
 };

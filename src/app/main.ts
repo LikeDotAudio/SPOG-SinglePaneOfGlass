@@ -62,6 +62,9 @@ const BLURBS: Record<string, string> = {
   'meter-input': 'Real-video/audio scope bench — waveform, vectorscope, meters: an objective source of truth.',
   'person': 'A person as a routable virtual channel strip — identity, mic preference, and EQ/comp.',
   'prompter': 'Teleprompter source — a script + live playhead fanned to prompt heads (mirrored) & confidence.',
+  'clock': 'Broadcast clock source — UTC + local ±3h zones as an LED ring (ticking) or a smooth analog sweep.',
+  'chronos': 'Chronos graphic set — dual A/B chronometers + local time on configurable seven-segment or Arial faces (red/white on black).',
+  'timer': 'RC1000 dual-channel up/down production timer — two 6-digit counts, 20 presets, follow buffer, calculator, and GPI on the bus.',
 };
 
 /** Cross-editor services (M1): replaces the legacy window.openStageBox global. */
@@ -103,8 +106,21 @@ function openEditorForTwist(twistEl: HTMLElement): void {
   // Content-aware dispatch: a prompter feed routed onto ANY twist (e.g. a plain
   // MONITOR) opens the PROMPTER engine editor so the op can drive the script —
   // the twist's own name-editor is overridden by what's plugged into it.
+  // Likewise a CLOCK feed (WORLD CLOCKS source) routed onto any twist opens the
+  // clock/time-generator face rather than the twist's own name-editor.
   const hasPrompter = twistEl.querySelector('.signal-node.prompter-source');
-  const plugin = hasPrompter ? (pluginFor('PROMPTER') ?? pluginFor(name)) : pluginFor(name);
+  const hasClock = twistEl.querySelector('.signal-node.clock-source');
+  const hasChronos = twistEl.querySelector('.signal-node.chronos-source');
+  const hasTimer = twistEl.querySelector('.signal-node.timer-source');
+  const plugin = hasPrompter
+    ? (pluginFor('PROMPTER') ?? pluginFor(name))
+    : hasTimer
+      ? (pluginFor('TIMER') ?? pluginFor(name))
+      : hasChronos
+        ? (pluginFor('CHRONOS') ?? pluginFor(name))
+        : hasClock
+          ? (pluginFor('CLOCK') ?? pluginFor(name))
+          : pluginFor(name);
   if (!plugin) return;
   const prodName = twistEl.dataset.prodName ?? '';
   const color = (twistEl.style.getPropertyValue('--lcars-color').trim() || '#646DCC') as Hex;

@@ -7,6 +7,7 @@
 
 import type { EditorPlugin } from '../types.js';
 import type { EditorContext } from '../types.js';
+import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { qs } from '../../ui/dom.js';
 import { injectIsoRecorderStyles } from './styles.js';
 
@@ -76,7 +77,10 @@ const plugin: EditorPlugin = {
     const cards = document.createElement('div');
     cards.className = 'iso-cards';
     const recs: Rec[] = [];
-    chans.forEach((c) => {
+    // Per-channel record state is an R/W MQTT param — flat indexed name (ch<N>_record)
+    // so an external controller can arm/stop any ISO lane (TWIST→MQTT advertising).
+    const recParam = (i: number): string => `ch${i + 1}_record`;
+    chans.forEach((c, i) => {
       const card = document.createElement('div');
       card.className = 'iso-card';
       card.innerHTML = `
@@ -102,7 +106,11 @@ const plugin: EditorPlugin = {
           }
         },
       };
-      btn.addEventListener('click', () => rec.setOn(!rec.on));
+      // Record/stop is a discrete one-shot → publish un-throttled on each press.
+      btn.addEventListener('click', () => {
+        rec.setOn(!rec.on);
+        ctx.services.publishParam?.(recParam(i), rec.on, { throttle: false });
+      });
       recs.push(rec);
       cards.appendChild(card);
     });
@@ -110,7 +118,10 @@ const plugin: EditorPlugin = {
     host.appendChild(sec1);
     allBtn.addEventListener('click', () => {
       const any = recs.some((r) => !r.on);
-      recs.forEach((r) => r.setOn(any));
+      recs.forEach((r, i) => {
+        r.setOn(any);
+        ctx.services.publishParam?.(recParam(i), any, { throttle: false });
+      });
       allBtn.textContent = any ? '■ STOP ALL' : '● RECORD ALL';
     });
     ctx.dispose.interval(() => recs.forEach((r) => r.tick()), 1000 / fps);
@@ -138,14 +149,20 @@ const plugin: EditorPlugin = {
                     <div class="rp-btn air" data-air>TO AIR</div></div></div>
             </div>
             <div class="rp-list"></div>`;
+    // Angle · multi-cam: the live take angle is an R/W enum (values = channel labels).
     const ang = qs(rp, '.rp-angles');
+    const angBtns: HTMLElement[] = [];
+    const selectAngle = (a: HTMLElement): void =>
+      ang.querySelectorAll<HTMLElement>('.rp-btn').forEach((x) => x.classList.toggle('sel', x === a));
     chans.forEach((c, i) => {
       const a = document.createElement('div');
       a.className = 'rp-btn' + (i === 0 ? ' sel' : '');
       a.textContent = c.label;
-      a.addEventListener('click', () =>
-        ang.querySelectorAll<HTMLElement>('.rp-btn').forEach((x) => x.classList.toggle('sel', x === a)),
-      );
+      a.addEventListener('click', () => {
+        selectAngle(a);
+        ctx.services.publishParam?.('replay_angle', c.label, { throttle: false });
+      });
+      angBtns.push(a);
       ang.appendChild(a);
     });
     const jog = qs<HTMLInputElement>(rp, '.rp-jog input');
@@ -155,30 +172,86 @@ const plugin: EditorPlugin = {
       play.style.left = jog.value + '%';
       tc.textContent = fmt(Math.round(Number(jog.value) * 90));
     };
-    jog.addEventListener('input', upd);
+    // Jog/shuttle position is a continuous drive → throttled (default) publish.
+    jog.addEventListener('input', () => {
+      upd();
+      ctx.services.publishParam?.('replay_position', Number(jog.value));
+    });
     upd();
-    rp.querySelectorAll<HTMLElement>('.rp-speeds .rp-btn').forEach((b) =>
-      b.addEventListener('click', () =>
-        rp.querySelectorAll<HTMLElement>('.rp-speeds .rp-btn').forEach((x) => x.classList.toggle('sel', x === b)),
-      ),
+    // Speed · shuttle rate is an R/W enum (values = the ×1 / ½ / ¼ button labels).
+    const spdBtns = Array.from(rp.querySelectorAll<HTMLElement>('.rp-speeds .rp-btn'));
+    const selectSpeed = (b: HTMLElement): void => spdBtns.forEach((x) => x.classList.toggle('sel', x === b));
+    spdBtns.forEach((b) =>
+      b.addEventListener('click', () => {
+        selectSpeed(b);
+        ctx.services.publishParam?.('replay_speed', b.textContent ?? '', { throttle: false });
+      }),
     );
     const list = qs(rp, '.rp-list');
-    qs(rp, '[data-mark]').addEventListener('click', () => {
+    const addClip = (): void => {
       const clip = document.createElement('div');
       clip.className = 'rp-clip';
       clip.textContent = '◆ ' + (tc.textContent ?? '');
       list.appendChild(clip);
+    };
+    // MARK POI / PLAY are discrete one-shots → publish un-throttled.
+    qs(rp, '[data-mark]').addEventListener('click', () => {
+      addClip();
+      ctx.services.publishParam?.('mark_poi', true, { throttle: false });
     });
+    qs(rp, '[data-play]').addEventListener('click', () =>
+      ctx.services.publishParam?.('replay_play', true, { throttle: false }),
+    );
     const airBtn = qs(rp, '[data-air]');
-    airBtn.addEventListener('click', () => {
+    const toAir = (): void => {
       airBtn.textContent = '● ON AIR';
       const id = setTimeout(() => {
         airBtn.textContent = 'TO AIR';
       }, 1300);
       ctx.dispose.add(() => clearTimeout(id));
+    };
+    // TO AIR punches the replay to programme — a discrete R/W take.
+    airBtn.addEventListener('click', () => {
+      toAir();
+      ctx.services.publishParam?.('to_air', true, { throttle: false });
     });
     sec2.appendChild(rp);
     host.appendChild(sec2);
+
+    // Advertise every driveable control as an R/W MQTT param (TWIST→MQTT advertising).
+    const specs: ParamSpec[] = chans.map((_c, i) => ({ name: recParam(i), type: 'bool', writable: true }));
+    specs.push(
+      { name: 'replay_angle', type: 'enum', values: chans.map((c) => c.label), writable: true },
+      { name: 'replay_speed', type: 'enum', values: spdBtns.map((b) => b.textContent ?? ''), writable: true },
+      { name: 'replay_position', type: 'number', unit: '%', min: 0, max: 100, writable: true },
+      { name: 'mark_poi', type: 'bool', writable: true },
+      { name: 'replay_play', type: 'bool', writable: true },
+      { name: 'to_air', type: 'bool', writable: true },
+    );
+    ctx.services.advertiseParams?.(specs);
+
+    // Honour inbound writes from the bus / other consoles — apply WITHOUT re-publishing.
+    chans.forEach((_c, i) => ctx.services.onParam?.(recParam(i), (v) => recs[i]?.setOn(!!v)));
+    ctx.services.onParam?.('replay_angle', (v) => {
+      const a = angBtns.find((b) => b.textContent === v);
+      if (a) selectAngle(a);
+    });
+    ctx.services.onParam?.('replay_speed', (v) => {
+      const b = spdBtns.find((x) => x.textContent === v);
+      if (b) selectSpeed(b);
+    });
+    ctx.services.onParam?.('replay_position', (v) => {
+      if (typeof v === 'number') {
+        jog.value = String(v);
+        upd();
+      }
+    });
+    ctx.services.onParam?.('mark_poi', (v) => {
+      if (v) addClip();
+    });
+    ctx.services.onParam?.('to_air', (v) => {
+      if (v) toAir();
+    });
   },
 };
 

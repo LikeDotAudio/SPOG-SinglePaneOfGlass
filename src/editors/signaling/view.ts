@@ -6,6 +6,7 @@
 
 import { el, qs } from '../../ui/dom.js';
 import type { EditorContext } from '../types.js';
+import type { ParamSpec } from '../../platform/mqtt/types.js';
 import {
   camsFor,
   initialState,
@@ -13,6 +14,12 @@ import {
   type SignalingState,
   type Trig,
 } from './state.js';
+
+// A trigger's label → snake_case MQTT param name ('GPI 1' → 'gpi_1',
+// 'SCTE-35 Ad Cue' → 'scte_35_ad_cue'). Triggers are momentary GPI/SCTE pulses.
+function trigParam(label: string): string {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
 
 export function renderSignaling(host: HTMLElement, ctx: EditorContext): void {
   const cams = camsFor(ctx);
@@ -52,6 +59,20 @@ export function renderSignaling(host: HTMLElement, ctx: EditorContext): void {
     logEl.innerHTML = ui.log.map((l) => l).join('<br>');
   }
 
+  // Tally is DISCRETE state: publish every cam's PGM (red) / PVW (green) / ISO
+  // (amber) bool as a one-shot (throttle:false) so the tally mirrors instantly to
+  // the bus + other consoles. PGM/PVW are single-select — publish the WHOLE grid on
+  // any change so the exclusive de-selection of the previous cam propagates too.
+  function publishTally(): void {
+    const p = ctx.services.publishParam;
+    if (!p) return;
+    cams.forEach((_cam, i) => {
+      p(`ch${i + 1}_pgm`, i === ui.pgm, { throttle: false });
+      p(`ch${i + 1}_pvw`, i === ui.pvw, { throttle: false });
+      p(`ch${i + 1}_iso`, ui.iso.has(i), { throttle: false });
+    });
+  }
+
   // ---- tally cams ----
   const camEls: HTMLElement[] = [];
   cams.forEach((cam, i) => {
@@ -61,16 +82,19 @@ export function renderSignaling(host: HTMLElement, ctx: EditorContext): void {
     qs<HTMLButtonElement>(cell, '.pgmb').addEventListener('click', () => {
       ui.pgm = i;
       paint();
+      publishTally();
       log(`<b>CUT</b> → ${cam.label} on Program`);
     });
     qs<HTMLButtonElement>(cell, '.pvwb').addEventListener('click', () => {
       ui.pvw = i;
       paint();
+      publishTally();
     });
     qs<HTMLButtonElement>(cell, '.isob').addEventListener('click', () => {
       if (ui.iso.has(i)) ui.iso.delete(i);
       else ui.iso.add(i);
       paint();
+      publishTally();
     });
     grid.append(cell);
     camEls.push(cell);
@@ -81,6 +105,7 @@ export function renderSignaling(host: HTMLElement, ctx: EditorContext): void {
     ui.pgm = ui.pvw;
     ui.pvw = t;
     paint();
+    publishTally();
     log(`<b>TAKE</b> → ${cams[ui.pgm]?.label ?? `CAM ${ui.pgm + 1}`} live (was preview)`);
   });
 
@@ -107,6 +132,7 @@ export function renderSignaling(host: HTMLElement, ctx: EditorContext): void {
       ui.mode = b.dataset['mode'] === 'reh' ? 'reh' : 'live';
       modeBtns.forEach((x) => x.classList.toggle('sel', x === b));
       paint();
+      ctx.services.publishParam?.('mode', ui.mode, { throttle: false });
       log(`Mode → <b>${ui.mode === 'live' ? 'LIVE' : 'REHEARSAL'}</b>`);
     });
   });
@@ -116,13 +142,20 @@ export function renderSignaling(host: HTMLElement, ctx: EditorContext): void {
   const addBtn = el('div', { class: 'sg-add' }, ['＋ ADD TRIGGER']);
 
   function addTrig(t: Trig): void {
+    const name = trigParam(t.l);
     const b = el('div', { class: 'sg-trig ' + (t.c || '') }, [t.l]);
-    b.addEventListener('click', () => {
+    // A trigger is a momentary GPI/SCTE pulse: flash + log, and (when local)
+    // publish a discrete one-shot `true`. `publish=false` for inbound writes so a
+    // bus/other-console fire doesn't echo back.
+    const fire = (publish: boolean): void => {
       b.classList.add('fire');
       ctx.dispose.add(() => b.classList.remove('fire'));
       setTimeout(() => b.classList.remove('fire'), 400);
       log(`⦿ TRIGGER · <b>${t.l}</b> fired`);
-    });
+      if (publish) ctx.services.publishParam?.(name, true, { throttle: false });
+    };
+    b.addEventListener('click', () => fire(true));
+    ctx.services.onParam?.(name, (v) => { if (v) fire(false); });
     trigsHost.insertBefore(b, addBtn);
   }
 
@@ -135,7 +168,39 @@ export function renderSignaling(host: HTMLElement, ctx: EditorContext): void {
     if (l) addTrig({ l, c: '' });
   });
 
+  // Advertise every operator-driven signal as a writable param (audit CR.6): the
+  // studio mode, the per-cam tally bools (PGM/PVW/ISO), and each default GPI/SCTE
+  // trigger. Called once — dynamically added custom triggers still publish on fire.
+  const params: ParamSpec[] = [
+    { name: 'mode', type: 'enum', values: ['live', 'reh'], writable: true },
+    ...cams.flatMap((_cam, i): ParamSpec[] => [
+      { name: `ch${i + 1}_pgm`, type: 'bool', writable: true },
+      { name: `ch${i + 1}_pvw`, type: 'bool', writable: true },
+      { name: `ch${i + 1}_iso`, type: 'bool', writable: true },
+    ]),
+    ...DEFAULT_TRIGS.map((t): ParamSpec => ({ name: trigParam(t.l), type: 'bool', writable: true })),
+  ];
+  ctx.services.advertiseParams?.(params);
+
+  // Honour writes from the bus / other consoles: apply to state + repaint WITHOUT
+  // republishing (avoid an echo loop). Triggers subscribe per-button in addTrig.
+  ctx.services.onParam?.('mode', (v) => {
+    if (v === 'live' || v === 'reh') {
+      ui.mode = v;
+      modeBtns.forEach((x) => x.classList.toggle('sel', x.dataset['mode'] === v));
+      paint();
+    }
+  });
+  cams.forEach((_cam, i) => {
+    ctx.services.onParam?.(`ch${i + 1}_pgm`, (v) => { if (v) { ui.pgm = i; paint(); } });
+    ctx.services.onParam?.(`ch${i + 1}_pvw`, (v) => { if (v) { ui.pvw = i; paint(); } });
+    ctx.services.onParam?.(`ch${i + 1}_iso`, (v) => { if (v) ui.iso.add(i); else ui.iso.delete(i); paint(); });
+  });
+
   paint();
+  // Seed the retained bus with the initial studio + tally state on open.
+  ctx.services.publishParam?.('mode', ui.mode, { throttle: false });
+  publishTally();
   log('Signaling online · tally distributed via GPI / NMOS IS-07');
 
   // Legacy kept a heartbeat timer alive while the panel was open; preserve it

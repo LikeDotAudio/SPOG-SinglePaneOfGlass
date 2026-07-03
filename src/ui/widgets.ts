@@ -28,8 +28,16 @@ const CSS = `
   background:linear-gradient(#39d353 0%,#39d353 60%,#e8d44a 80%,#ff5a5a 100%);transition:height .1s;}
 `;
 
-/** A rotary knob: vertical drag changes value 0..1 → −135..+135°. */
-export function knob(label: string, value = 0.5, color = '#00ffff'): HTMLElement {
+/** A widget whose 0..1 value can be driven from the outside (e.g. an inbound
+ *  MQTT write). `setValue` reflects the value to the DOM but never fires the
+ *  `onChange` callback — so applying a remote write cannot echo back onto the bus. */
+export interface Control extends HTMLElement {
+  setValue(v: number): void;
+}
+
+/** A rotary knob: vertical drag changes value 0..1 → −135..+135°.
+ *  `onChange` fires with the new value on every local drag (not on setValue). */
+export function knob(label: string, value = 0.5, color = '#00ffff', onChange?: (v: number) => void): Control {
   addStyles(CSS_ID, CSS);
   const k = el('div', { class: 'tr-knob', style: `--cyan:${color}` });
   let v = value;
@@ -48,19 +56,23 @@ export function knob(label: string, value = 0.5, color = '#00ffff'): HTMLElement
     if (!dragging) return;
     v = Math.max(0, Math.min(1, startV + (startY - e.clientY) / 120));
     apply();
+    onChange?.(v);
   };
   const up = (): void => {
     dragging = false;
   };
   window.addEventListener('mousemove', move);
   window.addEventListener('mouseup', up);
-  const wrap = el('div', { class: 'tr-kw' }, [k]);
+  const wrap: Control = Object.assign(el('div', { class: 'tr-kw' }, [k]), {
+    setValue: (nv: number): void => { v = Math.max(0, Math.min(1, nv)); apply(); },
+  });
   if (label) wrap.append(el('div', { class: 'tr-klabel', textContent: label }));
   return wrap;
 }
 
-/** A channel fader: vertical drag sets 0..1 (bottom..top). */
-export function fader(label: string, value = 0.7, color = '#00ffff'): HTMLElement {
+/** A channel fader: vertical drag sets 0..1 (bottom..top).
+ *  `onChange` fires with the new value on every local drag (not on setValue). */
+export function fader(label: string, value = 0.7, color = '#00ffff', onChange?: (v: number) => void): Control {
   addStyles(CSS_ID, CSS);
   const track = el('div', { class: 'tr-fader-track', style: `--cyan:${color}` });
   const cap = el('div', { class: 'tr-fader-cap' });
@@ -75,6 +87,7 @@ export function fader(label: string, value = 0.7, color = '#00ffff'): HTMLElemen
     const r = track.getBoundingClientRect();
     v = Math.max(0, Math.min(1, 1 - (clientY - r.top) / r.height));
     apply();
+    onChange?.(v);
   };
   track.addEventListener('mousedown', (e) => {
     dragging = true;
@@ -85,7 +98,9 @@ export function fader(label: string, value = 0.7, color = '#00ffff'): HTMLElemen
   window.addEventListener('mouseup', () => {
     dragging = false;
   });
-  const wrap = el('div', { class: 'tr-fader' }, [track]);
+  const wrap: Control = Object.assign(el('div', { class: 'tr-fader' }, [track]), {
+    setValue: (nv: number): void => { v = Math.max(0, Math.min(1, nv)); apply(); },
+  });
   if (label) wrap.append(el('div', { class: 'tr-klabel', textContent: label }));
   return wrap;
 }

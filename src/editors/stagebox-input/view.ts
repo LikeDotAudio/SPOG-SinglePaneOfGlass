@@ -4,15 +4,37 @@
 // so the host tears them down on close (no module-global timer list).
 
 import type { Disposer } from '../../ui/timers.js';
+import type { EditorServices } from '../types.js';
 import { MICS, STANDS, initState } from './state.js';
 import type { PanelState } from './state.js';
 
 type DialKey = 'gain' | 'hpf' | 'pan';
 
-/** Build one full Stage Box Input channel panel into `body`. */
-export function buildPanel(body: HTMLElement, chName: string, dispose: Disposer): void {
+/**
+ * Build one full Stage Box Input channel panel into `body`.
+ *
+ * `idx` is the 1-based GLOBAL channel index; `services` is the MQTT bridge (its
+ * methods are absent when MQTT is disabled, so every call is guarded with `?.`).
+ * Operator-driven preamp values publish on indexed params `in<idx>_gain` (dB,
+ * throttled — safe for the drag loop), `in<idx>_phantom` (discrete toggle) and
+ * `in<idx>_name` (channel alias). Inbound writes from the bus / other consoles
+ * are honoured via `onParam` and applied WITHOUT re-publishing (no echo loop).
+ */
+export function buildPanel(
+  body: HTMLElement,
+  chName: string,
+  dispose: Disposer,
+  idx: number,
+  services: EditorServices,
+): void {
   const s: PanelState = initState();
   const hist: number[] = [];
+
+  // Preamp gain in dB depends on the selected mic's range (matches the dial paint).
+  const gainDb = (): number => {
+    const m = MICS[s.mic]!;
+    return Math.round(m.gain[0] + s.gain * (m.gain[1] - m.gain[0]));
+  };
 
   body.innerHTML = `
       <div class="sb">
@@ -114,6 +136,8 @@ export function buildPanel(body: HTMLElement, chName: string, dispose: Disposer)
       if (!dr) return;
       s[key] = Math.max(0, Math.min(1, sv + (sy - e.clientY) / 130));
       paint();
+      // Only the preamp GAIN dial is an advertised param; throttled (drag loop).
+      if (key === 'gain') services.publishParam?.(`in${idx}_gain`, gainDb());
     };
     const onUp = (): void => {
       dr = false;
@@ -142,6 +166,10 @@ export function buildPanel(body: HTMLElement, chName: string, dispose: Disposer)
     phantom.style.opacity = m.ribbon ? '.5' : '1';
     q<HTMLElement>('.sb-warn').classList.toggle('on', m.ribbon);
     dials.forEach((p) => p());
+    // Mic change re-maps the gain range (dB) and may force phantom off (ribbon):
+    // reflect both onto the bus. Also serves as the initial retained publish.
+    services.publishParam?.(`in${idx}_gain`, gainDb());
+    services.publishParam?.(`in${idx}_phantom`, s.phantom, { throttle: false });
   }
   q<HTMLSelectElement>('.sb-mic').addEventListener('change', (e) => {
     s.mic = +(e.target as HTMLSelectElement).value;
@@ -160,6 +188,11 @@ export function buildPanel(body: HTMLElement, chName: string, dispose: Disposer)
     if (MICS[s.mic]!.ribbon) return;
     s.phantom = !s.phantom;
     q<HTMLElement>('.phantom').classList.toggle('on', s.phantom);
+    services.publishParam?.(`in${idx}_phantom`, s.phantom, { throttle: false }); // discrete
+  });
+  const alias = q<HTMLInputElement>('.sb-alias');
+  alias.addEventListener('input', () => {
+    services.publishParam?.(`in${idx}_name`, alias.value); // channel alias (throttled)
   });
   q<HTMLElement>('.sb-key.conf').addEventListener('click', (e) => {
     s.conf = !s.conf;
@@ -194,7 +227,32 @@ export function buildPanel(body: HTMLElement, chName: string, dispose: Disposer)
   });
   const tid = setTimeout(redrawHPF, 0); // after layout so the canvas has a size
   dispose.add(() => clearTimeout(tid));
-  applyMic();
+  applyMic(); // seeds the initial gain + phantom publish
+
+  // Initial retained publish for the alias (applyMic already seeded gain/phantom).
+  services.publishParam?.(`in${idx}_name`, alias.value);
+
+  // External control: honour writes from the bus / other consoles, applied to
+  // local state + DOM WITHOUT re-publishing (avoids an echo loop). Unsubscribes
+  // register on the disposer so they tear down with the editor.
+  const sub = (name: string, cb: (v: unknown) => void): void => {
+    const off = services.onParam?.(name, cb);
+    if (off) dispose.add(off);
+  };
+  sub(`in${idx}_gain`, (v) => {
+    if (typeof v !== 'number') return;
+    const m = MICS[s.mic]!;
+    const span = m.gain[1] - m.gain[0] || 1;
+    s.gain = Math.max(0, Math.min(1, (v - m.gain[0]) / span));
+    dials.forEach((p) => p());
+  });
+  sub(`in${idx}_phantom`, (v) => {
+    s.phantom = !!v && !MICS[s.mic]!.ribbon; // software interlock: ribbon blocks +48V
+    q<HTMLElement>('.phantom').classList.toggle('on', s.phantom);
+  });
+  sub(`in${idx}_name`, (v) => {
+    if (typeof v === 'string') alias.value = v;
+  });
 
   const mask = q<HTMLElement>('.sb-meter .mask');
   const pk = q<HTMLElement>('.sb-meter .pk');

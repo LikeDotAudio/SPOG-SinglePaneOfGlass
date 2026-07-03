@@ -26,9 +26,12 @@ const plugin: EditorPlugin = {
       ? [...ctx.siblings]
       : [{ name: ctx.twist.name, config: ctx.twist.config, sources: ctx.sources }];
     const cells = gridCells(host, panels.length);
+    // ctx.services is scoped to THIS twist's MQTT topic, so only the panel that
+    // represents this twist (self) publishes/subscribes; siblings render bus-less.
+    const selfIdx = panels.findIndex((p) => p.name === ctx.twist.name);
     panels.forEach((panel, i) => {
       const cell = cells[i];
-      if (cell) buildOne(cell, panel, ctx.dispose);
+      if (cell) buildOne(cell, panel, ctx.dispose, i === selfIdx ? ctx.services : undefined);
     });
   },
 };

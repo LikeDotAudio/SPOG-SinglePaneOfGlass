@@ -1,0 +1,19 @@
+{
+  "id": "gfx-clocks",
+  "name": "WORLD CLOCKS",
+  "title": "CLOCK / TIME GENERATOR",
+  "color": "#C864C8",
+  "kind": "video",
+  "extraClass": "clock-source",
+  "video": [
+    "UTC",
+    "LOCAL",
+    "LOCAL +1H",
+    "LOCAL +2H",
+    "LOCAL +3H",
+    "LOCAL −1H",
+    "LOCAL −2H",
+    "LOCAL −3H"
+  ],
+  "status": "OK"
+}

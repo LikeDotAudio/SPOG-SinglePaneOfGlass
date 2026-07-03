@@ -6,6 +6,7 @@
 // UMD label and an animated VU meter, and reorder by drag-and-drop.
 
 import type { EditorPlugin, EditorContext } from '../types.js';
+import type { ParamSpec } from '../../platform/mqtt/types.js';
 import type { Disposer } from '../../ui/timers.js';
 import { el } from '../../ui/dom.js';
 import { injectMultiViewerStyles } from './styles.js';
@@ -68,6 +69,33 @@ const plugin: EditorPlugin = {
     };
     let preset = '3×3';
 
+    // Advertise the wall as R/W MQTT params: the layout selector (enum) plus,
+    // per pane, its SOURCE (the UMD label — reordering re-assigns which source
+    // lands in a pane) and its TALLY. All operator-driven, so all writable.
+    const specs: ParamSpec[] = [
+      { name: 'layout', type: 'enum', values: Object.keys(PRESETS), writable: true },
+    ];
+    wins.forEach((_, i) => {
+      specs.push({ name: `pane${i + 1}_source`, type: 'string', writable: true });
+      specs.push({ name: `pane${i + 1}_tally`, type: 'enum', values: ['pgm', 'pvw', 'off'], writable: true });
+    });
+    ctx.services.advertiseParams?.(specs);
+
+    // Publish on each local change. Layout + tally are discrete one-shots
+    // (throttle:false); the UMD label rides the default throttle while typing.
+    const pub = ctx.services.publishParam;
+    const publishLayout = (): void => pub?.('layout', preset, { throttle: false });
+    const publishSource = (i: number, opts?: { throttle: boolean }): void => {
+      const w = wins[i];
+      if (w) pub?.(`pane${i + 1}_source`, w.label, opts);
+    };
+    const publishTally = (i: number): void => {
+      const w = wins[i];
+      if (w) pub?.(`pane${i + 1}_tally`, w.tally, { throttle: false });
+    };
+    // A reorder shifts many panes at once → republish every pane's source+tally.
+    const publishAllPanes = (): void => wins.forEach((_, i) => { publishSource(i, { throttle: false }); publishTally(i); });
+
     // LCARS elbow frame wrapping the preset bar + wall. Frame colour comes from
     // the production (data-in), replacing the legacy inherited --ed-color.
     const frame = el('div', { class: 'mv-frame', style: `--ed-color:${ctx.production.color}` });
@@ -82,6 +110,7 @@ const plugin: EditorPlugin = {
       });
       b.addEventListener('click', () => {
         preset = name;
+        publishLayout();
         draw();
       });
       pbar.appendChild(b);
@@ -109,10 +138,12 @@ const plugin: EditorPlugin = {
       winEl.append(tally, screen, umd, meterBar(ctx.dispose));
       screen.addEventListener('click', () => {
         w.tally = next(w.tally);
+        publishTally(i);
         draw();
       });
       umd.addEventListener('input', () => {
         w.label = umd.textContent ?? '';
+        publishSource(i);
       });
       winEl.addEventListener('dragstart', () => {
         dragIdx = i;
@@ -126,6 +157,7 @@ const plugin: EditorPlugin = {
         const m = wins.splice(dragIdx, 1)[0];
         if (m) wins.splice(i, 0, m);
         dragIdx = null;
+        publishAllPanes();
         draw();
       });
       return winEl;
@@ -140,8 +172,10 @@ const plugin: EditorPlugin = {
       });
       winEl.append(el('div', { class: 'mv-tile', textContent: w ? w.label : '—' }));
       if (w) {
+        const idx = wins.indexOf(w);
         winEl.addEventListener('click', () => {
           w.tally = next(w.tally);
+          publishTally(idx);
           draw();
         });
       }
@@ -164,6 +198,21 @@ const plugin: EditorPlugin = {
         wins.forEach((w, i) => grid.appendChild(fullWin(w, i)));
       }
     }
+
+    // Honour inbound writes from the bus / other consoles → apply to state and
+    // re-render WITHOUT re-publishing (draw() never publishes, so no echo loop).
+    ctx.services.onParam?.('layout', (v) => {
+      if (typeof v === 'string' && v in PRESETS) { preset = v; draw(); }
+    });
+    wins.forEach((w, i) => {
+      ctx.services.onParam?.(`pane${i + 1}_source`, (v) => {
+        if (typeof v === 'string') { w.label = v; draw(); }
+      });
+      ctx.services.onParam?.(`pane${i + 1}_tally`, (v) => {
+        if (v === 'pgm' || v === 'pvw' || v === 'off') { w.tally = v; draw(); }
+      });
+    });
+
     draw();
   },
 };

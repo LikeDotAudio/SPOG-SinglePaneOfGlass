@@ -1,0 +1,15 @@
+{
+  "id": "gfx-chronos",
+  "name": "CHRONOS",
+  "title": "DUAL CHRONO + LOCAL TIME",
+  "color": "#C864C8",
+  "kind": "video",
+  "extraClass": "chronos-source",
+  "video": [
+    "CHRONOS SET",
+    "CHRONO A",
+    "CHRONO B",
+    "LOCAL TIME"
+  ],
+  "status": "OK"
+}

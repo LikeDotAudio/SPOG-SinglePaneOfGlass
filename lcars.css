@@ -153,6 +153,23 @@
             html[data-chirality="right"] .ingress-panel .super-pool-title { right: auto; left: 15px; }
             html[data-chirality="right"] .ingress-panel .super-pool-emoji { left: auto; right: 40px; }
 
+            /* The elbow geometry mirrored, but the CONTENT did not: the FLOOR/BANK
+               pills are left-aligned in both chiralities, so in right-handed mode
+               they clung to the OUTER edge and left a wide dead gap to the coloured
+               spine. Right-align the content so the pills hug the right spine and
+               fold out right→left — the true mirror of the left dock. Grids and node
+               internals keep their own left-to-right order (re-set below). */
+            html[data-chirality="right"] .ingress-panel .super-pool-content { text-align: right; }
+            /* A floor's expanded grid keeps left-to-right cell order (101,102,103…);
+               justify-content nudges any non-filling grid toward the spine (1fr grids
+               already fill their bracket, so this is a no-op for them). */
+            html[data-chirality="right"] .ingress-panel .super-pool-content .input-grid-video,
+            html[data-chirality="right"] .ingress-panel .super-pool-content .input-grid-audio {
+                text-align: left; justify-content: end;
+            }
+            html[data-chirality="right"] .ingress-panel .super-pool-content .multiplex-children,
+            html[data-chirality="right"] .ingress-panel .super-pool-content .signal-node { text-align: left; }
+
             /* DESTINATION / PRODUCTION frame — mirror the same way. The production
                spine hugs the outer (LEFT) edge, its title cap flips, and every twist
                elbow curls the other way. Geometry only; text/data untouched. */

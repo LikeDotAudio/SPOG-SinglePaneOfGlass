@@ -7,6 +7,7 @@
 import type { TwistConfig } from '../../model/index.js';
 import { updateTwistVisuals, toggleHelix } from './helix.js';
 import { addStyles } from '../dom.js';
+import { logAction } from './captains-log.js';
 import { getBus } from '../../platform/mqtt/index.js';
 import { twistTopic } from '../../platform/mqtt/topics.js';
 
@@ -36,6 +37,10 @@ const XP_CSS = `
     display:flex;align-items:center;justify-content:center;padding:0 3px;z-index:4;box-shadow:0 1px 3px rgba(0,0,0,.55);pointer-events:none;}
 .drop-zone > .signal-node[draggable=true]{cursor:grab;}
 .drop-zone > .signal-node.xp-drag{opacity:.4;}
+/* Dragging a crosspoint OUT of its drop-zone removes the route — tint it red
+   while the pointer is outside so the "drop here to un-route" intent is clear. */
+.drop-zone > .signal-node.xp-remove{opacity:.55;outline:2px dashed #ff5a5a;outline-offset:1px;filter:saturate(1.5) brightness(1.05);}
+.drop-zone.xp-eject{outline:2px dashed rgba(255,90,90,.35);outline-offset:2px;}
 /* Word-processor insertion caret: a blinking vertical bar marking where the
    dragged feed will land between the existing crosspoints. */
 .drop-zone > .xp-caret{flex:0 0 auto;width:3px;align-self:stretch;min-height:22px;margin:0 -1px;border-radius:2px;
@@ -68,18 +73,58 @@ function xpInsertBefore(dz: HTMLElement, x: number, y: number): HTMLElement | nu
   return null;
 }
 
+/** True when a pointer position falls outside a drop-zone's box (with a small
+ *  slack so a feed nudged just past the edge isn't accidentally ejected). */
+function outsideZone(dz: HTMLElement, x: number, y: number): boolean {
+  if (x === 0 && y === 0) return false;   // some browsers report (0,0) on cancel
+  const r = dz.getBoundingClientRect();
+  const pad = 6;
+  return x < r.left - pad || x > r.right + pad || y < r.top - pad || y > r.bottom + pad;
+}
+
+/** Un-route a crosspoint: remove it, renumber/republish, and log with undo. */
+function removeCrosspoint(node: HTMLElement, dz: HTMLElement): void {
+  const twist = dz.closest<HTMLElement>('.twist-container');
+  const label = (node.textContent ?? '').trim().split('\n')[0] ?? 'feed';
+  const twistName = (twist?.querySelector('.twist-title')?.textContent ?? '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+  const next = node.nextElementSibling;                 // remember slot for undo
+  node.classList.remove('xp-drag', 'xp-remove');
+  node.remove();
+  renumberCrosspoints(dz);
+  if (twist) { updateTwistVisuals(twist); publishCrosspoints(twist); }
+  logAction(`Route removed: ${label}${twistName ? ` from ${twistName}` : ''}`, () => {
+    if (next && next.parentElement === dz) dz.insertBefore(node, next); else dz.appendChild(node);
+    makeCrosspointDraggable(node);
+    renumberCrosspoints(dz);
+    if (twist) { updateTwistVisuals(twist); publishCrosspoints(twist); }
+  });
+}
+
 function makeCrosspointDraggable(node: HTMLElement): void {
   node.draggable = true;
   if (node.dataset.xpWired) return;
   node.dataset.xpWired = '1';
+  let startDz: HTMLElement | null = null;
   node.addEventListener('dragstart', (e) => {
-    draggingXp = node; node.classList.add('xp-drag'); e.stopPropagation();
+    draggingXp = node; startDz = node.parentElement as HTMLElement | null;
+    node.classList.add('xp-drag'); e.stopPropagation();
     if (e.dataTransfer) { e.dataTransfer.setData('text/plain', ''); e.dataTransfer.effectAllowed = 'move'; }
   });
-  node.addEventListener('dragend', () => {
-    node.classList.remove('xp-drag'); draggingXp = null;
+  // Live feedback: tint the feed (and its zone) red while the pointer is outside.
+  node.addEventListener('drag', (e) => {
+    if (!startDz) return;
+    const out = outsideZone(startDz, e.clientX, e.clientY);
+    node.classList.toggle('xp-remove', out);
+    startDz.classList.toggle('xp-eject', out);
+  });
+  node.addEventListener('dragend', (e) => {
+    const dz = startDz; startDz = null; draggingXp = null;
     removeCaret();
-    const dz = node.parentElement; if (dz) renumberCrosspoints(dz);
+    node.classList.remove('xp-drag');
+    dz?.classList.remove('xp-eject');
+    if (dz && outsideZone(dz, e.clientX, e.clientY)) { removeCrosspoint(node, dz); return; }
+    node.classList.remove('xp-remove');
+    if (dz) renumberCrosspoints(dz);
   });
 }
 

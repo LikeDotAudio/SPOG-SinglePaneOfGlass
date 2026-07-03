@@ -4,6 +4,7 @@
 // IFB / beltpacks / matrix sub-cards.
 
 import type { EditorContext } from '../types.js';
+import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { el } from '../../ui/dom.js';
 import { injectIntercomStyles } from './styles.js';
 import { createIntercomState, DEFAULT_KEYS, type TalkGroup } from './state.js';
@@ -42,6 +43,8 @@ export function renderIntercom(host: HTMLElement, ctx: EditorContext): void {
   // ---- key panels ----
   const keyEls: HTMLElement[] = [];
   const talkBtns: HTMLButtonElement[] = [];
+  const listenBtns: HTMLButtonElement[] = [];
+  const vols: HTMLInputElement[] = [];
   keys.forEach((label, i) => {
     const name = el('div', { class: 'ic-name' }, [label]);
     const talkBtn = el('button', { class: 'talk' }, ['TALK']);
@@ -52,20 +55,14 @@ export function renderIntercom(host: HTMLElement, ctx: EditorContext): void {
       type: 'range',
       min: '0',
       max: '100',
-      value: String(60 + ((i * 7) % 35)),
+      value: String(state.level[i]),
     });
     const k = el('div', { class: 'ic-key' + (i === 4 ? ' live' : '') }, [name, tl, vol]); // CAM 1 on-air (tally)
 
-    const latch = (): void => {
-      k.classList.toggle('talk');
-      talkBtn.classList.toggle('on', k.classList.contains('talk'));
-    };
-    name.addEventListener('click', latch);
-    talkBtn.addEventListener('click', latch);
-    listenBtn.addEventListener('click', () => {
-      k.classList.toggle('listen');
-      listenBtn.classList.toggle('on', k.classList.contains('listen'));
-    });
+    name.addEventListener('click', () => setTalk(i, !state.talk[i], true));
+    talkBtn.addEventListener('click', () => setTalk(i, !state.talk[i], true));
+    listenBtn.addEventListener('click', () => setListen(i, !state.listen[i], true));
+    vol.addEventListener('input', () => setLevel(i, +vol.value, true));
     // In group-build mode, a click anywhere on the panel toggles membership
     // (capture phase so it pre-empts the talk/listen handlers above).
     k.addEventListener(
@@ -84,7 +81,54 @@ export function renderIntercom(host: HTMLElement, ctx: EditorContext): void {
 
     keyEls.push(k);
     talkBtns.push(talkBtn);
+    listenBtns.push(listenBtn);
+    vols.push(vol);
     grid.appendChild(k);
+  });
+
+  // ---- MQTT live-value bridge (advertise / publish / subscribe) ----
+  // Per-key TALK, LISTEN and channel LEVEL are the operator-driveable values.
+  // Reflect state → DOM, publishing only when the change was LOCAL (from a user
+  // event); inbound writes (`publish === false`) apply silently to avoid echo.
+  function setTalk(i: number, on: boolean, publish: boolean): void {
+    const k = keyEls[i], btn = talkBtns[i];
+    if (!k || !btn) return;
+    state.talk[i] = on;
+    k.classList.toggle('talk', on);
+    btn.classList.toggle('on', on);
+    if (publish) ctx.services.publishParam?.(`ch${i + 1}_talk`, on, { throttle: false }); // discrete key press
+  }
+  function setListen(i: number, on: boolean, publish: boolean): void {
+    const k = keyEls[i], btn = listenBtns[i];
+    if (!k || !btn) return;
+    state.listen[i] = on;
+    k.classList.toggle('listen', on);
+    btn.classList.toggle('on', on);
+    if (publish) ctx.services.publishParam?.(`ch${i + 1}_listen`, on, { throttle: false }); // discrete
+  }
+  function setLevel(i: number, v: number, publish: boolean): void {
+    const inp = vols[i];
+    if (!inp) return;
+    state.level[i] = v;
+    inp.value = String(v);
+    if (publish) ctx.services.publishParam?.(`ch${i + 1}_level`, v); // fader loop → throttled
+  }
+
+  // Advertise the full R/W schema once (one bool talk + bool listen + number level
+  // per key). Groups are created at runtime, so they publish without a fixed spec.
+  const specs: ParamSpec[] = [];
+  keys.forEach((_label, i) => {
+    specs.push({ name: `ch${i + 1}_talk`, type: 'bool', writable: true });
+    specs.push({ name: `ch${i + 1}_listen`, type: 'bool', writable: true });
+    specs.push({ name: `ch${i + 1}_level`, type: 'number', unit: '%', min: 0, max: 100, writable: true });
+  });
+  ctx.services.advertiseParams?.(specs);
+
+  // Honour inbound writes from the bus / other consoles (apply without re-publishing).
+  keys.forEach((_label, i) => {
+    ctx.services.onParam?.(`ch${i + 1}_talk`, (v) => setTalk(i, !!v, false));
+    ctx.services.onParam?.(`ch${i + 1}_listen`, (v) => setListen(i, !!v, false));
+    ctx.services.onParam?.(`ch${i + 1}_level`, (v) => { if (typeof v === 'number') setLevel(i, v, false); });
   });
 
   // ---- group-build flow ----
@@ -117,15 +161,14 @@ export function renderIntercom(host: HTMLElement, ctx: EditorContext): void {
   });
   cancelBtn.addEventListener('click', exitSelect);
 
-  function setGroupOn(g: TalkGroup, on: boolean): void {
+  function setGroupOn(g: TalkGroup, on: boolean, publish = false): void {
     g.on = on;
-    g.members.forEach((idx) => {
-      const k = keyEls[idx];
-      const btn = talkBtns[idx];
-      if (!k || !btn) return;
-      k.classList.toggle('talk', on);
-      btn.classList.toggle('on', on);
-    });
+    // Gang the members' TALK latches (publishes each per-key talk when local).
+    g.members.forEach((idx) => setTalk(idx, on, publish));
+    if (publish) {
+      const gi = state.groups.indexOf(g);
+      if (gi >= 0) ctx.services.publishParam?.(`group${gi + 1}_on`, on, { throttle: false });
+    }
   }
   function drawGroups(): void {
     groupsWrap.innerHTML = '';
@@ -139,11 +182,11 @@ export function renderIntercom(host: HTMLElement, ctx: EditorContext): void {
       const x = el('div', { class: 'ic-group-x', title: 'Remove group' }, ['✕']);
       const row = el('div', { class: 'ic-group' + (g.on ? ' on' : '') }, [big, mem, x]);
       big.addEventListener('click', () => {
-        setGroupOn(g, !g.on);
+        setGroupOn(g, !g.on, true);
         row.classList.toggle('on', g.on);
       });
       x.addEventListener('click', () => {
-        if (g.on) setGroupOn(g, false);
+        if (g.on) setGroupOn(g, false, true);
         state.groups.splice(gi, 1);
         drawGroups();
       });

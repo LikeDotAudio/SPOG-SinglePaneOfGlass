@@ -5,7 +5,8 @@
 
 import { qs } from '../../ui/dom.js';
 import type { Disposer } from '../../ui/timers.js';
-import type { Sibling } from '../types.js';
+import type { EditorServices, Sibling } from '../types.js';
+import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { FORMATS, channelsFor, type ChState, type MasterState } from './state.js';
 
 interface ChEl {
@@ -13,6 +14,8 @@ interface ChEl {
   meter: HTMLElement;
   mask: HTMLElement;
   pk: HTMLElement;
+  cueEl: HTMLElement;
+  muteEl: HTMLElement;
 }
 
 interface Block {
@@ -22,10 +25,16 @@ interface Block {
   ind: HTMLElement;
   corr: number;
   fmt: { idx: number };
+  fmtEl: HTMLElement;
 }
 
-/** Render a single Audio Monitor panel into `body`, driven by `sib`'s data. */
-export function buildOne(body: HTMLElement, sib: Sibling, dispose: Disposer): void {
+/**
+ * Render a single Audio Monitor panel into `body`, driven by `sib`'s data.
+ * `services` is passed ONLY for the panel that represents THIS twist (self), so
+ * every operator-driven control on that panel is advertised + published to MQTT
+ * (audit §4.5); sibling panels render without a bus (absent → no-op).
+ */
+export function buildOne(body: HTMLElement, sib: Sibling, dispose: Disposer, services?: EditorServices): void {
   const chans = channelsFor(sib.sources, sib.config, 'CH', 8).slice(0, 24);
   const st: ChState[] = chans.map((c, i) => ({
     label: c.label,
@@ -43,6 +52,9 @@ export function buildOne(body: HTMLElement, sib: Sibling, dispose: Disposer): vo
   const bridge = qs(body, '.am2-bridge');
 
   // ---- quad blocks ----
+  // Flat, globally-indexed list of the per-channel CUE/MUTE controls — the MQTT
+  // params use `ch<N>_cue` / `ch<N>_mute` (1-based) across all groups.
+  const chanAll: ChEl[] = [];
   const blocks: Block[] = [];
   for (let b = 0; b * 4 < st.length; b++) {
     const group = st.slice(b * 4, b * 4 + 4);
@@ -53,7 +65,8 @@ export function buildOne(body: HTMLElement, sib: Sibling, dispose: Disposer): vo
             <div class="am2-phase"><canvas class="am2-liss" width="74" height="74"></canvas>
               <div class="am2-corr"><div class="bar"><div class="ind"></div></div><div class="cl"><span>-1 ø</span><span>0</span><span>+1</span></div></div></div>`;
     const meters = qs(block, '.am2-meters');
-    const chEls: ChEl[] = group.map((ch) => {
+    const chEls: ChEl[] = group.map((ch, j) => {
+      const gi = b * 4 + j;   // global channel index → ch<gi+1>_… param names
       const cell = document.createElement('div');
       cell.className = 'am2-ch';
       cell.innerHTML = `<div class="am2-meter"><div class="mask"></div><div class="pk"></div></div>
@@ -64,18 +77,24 @@ export function buildOne(body: HTMLElement, sib: Sibling, dispose: Disposer): vo
       cueEl.addEventListener('click', () => {
         ch.cue = !ch.cue;
         cueEl.classList.toggle('on', ch.cue);
+        services?.publishParam?.(`ch${gi + 1}_cue`, ch.cue, { throttle: false });
       });
       muteEl.addEventListener('click', () => {
         ch.mute = !ch.mute;
         muteEl.classList.toggle('on', ch.mute);
+        services?.publishParam?.(`ch${gi + 1}_mute`, ch.mute, { throttle: false });
       });
       meters.appendChild(cell);
-      return { ch, meter: qs(cell, '.am2-meter'), mask: qs(cell, '.mask'), pk: qs(cell, '.pk') };
+      const cEl: ChEl = { ch, meter: qs(cell, '.am2-meter'), mask: qs(cell, '.mask'), pk: qs(cell, '.pk'), cueEl, muteEl };
+      chanAll.push(cEl);
+      return cEl;
     });
     const fmtEl = qs(block, '.am2-fmt');
+    const bi = b;   // group index → group<bi+1>_format
     fmtEl.addEventListener('click', () => {
       fmt.idx = (fmt.idx + 1) % FORMATS.length;
       fmtEl.textContent = FORMATS[fmt.idx]!;
+      services?.publishParam?.(`group${bi + 1}_format`, FORMATS[fmt.idx], { throttle: false });
     });
     bridge.appendChild(block);
     blocks.push({
@@ -85,6 +104,7 @@ export function buildOne(body: HTMLElement, sib: Sibling, dispose: Disposer): vo
       ind: qs(block, '.am2-corr .ind'),
       corr: 0.6,
       fmt,
+      fmtEl,
     });
   }
 
@@ -123,28 +143,83 @@ export function buildOne(body: HTMLElement, sib: Sibling, dispose: Disposer): vo
   vol.addEventListener('input', () => {
     ui.master = parseFloat(vol.value);
     setVolLbl();
+    services?.publishParam?.('volume', ui.master);   // throttled — safe for the drag loop
   });
   setVolLbl();
-  master.querySelectorAll<HTMLElement>('.am2-key[data-m]').forEach((k) =>
+  // Keep the master toggles keyed by data-m so inbound MQTT writes can reflect them.
+  const masterKeys: Record<string, HTMLElement> = {};
+  master.querySelectorAll<HTMLElement>('.am2-key[data-m]').forEach((k) => {
+    if (k.dataset.m) masterKeys[k.dataset.m] = k;
     k.addEventListener('click', () => {
       const m = k.dataset.m;
       if (m === 'mute') {
         ui.mute = !ui.mute;
         k.classList.toggle('on', ui.mute);
+        services?.publishParam?.('mute', ui.mute, { throttle: false });
       } else if (m === 'dim') {
         ui.dim = !ui.dim;
         k.classList.toggle('on', ui.dim);
+        services?.publishParam?.('dim', ui.dim, { throttle: false });
       } else if (m === 'downmix') {
         ui.downmix = !ui.downmix;
         k.classList.toggle('on', ui.downmix);
+        services?.publishParam?.('downmix', ui.downmix, { throttle: false });
       } else if (m === 'solo-clear') {
         st.forEach((c) => (c.cue = false));
         body.querySelectorAll<HTMLElement>('.am2-cue.on').forEach((e) => e.classList.remove('on'));
+        chanAll.forEach((c, i) => services?.publishParam?.(`ch${i + 1}_cue`, false, { throttle: false }));
       } else {
         k.classList.toggle('on');
       }
-    }),
-  );
+    });
+  });
+
+  // ---- MQTT: advertise every operator-driven control, publish an initial retained
+  // snapshot, and honour inbound writes from the bus / other consoles (audit §4.5).
+  // Only the SELF panel receives `services`; sibling panels skip this entirely.
+  if (services) {
+    const params: ParamSpec[] = [
+      { name: 'volume', type: 'number', min: 0, max: 1, writable: true },
+      { name: 'mute', type: 'bool', writable: true },
+      { name: 'dim', type: 'bool', writable: true },
+      { name: 'downmix', type: 'bool', writable: true },
+    ];
+    chanAll.forEach((_, i) => {
+      params.push({ name: `ch${i + 1}_cue`, type: 'bool', writable: true });
+      params.push({ name: `ch${i + 1}_mute`, type: 'bool', writable: true });
+    });
+    blocks.forEach((_, b) => params.push({ name: `group${b + 1}_format`, type: 'enum', values: [...FORMATS], writable: true }));
+    services.advertiseParams?.(params);
+
+    // Initial retained snapshot of current state.
+    services.publishParam?.('volume', ui.master);
+    services.publishParam?.('mute', ui.mute);
+    services.publishParam?.('dim', ui.dim);
+    services.publishParam?.('downmix', ui.downmix);
+    chanAll.forEach((c, i) => {
+      services.publishParam?.(`ch${i + 1}_cue`, c.ch.cue);
+      services.publishParam?.(`ch${i + 1}_mute`, c.ch.mute);
+    });
+    blocks.forEach((blk, b) => services.publishParam?.(`group${b + 1}_format`, FORMATS[blk.fmt.idx]));
+
+    // Inbound writes: apply to state + DOM WITHOUT re-publishing (no echo loop).
+    services.onParam?.('volume', (v) => {
+      if (typeof v === 'number') { ui.master = Math.max(0, Math.min(1, v)); vol.value = String(ui.master); setVolLbl(); }
+    });
+    services.onParam?.('mute', (v) => { ui.mute = !!v; masterKeys.mute?.classList.toggle('on', ui.mute); });
+    services.onParam?.('dim', (v) => { ui.dim = !!v; masterKeys.dim?.classList.toggle('on', ui.dim); });
+    services.onParam?.('downmix', (v) => { ui.downmix = !!v; masterKeys.downmix?.classList.toggle('on', ui.downmix); });
+    chanAll.forEach((c, i) => {
+      services.onParam?.(`ch${i + 1}_cue`, (v) => { c.ch.cue = !!v; c.cueEl.classList.toggle('on', !!v); });
+      services.onParam?.(`ch${i + 1}_mute`, (v) => { c.ch.mute = !!v; c.muteEl.classList.toggle('on', !!v); });
+    });
+    blocks.forEach((blk, b) => {
+      services.onParam?.(`group${b + 1}_format`, (v) => {
+        const idx = FORMATS.indexOf(v as (typeof FORMATS)[number]);
+        if (idx >= 0) { blk.fmt.idx = idx; blk.fmtEl.textContent = FORMATS[idx]!; }
+      });
+    });
+  }
 
   // ---- animation: ballistic meters, peak hold, phase, loudness ----
   let frame = 0;

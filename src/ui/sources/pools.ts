@@ -53,6 +53,29 @@ const PROMPTER_NODE_CSS = `
   content:'';position:absolute;left:12%;right:12%;top:5px;height:2px;
   background:currentColor;opacity:.45;pointer-events:none;}`;
 
+// A clock feed reads as a round clock badge — a circular ⌚ face glyph at the head
+// so a time source is instantly distinguishable from a plain video/graphics node,
+// both in the pool and once dropped onto a twist.
+const CLOCK_NODE_CSS = `
+.signal-node.clock-source{
+  border-radius:16px !important;padding-left:30px;text-align:left;letter-spacing:.5px;
+  position:relative;font-variant-numeric:tabular-nums;}
+.signal-node.clock-source::before{
+  content:'◷';position:absolute;left:9px;top:50%;transform:translateY(-50%);
+  font-size:14px;line-height:1;opacity:.9;pointer-events:none;}
+.signal-node.chronos-source{
+  border-radius:16px !important;padding-left:30px;text-align:left;letter-spacing:.5px;
+  position:relative;font-variant-numeric:tabular-nums;}
+.signal-node.chronos-source::before{
+  content:'⏱';position:absolute;left:8px;top:50%;transform:translateY(-50%);
+  font-size:14px;line-height:1;opacity:.9;pointer-events:none;}
+.signal-node.timer-source{
+  border-radius:16px !important;padding-left:30px;text-align:left;letter-spacing:.5px;
+  position:relative;font-variant-numeric:tabular-nums;}
+.signal-node.timer-source::before{
+  content:'⏲';position:absolute;left:8px;top:50%;transform:translateY(-50%);
+  font-size:14px;line-height:1;opacity:.9;pointer-events:none;}`;
+
 // ---- VIDEO pool -------------------------------------------------------------
 /** Build `count` camera multiplex boxes (video + 4 audio + camera-control) into grid. */
 export function fillVideoCameras(
@@ -111,6 +134,8 @@ export function renderVideoPool(data: SourceLeaf, container: HTMLElement): void 
     if (data.video && data.video.length > 0) {
       const poolColor = data.color || '#CC99CC';
       addStyles('prompter-node-shape', PROMPTER_NODE_CSS);
+      addStyles('clock-node-shape', CLOCK_NODE_CSS);
+      // (clock-node-shape carries both clock-source and chronos-source rules)
       data.video.forEach((label) => {
         const node = document.createElement('div');
         node.className = `signal-node video ${data.extraClass ?? ''}`;

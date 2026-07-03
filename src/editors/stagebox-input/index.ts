@@ -11,8 +11,9 @@
 // (ctx.services) — this editor only renders from ctx. A channel "bank" jump bar
 // pages the routed grouping 4 panels at a time (the legacy quad layout).
 
-import type { EditorPlugin } from '../types.js';
+import type { EditorPlugin, EditorServices } from '../types.js';
 import type { Disposer } from '../../ui/timers.js';
+import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { injectStageBoxStyles } from './styles.js';
 import { buildPanel } from './view.js';
 import { resolveChannels } from './state.js';
@@ -27,6 +28,7 @@ function renderBank(
   nBanks: number,
   bankReq: number,
   dispose: Disposer,
+  services: EditorServices,
 ): void {
   const bank = Math.max(0, Math.min(nBanks - 1, bankReq));
   host.innerHTML = '';
@@ -52,7 +54,7 @@ function renderBank(
     const pv = document.createElement('button');
     pv.className = 'sb-arrow';
     pv.textContent = '◀';
-    pv.addEventListener('click', () => renderBank(host, channels, origin, nBanks, bank - 1, dispose));
+    pv.addEventListener('click', () => renderBank(host, channels, origin, nBanks, bank - 1, dispose, services));
     nav.appendChild(pv);
     for (let bi = 0; bi < nBanks; bi++) {
       const bt = document.createElement('button');
@@ -60,13 +62,13 @@ function renderBank(
       const lo = channels[bi * BANK]!;
       const hi = channels[Math.min(channels.length - 1, bi * BANK + BANK - 1)]!;
       bt.textContent = `${lo.label}–${hi.label}`;
-      bt.addEventListener('click', () => renderBank(host, channels, origin, nBanks, bi, dispose));
+      bt.addEventListener('click', () => renderBank(host, channels, origin, nBanks, bi, dispose, services));
       nav.appendChild(bt);
     }
     const nx = document.createElement('button');
     nx.className = 'sb-arrow';
     nx.textContent = '▶';
-    nx.addEventListener('click', () => renderBank(host, channels, origin, nBanks, bank + 1, dispose));
+    nx.addEventListener('click', () => renderBank(host, channels, origin, nBanks, bank + 1, dispose, services));
     nav.appendChild(nx);
   }
   host.appendChild(nav);
@@ -75,11 +77,12 @@ function renderBank(
   const grid = document.createElement('div');
   grid.className = 'sb-bankgrid';
   host.appendChild(grid);
-  channels.slice(bank * BANK, bank * BANK + BANK).forEach((ch) => {
+  channels.slice(bank * BANK, bank * BANK + BANK).forEach((ch, i) => {
     const cell = document.createElement('div');
     cell.className = 'sb-host';
     grid.appendChild(cell);
-    buildPanel(cell, ch.label, dispose);
+    // 1-based GLOBAL channel index across all banks → indexed MQTT param names.
+    buildPanel(cell, ch.label, dispose, bank * BANK + i + 1, services);
     const tag = document.createElement('div');
     tag.className = 'sb-cell-tag';
     tag.textContent = ch.label;
@@ -97,7 +100,22 @@ const plugin: EditorPlugin = {
     injectStageBoxStyles();
     const channels = resolveChannels(ctx.sources, ctx.twist.config);
     const nBanks = Math.max(1, Math.ceil(channels.length / BANK));
-    renderBank(host, channels, ctx.twist.name, nBanks, 0, ctx.dispose);
+
+    // Advertise every input's preamp params ONCE (all channels, not just the
+    // current bank — panels are built lazily per bank, but the schema is fixed).
+    // Indexed names in<N>_* so an external controller drives a specific preamp.
+    const params: ParamSpec[] = [];
+    channels.forEach((_, i) => {
+      const n = i + 1;
+      params.push(
+        { name: `in${n}_gain`, type: 'number', unit: 'dB', min: 0, max: 70, writable: true },
+        { name: `in${n}_phantom`, type: 'bool', writable: true },
+        { name: `in${n}_name`, type: 'string', writable: true },
+      );
+    });
+    ctx.services.advertiseParams?.(params);
+
+    renderBank(host, channels, ctx.twist.name, nBanks, 0, ctx.dispose, ctx.services);
   },
 };
 
