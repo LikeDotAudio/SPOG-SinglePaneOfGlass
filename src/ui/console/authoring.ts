@@ -62,20 +62,24 @@ const CSS = `
 .auth-only{display:none !important;}
 body.authoring .auth-only{display:flex !important;}
 
-/* Seated IN the LCARS elbow at the top of the sources rail — in-flow + sticky, so
-   it's part of the layout (not a floating overlay) and follows the rail to the
-   other edge when chirality flips. */
-.auth-dock{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:6px;flex-wrap:wrap;
-  padding:5px 6px 6px;margin:0 0 2px;background:linear-gradient(90deg,#03060f 62%,transparent);}
+/* Seated at the production frame's top OUTER corner — the side the elbow spine sits
+   on. The frame is the positioning context; the dock is absolute so it rides that
+   corner and mirrors to the opposite edge on a chirality flip, tracking the elbow
+   (spine is RIGHT in left-handed mode, LEFT in right-handed mode). */
+.dest-frame{position:relative;}
+/* top:46px drops the dock just clear of the chirality-mirrored role badge (.au-badge,
+   ~43px tall) that shares this outer-top corner, so it seats on the elbow beneath it. */
+.auth-dock{position:absolute;top:46px;right:0;left:auto;z-index:30;display:flex;align-items:center;gap:6px;
+  flex-wrap:wrap;flex-direction:row-reverse;padding:5px 8px 6px;}
 .authoring-toggle{display:inline-flex;align-items:center;gap:8px;
   font:900 12px/1 Arial;letter-spacing:2px;text-transform:uppercase;color:#000;background:#C678C6;
-  border:none;border-radius:18px 6px 6px 18px;padding:9px 14px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.5);}
+  border:none;border-radius:6px 18px 18px 6px;padding:9px 14px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.5);}
 .authoring-toggle .cnt{background:#03060f;color:#C678C6;border-radius:8px;padding:2px 6px;font-size:10px;min-width:8px;text-align:center;}
 body.authoring .authoring-toggle{background:#39D353;box-shadow:0 0 14px rgba(57,211,83,.7);}
 .auth-tools{display:flex;gap:5px;}
-/* Right-handed: rail + dock sit on the RIGHT edge — mirror the elbow cap + order. */
-html[data-chirality="right"] .auth-dock{background:linear-gradient(270deg,#03060f 62%,transparent);flex-direction:row-reverse;}
-html[data-chirality="right"] .authoring-toggle{border-radius:6px 18px 18px 6px;}
+/* Right-handed console: the elbow spine (and this dock) sit on the LEFT edge. */
+html[data-chirality="right"] .auth-dock{right:auto;left:0;flex-direction:row;}
+html[data-chirality="right"] .authoring-toggle{border-radius:18px 6px 6px 18px;}
 .auth-tools button{font:900 10px/1 Arial;letter-spacing:1px;text-transform:uppercase;color:#000;
   border:none;border-radius:4px;padding:8px 12px;cursor:pointer;background:#C2B74B;}
 .auth-tools .revert{background:#B46757;color:#fff;}
@@ -537,11 +541,12 @@ export function initAuthoring(): void {
   };
   const tools = el('div', { class: 'auth-tools auth-only' }, [bExport, bRevert]);
 
-  // Seat the control IN the sources rail's top elbow (in-flow, sticky) rather than
-  // floating it over the console chrome. It rides with the rail on a chirality flip.
+  // Seat the control at the production frame's top OUTER corner (the elbow spine
+  // side). The frame is the positioning context; a chirality flip mirrors the dock
+  // to the opposite corner via CSS, so it always tracks the production elbow.
   const dock = el('div', { class: 'auth-dock' }, [toggle, tools]);
-  const rail = document.getElementById('sources');
-  (rail ?? document.body).prepend(dock);
+  const frame = document.querySelector('.dest-frame');
+  (frame ?? document.getElementById('production-content') ?? document.body).append(dock);
   onDraftsChange(() => { cnt.textContent = String(draftCount()); });
 
   // Rights gate: the dock only shows if the operator can build OR arrange. On a
