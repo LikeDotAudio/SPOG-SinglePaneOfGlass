@@ -2,6 +2,24 @@
 
 All notable changes to SPOG (Single Pane Of Glass) are recorded here.
 
+## [v103] — 2026-07-03
+
+### Changed — MQTT
+- **Topic root renamed `Twist` → `SPOG`** (`SPOG_ROOT`) — every retained topic the
+  TwistBus advertises (presence, config, values, log, chat) now lives under `SPOG/…`.
+  Connection-term identifiers (`TwistConfig`, twists) are unchanged.
+
+### Added — MQTT connection QC (`src/ui/console/mqtt-tree.ts`, `twist-mqtt-tree.html`, `src/platform/mqtt/client.ts`)
+- The broker config now carries **host, port, username, password** (persisted;
+  port/user/pass default to `9001`/`guest`/`guest` so the form is never blank). The
+  shared publishing bus and both tree viewers use them.
+- The MQTT tree panel + the standalone diagnostic gain those **four always-visible
+  fields** plus a **live status line**: the resolved `ws(s)://` url and a colour-coded
+  state — connecting / connected / reconnecting / offline / **error (+ message)** —
+  with the subscription and topic count; the chip dot turns red on error. (Previously
+  the bus connected with hard-coded `guest/guest` on `9001` and swallowed every error,
+  so a failed connection — and its topics — were invisible.)
+
 ## [v102] — 2026-07-03
 
 ### Changed — the software is now **SPOG · Single Pane Of Glass**
