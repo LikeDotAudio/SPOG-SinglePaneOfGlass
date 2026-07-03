@@ -9,38 +9,103 @@
 export const TAU = Math.PI * 2;
 export const pad = (n: number): string => String(n).padStart(2, '0');
 
-// ---- zone model -------------------------------------------------------------
-export interface Zone { label: string; utc: boolean; offsetH: number; }
+// ---- time-zone catalogue (absolute UTC offsets) -----------------------------
+// The broadcast "world clock" set: standard UTC offsets in MINUTES east of UTC. The
+// bench detects the operator's CURRENT offset (getTimezoneOffset is DST-aware) and
+// matches it to this catalogue — the "◉ here" entry — after which every other clock
+// is an absolute offset off this same list, so each reads a real wall-clock time.
+export interface ZoneDef { off: number; code: string; codes: string; cities: string; }
+export const ZONES: ZoneDef[] = [
+  { off: -720, code: 'BIT', codes: 'BIT', cities: 'Baker Island, Howland Island' },
+  { off: -660, code: 'SST', codes: 'NUT / SST', cities: 'American Samoa, Niue, Midway' },
+  { off: -600, code: 'HST', codes: 'HST', cities: 'Hawaii, Aleutians, Cook Is.' },
+  { off: -570, code: 'MART', codes: 'MART', cities: 'Marquesas Islands' },
+  { off: -540, code: 'AKST', codes: 'AKST', cities: 'Alaska, Gambier Islands' },
+  { off: -480, code: 'PST', codes: 'PST', cities: 'Los Angeles, Vancouver, Baja California' },
+  { off: -420, code: 'MST', codes: 'MST', cities: 'Denver, Calgary, Arizona' },
+  { off: -360, code: 'CST', codes: 'CST', cities: 'Chicago, Mexico City, Costa Rica' },
+  { off: -300, code: 'EST', codes: 'EST', cities: 'New York, Toronto, Bogotá, Lima' },
+  { off: -240, code: 'AST', codes: 'AST', cities: 'Halifax, Puerto Rico, Santiago' },
+  { off: -210, code: 'NST', codes: 'NST', cities: "St. John's" },
+  { off: -180, code: 'BRT', codes: 'ART / BRT', cities: 'Buenos Aires, São Paulo, Montevideo' },
+  { off: -120, code: 'FNT', codes: 'FNT', cities: 'Fernando de Noronha, South Georgia' },
+  { off: -60, code: 'AZOT', codes: 'AZOT / CVT', cities: 'Azores, Cape Verde' },
+  { off: 0, code: 'UTC', codes: 'GMT / UTC', cities: 'London, Lisbon, Reykjavik, Accra' },
+  { off: 60, code: 'CET', codes: 'CET / WAT', cities: 'Paris, Berlin, Rome, Lagos' },
+  { off: 120, code: 'EET', codes: 'EET / CAT', cities: 'Athens, Cairo, Johannesburg, Kyiv' },
+  { off: 180, code: 'MSK', codes: 'MSK / EAT', cities: 'Moscow, Istanbul, Nairobi, Riyadh' },
+  { off: 210, code: 'IRST', codes: 'IRST', cities: 'Tehran' },
+  { off: 240, code: 'GST', codes: 'GST / AZT', cities: 'Dubai, Baku, Tbilisi' },
+  { off: 270, code: 'AFT', codes: 'AFT', cities: 'Kabul' },
+  { off: 300, code: 'PKT', codes: 'PKT', cities: 'Islamabad, Karachi, Tashkent' },
+  { off: 330, code: 'IST', codes: 'IST / SLST', cities: 'New Delhi, Mumbai, Colombo' },
+  { off: 345, code: 'NPT', codes: 'NPT', cities: 'Kathmandu' },
+  { off: 360, code: 'BST', codes: 'BST', cities: 'Dhaka, Almaty' },
+  { off: 390, code: 'MMT', codes: 'MMT / CCT', cities: 'Yangon, Cocos Islands' },
+  { off: 420, code: 'ICT', codes: 'ICT / WIB', cities: 'Bangkok, Hanoi, Jakarta' },
+  { off: 480, code: 'CST', codes: 'CST / AWST', cities: 'Beijing, Singapore, Perth, Manila' },
+  { off: 525, code: 'ACWST', codes: 'ACWST', cities: 'Eucla' },
+  { off: 540, code: 'JST', codes: 'JST / KST', cities: 'Tokyo, Seoul, Yakutsk' },
+  { off: 570, code: 'ACST', codes: 'ACST', cities: 'Adelaide, Darwin' },
+  { off: 600, code: 'AEST', codes: 'AEST', cities: 'Sydney, Melbourne, Brisbane' },
+  { off: 630, code: 'LHST', codes: 'LHST', cities: 'Lord Howe Island' },
+  { off: 660, code: 'SBT', codes: 'SBT / VUT', cities: 'Honiara, Port Vila, Nouméa' },
+  { off: 720, code: 'NZST', codes: 'NZST / FJT', cities: 'Auckland, Suva, Kamchatka' },
+  { off: 765, code: 'CHAST', codes: 'CHAST', cities: 'Chatham Islands' },
+  { off: 780, code: 'TOT', codes: 'TOT / PHOT', cities: "Nuku'alofa, Apia" },
+  { off: 840, code: 'LINT', codes: 'LINT', cities: 'Kiritimati' },
+];
 
-/** Parse a routed feed label into a time zone. "UTC" → utc; "LOCAL ±NH" → offset. */
+// ---- zone model (a display label + an absolute UTC offset in minutes) -------
+export interface Zone { label: string; offsetMin: number; }
+export const zoneOf = (z: ZoneDef): Zone => ({ label: z.code, offsetMin: z.off });
+
+/** "UTC+05:30" / "UTC−05:00" / "UTC±00:00" for a minutes offset. */
+export function offsetLabel(off: number): string {
+  const a = Math.abs(off), sign = off === 0 ? '±' : off < 0 ? '−' : '+';
+  return `UTC${sign}${pad(Math.floor(a / 60))}:${pad(a % 60)}`;
+}
+/** The browser's current offset — minutes east of UTC, DST-aware. */
+export const localOffsetMin = (): number => -new Date().getTimezoneOffset();
+/** Catalogue index nearest an absolute offset. */
+export function zoneIdxForOffset(off: number): number {
+  let best = 0, bestD = Infinity;
+  ZONES.forEach((z, i) => { const d = Math.abs(z.off - off); if (d < bestD) { bestD = d; best = i; } });
+  return best;
+}
+/** Catalogue index the browser is in RIGHT NOW (exact offset, else nearest). */
+export const detectZoneIdx = (): number => zoneIdxForOffset(localOffsetMin());
+
+/** Map a routed-feed / saved label to a catalogue zone: a code (EST), a city, an
+    explicit offset ("+9", "UTC-5", "+5:30"), UTC/GMT, else the detected local zone. */
 export function parseZone(label: string): Zone {
-  const clean = label.trim();
-  if (/utc|gmt|zulu/i.test(clean)) return { label: 'UTC', utc: true, offsetH: 0 };
-  const m = clean.match(/([+\-−])\s*(\d+)/);
-  const offsetH = m ? (m[1] === '+' ? 1 : -1) * Number(m[2]) : 0;
-  return { label: clean || 'LOCAL', utc: false, offsetH };
+  const clean = label.trim(), up = clean.toUpperCase();
+  let def = ZONES.find((z) => z.code === up || z.codes.toUpperCase().split(/\s*\/\s*/).includes(up));
+  if (!def && up.length >= 3) def = ZONES.find((z) => z.cities.toUpperCase().includes(up));
+  if (!def) {
+    const m = clean.match(/([+\-−])\s*(\d{1,2})(?::?(\d{2}))?/);
+    if (m) def = ZONES[zoneIdxForOffset((m[1] === '+' ? 1 : -1) * (Number(m[2]) * 60 + Number(m[3] ?? 0)))];
+    else if (/utc|gmt|zulu/i.test(clean)) def = ZONES.find((z) => z.off === 0);
+  }
+  return zoneOf(def ?? ZONES[detectZoneIdx()]!);   // detectZoneIdx() is always a valid index
 }
 
-/** The zones to seed the bench with: every routed feed, or a LOCAL + UTC default pair. */
+/** The zones to seed the bench with: every routed feed, or the detected local + UTC. */
 export function deriveZones(sources: ReadonlyArray<{ label: string }>): Zone[] {
   const zones = sources.map((s) => parseZone(s.label));
-  return zones.length ? zones : [parseZone('LOCAL'), parseZone('UTC')];
+  return zones.length ? zones : [zoneOf(ZONES[detectZoneIdx()]!), zoneOf(ZONES[zoneIdxForOffset(0)]!)];
 }
 
-/** {h,m,s,ms} for a zone at the current instant (UTC read-out or local ± offset). */
+/** {h,m,s,ms} for a zone right now — UTC shifted by the zone's absolute offset. */
 export function zoneTime(z: Zone): { h: number; m: number; s: number; ms: number } {
-  const now = new Date();
-  if (z.utc) return { h: now.getUTCHours(), m: now.getUTCMinutes(), s: now.getUTCSeconds(), ms: now.getUTCMilliseconds() };
-  const d = new Date(now.getTime() + z.offsetH * 3600_000);
-  return { h: d.getHours(), m: d.getMinutes(), s: d.getSeconds(), ms: d.getMilliseconds() };
+  const d = new Date(Date.now() + z.offsetMin * 60_000);
+  return { h: d.getUTCHours(), m: d.getUTCMinutes(), s: d.getUTCSeconds(), ms: d.getUTCMilliseconds() };
 }
 
 /** {day 0-6, date 1-31, mon 1-12} for a zone (the digital watch faces use it). */
 export function zoneCal(z: Zone): { day: number; date: number; mon: number } {
-  const now = new Date();
-  if (z.utc) return { day: now.getUTCDay(), date: now.getUTCDate(), mon: now.getUTCMonth() + 1 };
-  const d = new Date(now.getTime() + z.offsetH * 3600_000);
-  return { day: d.getDay(), date: d.getDate(), mon: d.getMonth() + 1 };
+  const d = new Date(Date.now() + z.offsetMin * 60_000);
+  return { day: d.getUTCDay(), date: d.getUTCDate(), mon: d.getUTCMonth() + 1 };
 }
 export const WEEKDAY3 = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 

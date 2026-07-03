@@ -5,7 +5,9 @@
 //
 // A free-form "clock bench": every clock and the date read-out is an independent
 // WINDOW you can drag-move, resize, close, or spawn more of. Each clock window carries
-// its own ZONE (UTC / local ± offset, pick from the header dropdown), RESOLUTION
+// its own ZONE (auto-detected local, or any entry from the world UTC-offset catalogue in
+// the header dropdown — all offsets are absolute, so every clock reads a real wall time),
+// RESOLUTION
 // (HH:MM → HH:MM:SS → +frames), and FACE. Faces live one-per-file under faces/ and are
 // collected here with import.meta.glob — adding a face is "drop a file in faces/".
 // Layout PRESETS re-tile every window; the stage is a resizable canvas.
@@ -15,6 +17,7 @@ import { el, addStyles, ctx2d } from '../../ui/dom.js';
 import {
   type Zone, type Resolution, type FaceState, type FaceDef,
   parseZone, deriveZones, pad, RESOLUTIONS,
+  ZONES, zoneOf, offsetLabel, detectZoneIdx, zoneIdxForOffset,
 } from './faces/shared.js';
 
 // ---- face registry (one file per face under faces/) -------------------------
@@ -86,15 +89,6 @@ const CSS = `
 .ck-empty{font:700 10px 'Courier New',monospace;color:#5a6472;letter-spacing:.4px;}
 `;
 
-// ---- zone offset options for the per-window dropdown ------------------------
-const OFFSETS: Array<{ v: string; label: string }> = [
-  { v: 'utc', label: 'UTC' },
-  ...[7, 6, 5, 4, 3, 2, 1].map((n) => ({ v: `+${n}`, label: `+${n}` })),
-  { v: '0', label: 'LOCAL' },
-  ...[1, 2, 3, 4, 5, 6, 7].map((n) => ({ v: `-${n}`, label: `−${n}` })),
-];
-const offsetValue = (z: Zone): string => (z.utc ? 'utc' : z.offsetH > 0 ? `+${z.offsetH}` : String(z.offsetH));
-
 // ---- date read-out ----------------------------------------------------------
 const WEEKDAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 function dateParts(): { yyyy: string; mm: string; dd: string; day: string } {
@@ -108,11 +102,13 @@ const plugin: EditorPlugin = {
   id: 'clock',
   title: 'CLOCK · TIME GENERATOR',
   order: 8,
-  blurb: 'Broadcast clock bench — spawn, drag-move, resize and close clock + date windows on a canvas; each carries its own zone (UTC / local ±h), resolution (HH:MM → :SS → +frames) and face (digital, LED ring, analog, flip, Big Ben, Clasio, Time-Extreme, Cat).',
+  blurb: 'Broadcast clock bench — spawn, drag-move, resize and close clock + date windows on a canvas; each carries its own world time zone (auto-detected local + a full UTC-offset catalogue), resolution (HH:MM → :SS → +frames) and face (digital, LED ring, analog, flip, Big Ben, Clasio, Time-Extreme, Cat).',
   match: (n) => /\bclock\b/i.test(n),
   render(host, ctx) {
     addStyles('twist-editor-clock', CSS);
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    // The catalogue index the operator is in right now — the "◉ here" default + marker.
+    const detectedIdx = detectZoneIdx();
 
     interface Device {
       id: number;
@@ -197,19 +193,27 @@ const plugin: EditorPlugin = {
     };
 
     // ---- spawn a CLOCK window -----------------------------------------------
-    const addClock = (zone: Zone = parseZone('LOCAL'), face: string = defaultFace, rect?: Rect, res?: Resolution): Device => {
+    const addClock = (zone: Zone = zoneOf(ZONES[detectedIdx]!), face: string = defaultFace, rect?: Rect, res?: Resolution): Device => {
       const norm = normFace(face);
       const startRes: Resolution = res ?? norm.res ?? 'hms';
       const title = el('div', { class: 'ck-win-title', title: 'Click to rename' }, [zone.label.toUpperCase()]);
       title.contentEditable = 'true';
       const cvs = el('canvas') as HTMLCanvasElement;
       const d: Device = { id: ++seq, kind: 'clock', win: el('div', { class: 'ck-win' }), title, zone, face: norm.face, res: startRes, cvs, g: ctx2d(cvs), state: {} };
-      // Per-window pickers: zone offset · resolution · face.
-      d.offsetSel = picker('Time zone offset', OFFSETS, offsetValue(zone), (v) => {
-        d.zone = v === 'utc'
-          ? { label: d.zone?.label ?? 'UTC', utc: true, offsetH: 0 }
-          : { ...(d.zone ?? parseZone('LOCAL')), utc: false, offsetH: Number(v) };
-      });
+      // Per-window pickers: time zone · resolution · face. The zone dropdown is the full
+      // UTC-offset catalogue with the operator's detected zone marked "◉"; picking one
+      // sets the absolute offset AND names the clock from the list.
+      d.offsetSel = picker(
+        'Time zone',
+        ZONES.map((z, i) => ({ v: String(i), label: `${i === detectedIdx ? '◉ ' : ''}${offsetLabel(z.off)} · ${z.codes}` })),
+        String(zoneIdxForOffset(zone.offsetMin)),
+        (v) => {
+          const def = ZONES[Number(v)];
+          if (!def) return;
+          d.zone = zoneOf(def);
+          d.title.textContent = def.code;
+        },
+      );
       d.resSel = picker('Resolution', RESOLUTIONS.map((r) => ({ v: r.id, label: r.label })), startRes, (v) => { d.res = v as Resolution; });
       d.faceSel = picker('Clock face', FACES.map((f) => ({ v: f.id, label: f.short })), norm.face, (v) => setDeviceFace(d, v));
       const head = el('div', { class: 'ck-win-head' }, [
@@ -308,7 +312,7 @@ const plugin: EditorPlugin = {
     });
 
     // ---- saved layouts ------------------------------------------------------
-    interface SceneItem { kind: 'clock' | 'date'; label: string; face?: string; res?: Resolution; utc?: boolean; offsetH?: number; rect: Rect; }
+    interface SceneItem { kind: 'clock' | 'date'; label: string; face?: string; res?: Resolution; offsetMin?: number; rect: Rect; }
     const LS_KEY = 'twistClockLayouts';
     const loadSaved = (): Record<string, SceneItem[]> => {
       try { return (JSON.parse(localStorage.getItem(LS_KEY) || '{}') as Record<string, SceneItem[]>) || {}; } catch { return {}; }
@@ -317,19 +321,19 @@ const plugin: EditorPlugin = {
     let savedLayouts = loadSaved();
     const captureScene = (): SceneItem[] => devices.map((d) => ({
       kind: d.kind,
-      label: d.kind === 'clock' ? (d.zone?.label ?? 'LOCAL') : 'DATE',
+      label: d.kind === 'clock' ? (d.zone?.label ?? 'UTC') : 'DATE',
       face: d.face,
       res: d.res,
-      utc: d.zone?.utc,
-      offsetH: d.zone?.offsetH,
+      offsetMin: d.zone?.offsetMin,
       rect: [d.win.offsetLeft, d.win.offsetTop, d.win.offsetWidth, d.win.offsetHeight],
     }));
     const applyScene = (items: SceneItem[]): void => {
       [...devices].forEach(removeDevice);
       for (const it of items) {
         if (it.kind === 'date') { addDate(it.rect); continue; }
-        const base = parseZone(it.label);
-        const zone: Zone = { label: it.label || base.label, utc: it.utc ?? base.utc, offsetH: it.offsetH ?? base.offsetH };
+        const zone: Zone = it.offsetMin != null
+          ? { label: it.label || ZONES[zoneIdxForOffset(it.offsetMin)]!.code, offsetMin: it.offsetMin }
+          : parseZone(it.label);
         addClock(zone, it.face ?? defaultFace, it.rect, it.res);
       }
     };
