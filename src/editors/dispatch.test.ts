@@ -53,6 +53,8 @@ const EXPECT: Array<[string, string | null]> = [
   ['PERSON', 'person'],           // talent entity → virtual channel strip
   ['Talent', 'person'],
   ['PROMPTER', 'prompter'],       // teleprompter feed (person kit)
+  ['Weather', 'weather'],         // WEATHER graphics source → live forecast board
+  ['Forecast', 'weather'],
   ['Clock', null],                // no dedicated editor → generic matrix fallback
 ];
 
@@ -63,8 +65,8 @@ describe('editor dispatch', () => {
     }
   });
 
-  it('registers all 19 editors', () => {
-    expect(PLUGINS.length).toBe(19);
+  it('registers all 20 editors', () => {
+    expect(PLUGINS.length).toBe(20);
   });
 
   it('orders plugins by ascending precedence (legacy import order)', () => {

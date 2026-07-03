@@ -1,0 +1,16 @@
+{
+  "id": "gfx-weather",
+  "name": "WEATHER",
+  "title": "WEATHER / FORECAST GENERATOR",
+  "color": "#4EC0FF",
+  "kind": "video",
+  "extraClass": "weather-source",
+  "video": [
+    "WEATHER SET",
+    "TORONTO, ON",
+    "VANCOUVER, BC",
+    "NEW YORK, NY",
+    "LONDON, UK"
+  ],
+  "status": "OK"
+}
