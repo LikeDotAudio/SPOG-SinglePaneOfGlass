@@ -11,6 +11,7 @@ import { stripOrder, monoEmoji, faultTag } from '../sources/format.js';
 import { Footer, type GroupHandle } from './footer.js';
 import { initializeTwists, type OpenEditor } from './matrix.js';
 import { decorateRoom } from './authoring.js';
+import { mountDestFixtures } from './dest-fixtures.js';
 
 const twistName = (t: string | TwistConfig): string => (typeof t === 'string' ? t : t.name);
 
@@ -73,6 +74,10 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
   html += `</div></div>`;
   pane.innerHTML = html;
   initializeTwists(pane, openEditor);
+  // Every destination carries the standing fixtures (clock, chrono landing spot,
+  // per-destination chat log), regardless of its authored twists.
+  const body = pane.querySelector('.program-body');
+  if (body instanceof HTMLElement) mountDestFixtures(body, pgm);
   // Authoring affordances (hidden unless EDIT LAYOUT is on); rerender re-runs this
   // render with the mutated Production, so edits paint immediately.
   decorateRoom(pane, pgm, srcUrl, () => renderPrograms(pgm, pane, openEditor, srcUrl));
