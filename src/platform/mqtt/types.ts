@@ -38,7 +38,7 @@ export interface ValueMsg<T = unknown> {
   full_id: string;
 }
 
-/** One Captain's Log narrative entry, retained on `Twist/log/**`. */
+/** One Captain's Log narrative entry, retained on `SPOG/log/**`. */
 export interface LogMsg {
   voyage: number;
   entry: number;
@@ -59,13 +59,13 @@ export interface TwistBus {
   /** This console's stable identity, stamped into every payload as `full_id`. */
   readonly sessionId: string;
   status(): { enabled: boolean; connected: boolean };
-  /** Publish a retained `…/config` advertisement under the Twist root. */
+  /** Publish a retained `…/config` advertisement under the SPOG root. */
   publishConfig(topicSuffix: string, msg: Omit<ConfigMsg, 'full_id'>): void;
   /** Publish a retained live value; opts.throttle coalesces rapid drags (~45 Hz). */
   publishValue<T>(topicSuffix: string, value: T, opts?: { throttle?: boolean }): void;
   /** Publish an already-shaped retained payload (log entries, presence, …). */
   publishRaw(topicSuffix: string, payload: unknown, opts?: { retain?: boolean }): void;
-  /** Subscribe to a topic filter (relative to the Twist root). Returns an unsubscribe. */
+  /** Subscribe to a topic filter (relative to the SPOG root). Returns an unsubscribe. */
   subscribe(topicFilter: string, cb: (topic: string, payload: unknown) => void): () => void;
   dispose(): void;
 }

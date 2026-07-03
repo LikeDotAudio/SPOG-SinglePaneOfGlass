@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SPOG MQTT Tree</title>
 <!-- Standalone diagnostic (audit §appendix — the twist equivalent of comMQTT's
-     MqttConnectionTester.html). Subscribes to Twist/# and shows the live retained
+     MqttConnectionTester.html). Subscribes to SPOG/# and shows the live retained
      topic tree the TwistBus advertises. Host / port / user / pass are always shown
      and pre-filled; connection status + errors are surfaced. Shares the console's
      localStorage config (twistMqtt / twistMqttPort / twistMqttUser / twistMqttPass)
@@ -48,12 +48,12 @@
 </header>
 <div class="status" id="status">— not connected —</div>
 <table>
-  <thead><tr><th style="width:44%">TOPIC (Twist/…)</th><th>PAYLOAD</th><th style="width:70px">AGE</th></tr></thead>
+  <thead><tr><th style="width:44%">TOPIC (SPOG/…)</th><th>PAYLOAD</th><th style="width:70px">AGE</th></tr></thead>
   <tbody id="rows"><tr><td colspan="3" class="empty">— not connected —</td></tr></tbody>
 </table>
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script>
-  const ROOT = 'Twist';
+  const ROOT = 'SPOG';
   const q = new URLSearchParams(location.search);
   const store = new Map();      // topic -> { payload, ts }
   let client = null, state = 'idle', lastErr = '';
