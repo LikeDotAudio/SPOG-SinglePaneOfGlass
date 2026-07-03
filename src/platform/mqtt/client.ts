@@ -11,7 +11,7 @@
 import type { TwistBus, ConfigMsg, ValueMsg } from './types.js';
 import { createThrottler, type Throttler } from './throttle.js';
 
-export const TWIST_ROOT = 'Twist';
+export const SPOG_ROOT = 'SPOG';
 const DEFAULT_PORT = 9001;
 // Compiled default host. EMPTY ⇒ MQTT disabled out of the box; enable per-session
 // with `?mqtt=<host[:port]>` (matches comMQTT's `?mqtt=` convention) or by setting
@@ -132,7 +132,7 @@ export function createTwistBus(): TwistBus {
   const url = resolveBrokerUrl();
   if (!url) { dbg('no broker configured — no-op bus'); return noopBus(sessionId); }
 
-  const presenceTopic = `${TWIST_ROOT}/system/presence/${sessionId.split(':')[0]}`;
+  const presenceTopic = `${SPOG_ROOT}/system/presence/${sessionId.split(':')[0]}`;
   const subs = new Set<{ filter: string; cb: (t: string, p: unknown) => void }>();
   const throttlers = new Map<string, Throttler<{ topic: string; payload: string }>>();
   let client: MqttClient | null = null;
@@ -140,7 +140,7 @@ export function createTwistBus(): TwistBus {
   let heartbeat: ReturnType<typeof setInterval> | null = null;
   let disposed = false;
 
-  const full = (suffix: string): string => `${TWIST_ROOT}/${suffix.replace(/^\/+/, '')}`;
+  const full = (suffix: string): string => `${SPOG_ROOT}/${suffix.replace(/^\/+/, '')}`;
 
   const send = (topic: string, payload: string, retain = true): void => {
     if (!client) return;                       // mqtt.js buffers pre-connect and flushes on connect
@@ -165,7 +165,7 @@ export function createTwistBus(): TwistBus {
     client.on('connect', () => {
       connected = true;
       dbg('connected', sessionId);
-      client!.subscribe(`${TWIST_ROOT}/#`, { qos: 0 });
+      client!.subscribe(`${SPOG_ROOT}/#`, { qos: 0 });
       const beat = (): void => send(presenceTopic, JSON.stringify({ active: true, full_id: sessionId, ts: Date.now() }));
       beat();
       heartbeat = setInterval(beat, 1000);
@@ -181,7 +181,7 @@ export function createTwistBus(): TwistBus {
       try { parsed = JSON.parse(new TextDecoder().decode(payload)); } catch { parsed = null; }
       // Self-echo suppression: drop anything we published (matches comMQTT full_id check).
       if (parsed && typeof parsed === 'object' && (parsed as { full_id?: string }).full_id === sessionId) return;
-      const rel = topic.startsWith(`${TWIST_ROOT}/`) ? topic.slice(TWIST_ROOT.length + 1) : topic;
+      const rel = topic.startsWith(`${SPOG_ROOT}/`) ? topic.slice(SPOG_ROOT.length + 1) : topic;
       for (const s of subs) if (matches(s.filter, rel)) s.cb(rel, parsed);
     });
   });

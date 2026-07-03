@@ -2,7 +2,7 @@
 //
 // TypeScript port of the standalone twist-mqtt-tree.html diagnostic (audit
 // §appendix — the twist equivalent of comMQTT's MqttConnectionTester.html).
-// Clicking the bottom-right MQTT chip opens a panel that subscribes to `Twist/#`
+// Clicking the bottom-right MQTT chip opens a panel that subscribes to `SPOG/#`
 // and lists the live retained tree the TwistBus advertises.
 //
 // It opens its OWN diagnostic connection rather than reusing the shared TwistBus:
@@ -15,7 +15,7 @@
 // publishing bus also moves to the new host; the tree itself auto-connects on open.
 import { el, addStyles } from '../dom.js';
 import type { TwistBus } from '../../platform/mqtt/index.js';
-import { TWIST_ROOT, getBrokerConfig, setBrokerConfig } from '../../platform/mqtt/index.js';
+import { SPOG_ROOT, getBrokerConfig, setBrokerConfig } from '../../platform/mqtt/index.js';
 
 // ---- minimal mqtt.js typings (mirrors platform/mqtt/client.ts) --------------
 interface MqttClient {
@@ -128,7 +128,7 @@ export function initMqttTree(bus: TwistBus): void {
 
   const table = el('table', {}, [
     el('thead', {}, [el('tr', {}, [
-      el('th', { style: 'width:44%' }, [`TOPIC (${TWIST_ROOT}/…)`]),
+      el('th', { style: 'width:44%' }, [`TOPIC (${SPOG_ROOT}/…)`]),
       el('th', {}, ['PAYLOAD']),
       el('th', { style: 'width:70px' }, ['AGE']),
     ])]),
@@ -175,7 +175,7 @@ export function initMqttTree(bus: TwistBus): void {
     const cls = state === 'connected' ? 'ok' : (state === 'error' || state === 'offline') ? 'bad' : 'warn';
     const err = state === 'error' && lastErr ? ` — ${escapeHtml(lastErr)}` : '';
     const sub = state === 'connected'
-      ? ` <span class="u">· subscribed ${TWIST_ROOT}/# · ${store.size} topic${store.size === 1 ? '' : 's'}</span>`
+      ? ` <span class="u">· subscribed ${SPOG_ROOT}/# · ${store.size} topic${store.size === 1 ? '' : 's'}</span>`
       : '';
     effEl.innerHTML = `<span class="u">→ ${escapeHtml(url)} ·</span> <b class="${cls}">${STATE_LABEL[state]}${err}</b>${sub}`;
   };
@@ -189,7 +189,7 @@ export function initMqttTree(bus: TwistBus): void {
     const now = Date.now();
     rows.innerHTML = [...store.keys()].sort().map((k) => {
       const { payload, ts } = store.get(k)!;
-      const rel = k.startsWith(TWIST_ROOT + '/') ? k.slice(TWIST_ROOT.length + 1) : k;
+      const rel = k.startsWith(SPOG_ROOT + '/') ? k.slice(SPOG_ROOT.length + 1) : k;
       const age = Math.max(0, Math.round((now - ts) / 1000));
       return `<tr><td class="topic">${escapeHtml(rel)}</td><td class="val">${escapeHtml(payload)}</td><td class="age">${age}s</td></tr>`;
     }).join('');
@@ -205,7 +205,7 @@ export function initMqttTree(bus: TwistBus): void {
       if (client) { try { client.end(true); } catch { /* ignore */ } }
       connected = false; store.clear(); render();
       client = mod.connect(url, { username: userInput.value, password: passInput.value, keepalive: 60, reconnectPeriod: 5000, connectTimeout: 15000 });
-      client.on('connect', () => { connected = true; state = 'connected'; client!.subscribe(`${TWIST_ROOT}/#`, { qos: 0 }); render(); });
+      client.on('connect', () => { connected = true; state = 'connected'; client!.subscribe(`${SPOG_ROOT}/#`, { qos: 0 }); render(); });
       client.on('reconnect', () => { connected = false; state = 'reconnecting'; setStatus(); });
       client.on('close', () => { connected = false; if (state !== 'error') state = 'closed'; setStatus(); });
       client.on('offline', () => { connected = false; state = 'offline'; setStatus(); });
