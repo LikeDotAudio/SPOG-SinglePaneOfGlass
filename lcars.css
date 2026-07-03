@@ -1,6 +1,13 @@
 /* lcars.css — SHARED LCARS stylesheet for BOTH the live js/ app (index.htm) and
    the A.8 TypeScript build (index.next.html). Extracted verbatim from the
-   index.htm <style> block on 2026-07-01 — shared, never forked (A.8 rule). */
+   index.htm <style> block on 2026-07-01 — shared, never forked (A.8 rule).
+
+   ── THE CORNER LAW (see LCARS.md for the full style guide) ──────────────────
+   1. INNER corner radius is ALWAYS half the OUTER corner radius (R → R/2).
+   2. Tops and bottoms are SQUARE (radius 0) so segments butt-join seamlessly —
+      UNLESS the element is HORIZONTAL, in which case its left/right ENDS round
+      instead. Round the terminating end, square the joining end.
+   Radius ladder: 44 / 40 / 30 / 16 / 15 / 12 / 8. Pick R from it, derive R/2. */
         :root {
             --bg-color: #050a15;
             --panel-bg: rgba(10, 20, 40, 0.8);
@@ -14,7 +21,47 @@
             --program-color: #646DCC; /* blue */
             --glow-cyan: 0 0 10px var(--cyan), 0 0 20px rgba(0, 255, 255, 0.4);
             --glow-magenta: 0 0 10px var(--magenta), 0 0 20px rgba(255, 0, 255, 0.4);
+
+            /* ── COLOUR ENGINE (docs/Colours and shapes.md) ──────────────────────
+               Sibling to the CHIRALITY ENGINE below. Three orthogonal axes live as
+               attributes on <html>: data-cvd (palette), data-chroma (hue), data-vision
+               (contrast). Tier-1 = Okabe-Ito CVD-safe primitives (never referenced by
+               components). Tier-2 = semantic signal/state tokens (the ONLY thing UI
+               reads). Modes re-point Tier-2 (cvd) or apply a composed root filter
+               (chroma + vision). The chroma/vision filter is a pragmatic bridge that
+               reaches hardcoded hex AND <canvas> until the full token migration (P2). */
+            --ok-orange: #E69F00; --ok-skyblue: #56B4E9; --ok-green: #009E73;
+            --ok-yellow: #F0E442; --ok-blue: #0072B2; --ok-vermillion: #D55E00;
+            --ok-purple: #CC79A7;
+            /* Tier-2 semantic (components/preview read ONLY these). */
+            --sig-video:   var(--video-color);
+            --sig-audio:   var(--audio-color);
+            --sig-program: var(--program-color);
+            --state-alarm: #ff3b3b;
+            --state-ok:    #39d98a;
+            --state-onair: #ffaa00;
+            /* Composed chroma+vision filter (empty = no-op; see mode layers). */
+            --f-chroma: ; --f-vision: ;
         }
+
+        /* Chroma + contrast compose into ONE root filter (an element has one filter;
+           two empty custom-props keep it a valid no-op until a mode fills one in). */
+        html { filter: var(--f-chroma) var(--f-vision); }
+
+        /* CVD palette — data-cvd names the active palette; its six semantic tokens
+           (+ the three legacy category vars) are written INLINE onto <html> by
+           colour-scheme.ts (PALETTES is the single source of truth). The :root values
+           above are the Classic fallback if the script never runs. */
+        /* CHROMA — grey strips hue (luminance + shape carry meaning); mono = amber
+           phosphor. Root filter → reaches every hardcoded hex and canvas surface. */
+        html[data-chroma="grey"] { --f-chroma: grayscale(1); }
+        html[data-chroma="mono"] { --f-chroma: grayscale(1) sepia(1) saturate(3.2) hue-rotate(-8deg) brightness(1.06); }
+        /* CONTRAST — High boosts + kills glow (glow lowers effective contrast); Low
+           dims for dark-adapted / on-air rooms. */
+        html[data-vision="high"] { --f-vision: contrast(1.14) brightness(1.1); --glow-cyan: none; --glow-magenta: none; }
+        html[data-vision="low"]  { --f-vision: brightness(0.72) contrast(0.96) saturate(0.9); }
+
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; } }
 
         /* ── CHIRALITY ENGINE ─────────────────────────────────────────────────
            Handedness axis (docs/Audit /Chirality Deployment strategy.md, C0+C1).
@@ -44,6 +91,28 @@
             opacity: 0.85;
         }
         .chir-toggle:hover { opacity: 1; filter: brightness(1.12); }
+
+        /* The colour-scheme launcher (painter's palette), docked just LEFT of the
+           handedness toggle → opens the COLOUR & VISION editor (colour-scheme.ts). */
+        .palette-toggle {
+            position: fixed;
+            bottom: 42px;
+            right: calc(120px + var(--ptp-clock-w, 180px) + 58px);   /* clears the chirality toggle */
+            z-index: 1600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 0;
+            padding: 6px 8px;
+            border: none;
+            border-radius: 14px;
+            background: #16233d;
+            color: #CC99CC;
+            cursor: pointer;
+            opacity: 0.85;
+        }
+        .palette-toggle:hover { opacity: 1; filter: brightness(1.12); }
+        .palette-toggle svg { width: 18px !important; height: 18px !important; display: block; }
 
         /* ── CHIRALITY C2 — editor bodies (docs/Audit /Editor-Chirality-Audit.md) ──
            Editors open in .ed-overlay OUTSIDE the console mirror, so they flip on
@@ -276,6 +345,10 @@
         html[data-chirality="right"] .credit-row     { right: auto !important; left: 34px !important; }
         html[data-chirality="right"] .mqt            { right: auto !important; left: 34px !important; }
         html[data-chirality="right"] .chir-toggle    { right: auto !important; left: calc(140px + var(--ptp-clock-w, 180px)) !important; }
+        /* The palette launcher rides the same left-docked cluster in right-hand mode,
+           parked just RIGHT of (outboard of) the chirality toggle. In LEFT-hand mode
+           its default right-anchored rule already docks it beside chirality. */
+        html[data-chirality="right"] .palette-toggle { right: auto !important; left: calc(200px + var(--ptp-clock-w, 180px)) !important; }
 
         /* The blinking LCARS data-pulse strip moves with chirality: it lives on the
            NON-dominant edge (opposite the rail) — right classically, left in

@@ -28,6 +28,7 @@ import { initPortals } from '../ui/console/portals.js';
 import { initMission } from '../ui/console/mission.js';
 import { initLcarsPulse } from '../ui/console/lcars-pulse.js';
 import { initChirality, applyStoredChirality } from '../ui/console/chirality.js';
+import { initColourScheme, applyStoredColourScheme } from '../ui/console/colour-scheme.js';
 import { initAuthoring } from '../ui/console/authoring.js';
 import { getBus, advertiseAll, startLogBridge } from '../platform/mqtt/index.js';
 import { initMqttTree } from '../ui/console/mqtt-tree.js';
@@ -206,8 +207,10 @@ function openFromHash(): void {
 
 /** Assemble the console shell and populate sources + destinations concurrently. */
 async function buildConsole(): Promise<void> {
-  // Paint the handedness attribute on <html> BEFORE the grid renders (no flash).
+  // Paint the handedness + colour-scheme attributes on <html> BEFORE the grid
+  // renders (no flash) — both are read by CSS on the initial paint.
   applyStoredChirality();
+  applyStoredColourScheme();
   document.body.innerHTML = '';
   const ingress = el('div', { class: 'panel ingress-panel', id: 'sources' });
   const sash = el('div', { class: 'sidebar-sash', id: 'sidebar-sash', title: 'Drag to resize the sources sidebar' });
@@ -249,6 +252,7 @@ async function buildConsole(): Promise<void> {
   initMission();
   initLcarsPulse();
   initChirality();   // handedness toggle (sources rail edge + drag-ghost side)
+  initColourScheme();   // palette launcher (left of chirality) → Colour & Vision editor
   initAuthoring();   // single-pane layout editing (EDIT LAYOUT toggle, bottom-left)
 
   // MQTT projection (audit: docs/Audit /TWIST-MQTT-Advertising-Audit.md). No-op
