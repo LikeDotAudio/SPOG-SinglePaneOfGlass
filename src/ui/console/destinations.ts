@@ -79,7 +79,7 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
   // fixture failure can never take down the room's twist render.
   const body = pane.querySelector('.program-body');
   if (body instanceof HTMLElement) {
-    try { mountDestFixtures(body, pgm); }
+    try { mountDestFixtures(body, pgm, openEditor, faulted); }
     catch (e) { console.error('dest-fixtures mount failed', e); }
   }
   // Authoring affordances (hidden unless EDIT LAYOUT is on); rerender re-runs this

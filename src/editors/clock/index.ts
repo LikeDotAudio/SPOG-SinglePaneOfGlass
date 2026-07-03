@@ -2,12 +2,11 @@
 //
 // Opened when a WORLD CLOCKS feed (extraClass:"clock-source") is routed onto a
 // twist, or a twist is literally named "Clock". Each routed zone renders as a
-// broadcast wall-clock in one of two selectable faces:
-//   • LED RING  — a red 7-seg-style HH:MM:SS with 60 second ticks surrounding it;
-//                 the ring TICKS one mark per second with a bright pulse on the
-//                 beat (the Evertz digital reference).
-//   • ANALOG    — a white face with 12h + inner red 24h numerals and a high-vis
-//                 red second hand that SWEEPS smoothly (the Evertz analog clock).
+// broadcast wall-clock, and the operator can jump between three faces:
+//   • DIGITAL      — a big red LED HH:MM read-out on black + zone caption.
+//   • DIGITAL·SEC  — the same, with seconds (HH:MM:SS).
+//   • ANALOG       — a white face with 12h + inner red 24h numerals and a high-vis
+//                    red second hand that SWEEPS smoothly (the Evertz analog clock).
 //
 // Self-contained: zones are parsed from the routed feed labels (UTC / LOCAL /
 // LOCAL ±NH); no external time source — driven off the browser clock via rAF.
@@ -95,54 +94,30 @@ function dateParts(): { yyyy: string; mm: string; dd: string; day: string } {
   };
 }
 
-// ---- LED RING face (Evertz digital reference) -------------------------------
-function drawLed(g: CanvasRenderingContext2D, S: number, z: Zone): void {
-  const t = zoneTime(z);
-  const cx = S / 2, cy = S / 2, R = S * 0.46;
-  g.clearRect(0, 0, S, S);
-  // Bezel.
-  g.fillStyle = '#0b0b0d';
-  g.beginPath(); g.arc(cx, cy, R, 0, TAU); g.fill();
-
-  // 60 second ticks around the rim. Marks up to the current second glow; the
-  // current mark PULSES on the beat (brightest in the first ~140ms), so the ring
-  // visibly ticks one mark per second. The 5s (5,10,15,…) are LONG segments; the
-  // in-between seconds are SHORT segments (per reference).
-  const beat = t.ms < 140 ? 1 - t.ms / 140 : 0;      // 1→0 pulse each second
-  for (let i = 0; i < 60; i++) {
-    const a = -Math.PI / 2 + (i / 60) * TAU;
-    const cos = Math.cos(a), sin = Math.sin(a);
-    const passed = i <= t.s, now = i === t.s;
-    const major = i % 5 === 0;
-    const rO = R * 0.98, rI = R * (major ? 0.80 : 0.90);   // long vs short segment
-    g.save();
-    g.globalAlpha = now ? 1 : passed ? 0.92 : 0.28;
-    g.strokeStyle = now ? '#ff6a6a' : '#e21f1f';
-    g.shadowColor = '#ff2b2b';
-    g.shadowBlur = now ? 10 + beat * 14 : passed ? 4 : 0;
-    g.lineWidth = S * ((major ? 0.026 : 0.02) + (now ? beat * 0.008 : 0));
-    g.lineCap = 'round';
-    g.beginPath(); g.moveTo(cx + cos * rI, cy + sin * rI); g.lineTo(cx + cos * rO, cy + sin * rO); g.stroke();
-    g.restore();
-  }
-
-  // Central LED read-out panel.
-  const pw = R * 1.28, ph = R * 0.42;
-  g.fillStyle = '#050505';
+// ---- DIGITAL face (big red LED read-out, with or without seconds) -----------
+function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
   g.beginPath();
-  const rr = ph * 0.16, x = cx - pw / 2, y = cy - ph / 2;
-  g.moveTo(x + rr, y); g.arcTo(x + pw, y, x + pw, y + ph, rr); g.arcTo(x + pw, y + ph, x, y + ph, rr);
-  g.arcTo(x, y + ph, x, y, rr); g.arcTo(x, y, x + pw, y, rr); g.fill();
-  g.fillStyle = '#ff2f2f';
-  g.shadowColor = '#ff2f2f'; g.shadowBlur = 12;
-  g.font = `800 ${Math.round(ph * 0.62)}px 'Courier New',Consolas,monospace`;
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(`${pad(t.h)}:${pad(t.m)}:${pad(t.s)}`, cx, cy + ph * 0.04);
-  // Zone caption above the panel (the "brand" line of the reference).
-  g.shadowBlur = 0;
+  g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function drawDigital(g: CanvasRenderingContext2D, S: number, z: Zone, withSeconds: boolean): void {
+  const t = zoneTime(z);
+  const cx = S / 2, cy = S / 2;
+  g.clearRect(0, 0, S, S);
+  // Read-out panel.
+  const pw = S * 0.92, ph = S * 0.52, x = cx - pw / 2, y = cy - ph / 2;
+  g.fillStyle = '#050505'; roundRect(g, x, y, pw, ph, ph * 0.12); g.fill();
+  // Zone caption.
   g.fillStyle = '#7d8ba0';
-  g.font = `700 ${Math.round(S * 0.052)}px 'Courier New',monospace`;
-  g.fillText(z.label.toUpperCase(), cx, cy - ph * 0.9);
+  g.font = `700 ${Math.round(S * 0.07)}px 'Courier New',monospace`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(z.label.toUpperCase(), cx, y + ph * 0.2);
+  // Time.
+  const str = withSeconds ? `${pad(t.h)}:${pad(t.m)}:${pad(t.s)}` : `${pad(t.h)}:${pad(t.m)}`;
+  g.fillStyle = '#ff2f2f'; g.shadowColor = '#ff2f2f'; g.shadowBlur = S * 0.05;
+  g.font = `800 ${Math.round(S * (withSeconds ? 0.2 : 0.28))}px 'Courier New',Consolas,monospace`;
+  g.fillText(str, cx, cy + ph * 0.14);
+  g.shadowBlur = 0;
 }
 
 // ---- ANALOG face (Evertz analog reference) ----------------------------------
@@ -198,21 +173,25 @@ const plugin: EditorPlugin = {
   id: 'clock',
   title: 'CLOCK · TIME GENERATOR',
   order: 8,
-  blurb: 'Broadcast clock source — UTC + local ±3h zones as an LED ring (ticking) or a smooth analog sweep.',
+  blurb: 'Broadcast clock source — UTC + local ±3h zones as a digital read-out (with or without seconds) or a smooth analog sweep.',
   match: (n) => /\bclock\b/i.test(n),
   render(host, ctx) {
     addStyles('twist-editor-clock', CSS);
     const zones = deriveZones(ctx.sources);
 
-    let style: 'led' | 'analog' = 'led';
-    const ledBtn = el('button', { class: 'ck-btn on' }, ['◷ LED Ring']);
-    const anaBtn = el('button', { class: 'ck-btn' }, ['◴ Analog']);
-    const reflect = (): void => {
-      ledBtn.classList.toggle('on', style === 'led');
-      anaBtn.classList.toggle('on', style === 'analog');
-    };
-    ledBtn.addEventListener('click', () => { style = 'led'; reflect(); ctx.services.publishParam?.('face', style, { throttle: false }); });
-    anaBtn.addEventListener('click', () => { style = 'analog'; reflect(); ctx.services.publishParam?.('face', style, { throttle: false }); });
+    type Face = 'digital' | 'digitalsec' | 'analog';
+    let style: Face = 'digitalsec';
+    const FACES: Array<{ id: Face; label: string }> = [
+      { id: 'digital', label: '◷ Digital' },
+      { id: 'digitalsec', label: '◷ Digital · Sec' },
+      { id: 'analog', label: '◴ Analog' },
+    ];
+    const faceBtns = FACES.map((f) => {
+      const b = el('button', { class: `ck-btn${f.id === style ? ' on' : ''}` }, [f.label]);
+      b.addEventListener('click', () => { style = f.id; reflect(); ctx.services.publishParam?.('face', style, { throttle: false }); });
+      return { id: f.id, b };
+    });
+    const reflect = (): void => { for (const x of faceBtns) x.b.classList.toggle('on', x.id === style); };
 
     // One canvas per zone, backed by a devicePixelRatio-scaled bitmap for crisp
     // ticks and numerals at any zoom. S (the CSS px size) is slider-driven.
@@ -281,7 +260,7 @@ const plugin: EditorPlugin = {
       dateWin,
       el('div', { class: 'ck-bar' }, [
         el('h4', {}, ['Face']),
-        el('div', { class: 'ck-seg' }, [ledBtn, anaBtn]),
+        el('div', { class: 'ck-seg' }, faceBtns.map((x) => x.b)),
         el('label', { class: 'ck-size' }, ['Size', sizeInput, sizePx]),
       ]),
       grid,
@@ -293,7 +272,7 @@ const plugin: EditorPlugin = {
       { name: 'face', type: 'string', writable: true },
       { name: 'size', type: 'number', writable: true },
     ]);
-    ctx.services.onParam?.('face', (v) => { if (v === 'led' || v === 'analog') { style = v; reflect(); } });
+    ctx.services.onParam?.('face', (v) => { if (v === 'digital' || v === 'digitalsec' || v === 'analog') { style = v; reflect(); } });
     ctx.services.onParam?.('size', (v) => { const n = Number(v); if (Number.isFinite(n)) setSize(n, false); });
     ctx.services.publishParam?.('face', style, { throttle: false });
     ctx.services.publishParam?.('size', S, { throttle: false });
@@ -302,7 +281,7 @@ const plugin: EditorPlugin = {
       paintDate();
       for (const f of faces) {
         if (!f.g) continue;
-        if (style === 'led') drawLed(f.g, S, f.z); else drawAnalog(f.g, S, f.z);
+        if (style === 'analog') drawAnalog(f.g, S, f.z); else drawDigital(f.g, S, f.z, style === 'digitalsec');
       }
     });
   },
