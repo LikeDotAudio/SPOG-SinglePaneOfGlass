@@ -1,6 +1,6 @@
 // src/ui/seven-seg — a shared canvas seven-segment (+ Arial) time renderer.
 //
-// Extracted from the Chronos editor so the Chronos graphic set and the RC1000
+// Extracted from the Chronos editor so the Chronos graphic set and the dual
 // timer draw identical LED read-outs. Renders a time string (digits, ':' and '.')
 // centered in a canvas: authentic 7-segment digits with lit + faint ghost
 // segments (the real-LED look), or a bold Arial fallback. Colour is red or white

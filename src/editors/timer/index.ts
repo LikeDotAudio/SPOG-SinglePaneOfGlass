@@ -1,7 +1,7 @@
-// src/editors/timer — the RC1000 Dual-Channel Up/Down Timer (a graphics source).
+// src/editors/timer — the Dual-Channel Up/Down production timer (a graphics source).
 //
 // TWO independent keypads on screen at once — one per channel, no A/B switch. Each
-// panel is a full RC1000 face: a 6-digit red LED read-out, the GPI · SEC-FRM ·
+// panel is a full timer face: a 6-digit red LED read-out, the GPI · SEC-FRM ·
 // UP-DN · INPUT · CLR function row, and the calculator keypad (PRESET · INC · DEC ·
 // SHIFT · START/STOP), driving its own channel directly. The count math is the pure
 // timer-core; the per-channel state machine + every named SHIFT command is engine.ts.
@@ -45,14 +45,21 @@ const CSS = `
 .rc-fn:hover{background:#1c1226;}
 .rc-gstat{font:700 10px 'Courier New',monospace;letter-spacing:1px;color:#6b7686;display:flex;gap:14px;flex-wrap:wrap;padding:0 4px;}
 .rc-gstat b{color:#9fe0b0;}
+.rc-bezel{cursor:pointer;}
+.rc-panel.sel{border-color:#C864C8;box-shadow:0 0 0 1px #C864C8,0 0 16px rgba(200,100,200,.22);}
+.rc-panel.sel .rc-phead{color:#e79ae7;}
+.rc-phead .kb{margin-left:8px;font:700 9px 'Courier New',monospace;letter-spacing:1px;color:#C864C8;opacity:0;transition:opacity .12s;}
+.rc-panel.sel .rc-phead .kb{opacity:1;}
+.rc-hint{font:700 10px 'Courier New',monospace;letter-spacing:.4px;color:#6b7686;padding:0 4px;}
+.rc-hint b{color:#C864C8;}
 `;
 
 const plugin: EditorPlugin = {
   id: 'timer',
-  title: 'TIMER · RC1000 DUAL COUNT',
+  title: 'TIMER · DUAL COUNT',
   order: 7,
-  blurb: 'RC1000 dual-channel up/down production timer — two independent 6-digit count keypads, presets, follow buffer, calculator, GPI on the bus.',
-  match: (n) => /\btimer\b|count.?down|count.?up|stopwatch|rc1000/i.test(n),
+  blurb: 'Dual-channel up/down production timer — two independent 6-digit count keypads, presets, follow buffer, calculator, GPI on the bus.',
+  match: (n) => /\btimer\b|count.?down|count.?up|stopwatch/i.test(n),
   render(host, ctx) {
     addStyles('twist-editor-timer', CSS);
 
@@ -106,7 +113,7 @@ const plugin: EditorPlugin = {
       ]);
 
       const panel = el('div', { class: 'rc-panel' }, [
-        el('div', { class: 'rc-phead' }, [`CHANNEL ${id}`, st]),
+        el('div', { class: 'rc-phead' }, [`CHANNEL ${id}`, el('span', { class: 'kb' }, ['⌨ KEYPAD']), st]),
         bezel, fnRow, keypad,
       ]);
 
@@ -123,7 +130,7 @@ const plugin: EditorPlugin = {
         st.textContent = c.status;
         shiftKey.classList.toggle('on', c.shift);
       };
-      return { panel, update };
+      return { panel, update, setSel: (on: boolean): void => { panel.classList.toggle('sel', on); } };
     };
 
     // ---- shared FUNCTIONS drawer + GPI prompts ----
@@ -164,10 +171,47 @@ const plugin: EditorPlugin = {
 
     const panelA = buildPanel('A');
     const panelB = buildPanel('B');
+
+    // ---- channel selection: touch a panel (its display OR its keypad) to select
+    // it; the physical numeric keypad then drives the SELECTED channel. ----
+    let selected: ChanId = 'A';
+    const setSelected = (id: ChanId): void => {
+      selected = id;
+      panelA.setSel(selected === 'A');
+      panelB.setSel(selected === 'B');
+    };
+    // Clicks on the keypad buttons bubble up here too, so pressing any on-screen
+    // key also selects that channel (as requested).
+    panelA.panel.addEventListener('click', () => setSelected('A'));
+    panelB.panel.addEventListener('click', () => setSelected('B'));
+
+    const hint = el('div', { class: 'rc-hint' }, [
+      'Touch a channel to select it — the keyboard number pad then drives it · ',
+      el('b', {}, ['0–9']), ' enter time · ',
+      el('b', {}, ['✳']), ' switch A/B · ',
+      el('b', {}, ['÷']), ' flip direction',
+    ]);
+
     host.append(el('div', { class: 'rc' }, [
       el('div', { class: 'rc-panels' }, [panelA.panel, panelB.panel]),
-      gstat, drawer,
+      hint, gstat, drawer,
     ]));
+    setSelected('A');
+
+    // ---- physical keyboard: the numeric keypad drives the selected channel.
+    // Digits 0-9 enter time (same as the on-screen digit keys); ✳ (*) switches
+    // the selection A↔B; ÷ (/) flips the selected channel's direction. ----
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      const k = e.key;
+      if (k.length === 1 && k >= '0' && k <= '9') { engine.pressDigit(selected, Number(k)); e.preventDefault(); }
+      else if (k === '*') { setSelected(selected === 'A' ? 'B' : 'A'); e.preventDefault(); }
+      else if (k === '/') { engine.toggleDirection(selected); e.preventDefault(); }
+    };
+    window.addEventListener('keydown', onKey);
+    ctx.dispose.add(() => window.removeEventListener('keydown', onKey));
 
     // ---- MQTT surface (the GPI/timecode wiring) ----
     ctx.services.advertiseParams?.([

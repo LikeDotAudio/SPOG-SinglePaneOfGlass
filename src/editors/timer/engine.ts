@@ -1,8 +1,8 @@
-// src/editors/timer/engine — the RC1000 dual-channel controller (audit T2/T4).
+// src/editors/timer/engine — the dual-channel timer controller (audit T2/T4).
 //
 // A DOM-free state machine over two timer-core channels. The panel renders TWO
 // independent keypads (one per channel, no A/B switch), so ALL interaction state
-// — keypad entry, calculator, preset-arm, SHIFT — lives PER CHANNEL. Every RC1000
+// — keypad entry, calculator, preset-arm, SHIFT — lives PER CHANNEL. Every timer
 // key and SHIFT function (audit §2A) is a named method taking a channel id; global
 // settings (frame rate, brightness, swap, GPI) take none. The panel reads `state`
 // each frame; the engine calls `onChange` after mutations (publish) and `onLog` /
@@ -254,7 +254,7 @@ export class TimerEngine {
   toggleHour12(): void { this.state.hour12 = !this.state.hour12; this.changed(null, `${this.state.hour12 ? '12' : '24'} HOUR`); }
   swapChannels(): void { const s = this.state.channels; [s.A, s.B] = [s.B, s.A]; this.changed(null, 'SWAP A↔B'); }
   toggleSerialFormat(): void { this.state.serialHmsf = !this.state.serialHmsf; this.changed(null, `RS-232 ${this.state.serialHmsf ? 'HH:MM:SS:FF' : 'HH:MM:SS'}`); }
-  showFirmware(): void { this.state.firmware = this.state.firmware ? null : 'TWIST-RC1000  v1.0  2026-07-03'; this.changed(null, this.state.firmware ? 'FIRMWARE' : 'READY'); }
+  showFirmware(): void { this.state.firmware = this.state.firmware ? null : 'TWIST-TIMER  v1.0  2026-07-03'; this.changed(null, this.state.firmware ? 'FIRMWARE' : 'READY'); }
   toggleLeadingZero(): void { this.state.leadingZero = !this.state.leadingZero; this.changed(null, `LEAD-ZERO ${this.state.leadingZero ? 'ON' : 'BLANK'}`); }
 
   // ======================================================================
