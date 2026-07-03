@@ -2,6 +2,49 @@
 
 All notable changes to TwistRouting are recorded here.
 
+## [v98] — 2026-07-02
+
+### Added — Chirality (handedness) C0 + C1
+A single **left/right handedness toggle** that mirrors the whole console — the
+console now "swings both ways." Strategy: `docs/Audit /Chirality Deployment strategy.md`.
+- **The switch** (`src/ui/console/chirality.ts`): `data-chirality` on `<html>`, a
+  `--chir` sign token, localStorage persistence, default right-handed. The `✋`
+  toggle sits beside the MQTT chip; tooltip reads "Chirality Right/Left".
+- **Right-handed = full mirror; left-handed = the classic original layout.** In
+  right mode the SOURCES rail docks RIGHT (via `direction: rtl` on the grid — not
+  per-item `grid-column`, which the sparse auto-placement algorithm split into
+  extra rows), the LCARS section elbows mirror to the outer edge (explicit
+  geometry CSS — **text is never mirrored, the core rule**), the nested media-group
+  bracket (BANK → PLAYOUT) flips via `--mg-*` tokens, the footer's primary group
+  (CONTROL ROOMS) sits on the dominant side and groups expand inward, and the drag
+  ghost emits to the non-occluded side (`setDragImage`).
+- **Opposite corners:** the bottom chrome (clock, MQTT, 1990s view, credit, toggle)
+  and the user-login badge sit on the NON-dominant side, keeping the dominant
+  corner clear for the primary controls.
+
+## [v97] — 2026-07-02
+
+### Added
+- **Hover tooltips ("tool ticks") across every LCARS window** (`src/ui/tip.ts`).
+  A shared, pointer-following, touch- and screen-reader-aware tip panel — one
+  instance for the whole app — generalising the pattern proven in Meter Input.
+  Two kinds:
+  - **"What the production expects"** (Kind A) — attached to every editor's title
+    rail, *derived from the `EditorContext`*: what the twist accepts + its capacity,
+    what's routed in right now (or a "⚠ Nothing routed yet" nudge), sibling twists
+    of the same kind, and the capability the role needs (held ✓ / view-only ✗).
+    No per-window authoring — one line in `app/main.ts` drives all 19 editors, with
+    a central `BLURBS` map for the "what it does" lead.
+  - **"What it does / how to read it"** (Kind B) — `tip()` / `hint()` helpers for
+    per-control help, ready to attach to meters, scopes, and mode buttons.
+- **Data-model-authored tips in the Routes JSON** (`TipSpec` in `src/model`). A
+  `tip` (string, or `{lead, good, bad}`) can be authored on a **production/room**,
+  a **floor room**, a **person**, or an **individual twist/tool** — kept in the same
+  JSON files a non-engineer already edits. Room/floor/person tips thread to the
+  editor via `data-prod-tip`; per-tool tips ride the existing `data-config`. Seeded
+  examples on PROD 7, 2nd-Floor Room 2, and Ana Silva (+ her IFB tool).
+- Audit: `docs/Audit /LCARS-Hover-Tooltips-Production-Tips-Audit.md`.
+
 ## [v96] — 2026-07-02
 
 The TypeScript app (`src/**`) is now the deployed console (A.8 cutover complete);

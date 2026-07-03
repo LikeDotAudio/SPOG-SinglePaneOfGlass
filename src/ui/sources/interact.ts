@@ -7,6 +7,8 @@
 // Idempotent: lazily-rendered subtrees call wireSourceNodes() again, so already-
 // wired nodes are skipped (no stacked listeners).
 
+import { chiralitySign } from '../console/chirality.js';
+
 const HOLD_MS = 400;
 
 /** The current multi-selection (Ctrl/Shift-click), mirrors legacy selectedPoolNodes. */
@@ -94,6 +96,14 @@ export function wireSourceNode(node: HTMLElement): void {
       e.dataTransfer.setData('text/plain', ids);
       e.dataTransfer.setData('source-type', 'pool');
       e.dataTransfer.effectAllowed = 'copy';
+      // Emit the drag ghost to the NON-OCCLUDED side of the finger (Chirality.md
+      // §4D): a right hand occludes the SE, so the ghost sits to the LEFT of the
+      // cursor; mirrored for a left hand. setDragImage(x) is the point placed under
+      // the cursor — width+gap pushes the image left, -gap pushes it right.
+      const rect = node.getBoundingClientRect();
+      const gap = 18;
+      const offX = chiralitySign() === 1 ? rect.width + gap : -gap;
+      e.dataTransfer.setDragImage(node, offX, rect.height / 2);
     }
   });
 }

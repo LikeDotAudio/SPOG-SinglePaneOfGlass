@@ -10,12 +10,17 @@ export function makeMediaGroup(container: HTMLElement, title: string, color: str
 
   const header = document.createElement('div');
   header.className = 'foldable-header media-group-header';
-  header.style.cssText = `--lcars-color:${color}; background-color:${color}; font-size:11px; margin-bottom:6px; font-weight:bold; cursor:pointer; margin-left:${depth * 10}px;`;
+  // Indent is a token so the bracket can flip side under chirality (see lcars.css).
+  header.style.cssText = `--lcars-color:${color}; background-color:${color}; font-size:11px; margin-bottom:6px; font-weight:bold; cursor:pointer; --mg-head-indent:${depth * 10}px;`;
   header.innerHTML = `<span>${monoEmoji(title)}${title}</span><span class="fold-icon" style="transform:rotate(-90deg);display:inline-block;transition:transform .2s;">▼</span>`;
 
   const content = document.createElement('div');
   content.className = 'media-group-content';
-  content.style.cssText = `display:none; margin:4px 0 12px ${depth * 12 + 12}px; padding:6px 0 6px 16px; border-left:4px solid ${color}; box-shadow:-1px 0 8px ${color}66; border-radius:0 0 0 8px;`;
+  // Colour + indent as tokens; the bracket geometry (border/shadow/radius/indent)
+  // lives in lcars.css so it mirrors to the RIGHT in right-handed mode.
+  content.style.setProperty('--mg-color', color);
+  content.style.setProperty('--mg-indent', `${depth * 12 + 12}px`);
+  content.style.display = 'none';
 
   header.addEventListener('click', () => {
     const opening = content.style.display === 'none';

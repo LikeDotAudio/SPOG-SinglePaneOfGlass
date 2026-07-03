@@ -16,6 +16,35 @@
             --glow-magenta: 0 0 10px var(--magenta), 0 0 20px rgba(255, 0, 255, 0.4);
         }
 
+        /* ── CHIRALITY ENGINE ─────────────────────────────────────────────────
+           Handedness axis (docs/Audit /Chirality Deployment strategy.md, C0+C1).
+           html[data-chirality="right"|"left"]. `right` (default) docks the SOURCES
+           rail on the dominant-hand RIGHT edge; `left` = the classic left dock.
+           --chir (+1 right / -1 left) is the sign every JS-computed placement reads
+           (drag ghost side, popovers). .chir-fixed rides content back upright if a
+           subtree is ever scaleX-reflected (reserved for later phases). */
+        html { --chir: 1; }
+        html[data-chirality="left"] { --chir: -1; }
+        .chir-fixed { transform: scaleX(var(--chir, 1)); }
+
+        /* The handedness toggle (a hand glyph pointing at the rail side). */
+        .chir-toggle {
+            position: fixed;
+            bottom: 42px;                                        /* aligns with the MQTT chip / clock row */
+            right: calc(120px + var(--ptp-clock-w, 180px));      /* just LEFT of the MQTT chip */
+            z-index: 1600;
+            font: 700 13px 'Courier New', monospace;
+            letter-spacing: 1px;
+            padding: 6px 11px;
+            border: none;
+            border-radius: 14px;
+            background: #16233d;
+            color: #6FC8F0;
+            cursor: pointer;
+            opacity: 0.85;
+        }
+        .chir-toggle:hover { opacity: 1; filter: brightness(1.12); }
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -43,6 +72,92 @@
             padding: 0; /* elbows run flush to the top and both edges — no wasted gutter */
             min-height: 0;
         }
+
+        /* CHIRALITY C1 — right-handed docks the SOURCES rail on the RIGHT edge.
+           Grid reorder only (text/data untouched); scoped to the desktop layout so
+           the mobile stacked layout (@media max-width:768px) is unaffected. */
+        @media (min-width: 769px) {
+            /* Move the SOURCES rail to the RIGHT edge by flipping the grid's inline
+               axis: direction:rtl lands the first template column (the sidebar) on
+               the right and the 1fr content column on the left — a single full-height
+               row, unchanged. Children reset to ltr so their content is unaffected.
+               (Per-item grid-column:3/2/1 was wrong: sparse auto-placement can't run
+               columns backward, so it split the items into 3 rows → diagonal layout.) */
+            html[data-chirality="right"] .container { direction: rtl; }
+            html[data-chirality="right"] .container > * { direction: ltr; }
+
+            /* Mirror the LCARS section elbows so the coloured spine hugs the RIGHT
+               (outer) edge. Explicit geometry swap — NO transform anywhere, because
+               TEXT IS NEVER MIRRORED (the big rule). The spine border flips
+               left→right, the top bar + label + emoji anchors swap sides, and the
+               black notch offsets mirror with them. */
+            html[data-chirality="right"] .ingress-panel .super-pool-container {
+                padding: 27px 62px 2px 2px;
+            }
+            html[data-chirality="right"] .ingress-panel .super-pool-container::before {
+                left: auto; right: 0;
+                border-left: 0;
+                border-right: 60px solid var(--lcars-color, #ffaa00);
+                border-top-left-radius: 0; border-bottom-left-radius: 0;
+                border-top-right-radius: 40px; border-bottom-right-radius: 40px;
+            }
+            html[data-chirality="right"] .ingress-panel .super-pool-container::after {
+                left: 0; right: 105px;
+                border-top-right-radius: 0; border-bottom-right-radius: 0;
+                border-top-left-radius: 12px; border-bottom-left-radius: 12px;
+            }
+            html[data-chirality="right"] .ingress-panel .super-pool-title { right: auto; left: 15px; }
+            html[data-chirality="right"] .ingress-panel .super-pool-emoji { left: auto; right: 40px; }
+        }
+
+        /* Footer: the PRIMARY group (CONTROL ROOMS is first) sits on the dominant
+           RIGHT in right-handed mode — reorder only, text untouched. The groups live
+           in .lcars-topbar (a flex row). */
+        html[data-chirality="right"] .lcars-topbar { flex-direction: row-reverse; }
+        /* A right-docked group must expand INWARD (right-to-left): the label sits on
+           the outer edge and its body/tabs grow toward screen centre, else the body
+           runs off the right edge. Reverse each group's label↔body and its tab row,
+           and mirror the label's rounded cap to face the other way. */
+        html[data-chirality="right"] .lcars-group      { flex-direction: row-reverse; }
+        html[data-chirality="right"] .lcars-group-tabs { flex-direction: row-reverse; }
+        html[data-chirality="right"] .lcars-group-body { align-items: flex-end; }
+        html[data-chirality="right"] .lcars-group-label { border-radius: 4px 16px 16px 4px; }
+
+        /* Nested media-group bracket (BANK → PLAYOUT). Colour + indent are tokens
+           (set inline per element); the geometry lives here so it can mirror to the
+           RIGHT in right-handed mode. Base = classic LEFT bracket. */
+        .media-group-content {
+            margin: 4px 0 12px var(--mg-indent, 12px);
+            padding: 6px 0 6px 16px;
+            border-left: 4px solid var(--mg-color, #888);
+            box-shadow: -1px 0 8px var(--mg-color, #888);
+            border-radius: 0 0 0 8px;
+        }
+        .media-group-header { margin-left: var(--mg-head-indent, 0); }
+        html[data-chirality="right"] .media-group-content {
+            margin: 4px var(--mg-indent, 12px) 12px 0;
+            padding: 6px 16px 6px 0;
+            border-left: 0;
+            border-right: 4px solid var(--mg-color, #888);
+            box-shadow: 1px 0 8px var(--mg-color, #888);
+            border-radius: 0 0 8px 0;
+        }
+        html[data-chirality="right"] .media-group-header { margin-left: 0; margin-right: var(--mg-head-indent, 0); }
+
+        /* User-login badge sits opposite the rail — top-right classically, flipped
+           to top-left (with a mirrored rounded cap) in right-handed mode. */
+        html[data-chirality="right"] .au-badge { right: auto; left: 34px; border-radius: 16px 8px 8px 16px; }
+
+        /* Bottom chrome cluster (clock, MQTT chip, 1990s view, credit, hand toggle)
+           lives OPPOSITE the dominant hand — the reachable dominant corner is left
+           clear for the primary footer group. Classic RIGHT anchor = left-handed
+           mode; right-handed mode mirrors the cluster to the LEFT. !important beats
+           lcars-pulse.ts's own `right … !important` edge-nudge (else they stretch). */
+        html[data-chirality="right"] .ptp-clock     { right: auto !important; left: 14px !important; }
+        html[data-chirality="right"] .mq-chip        { right: auto !important; left: calc(28px + var(--ptp-clock-w, 180px)) !important; }
+        html[data-chirality="right"] .rv-btn         { right: auto !important; left: 14px !important; }
+        html[data-chirality="right"] .credit-button  { right: auto !important; left: 14px !important; }
+        html[data-chirality="right"] .chir-toggle    { right: auto !important; left: calc(120px + var(--ptp-clock-w, 180px)) !important; }
 
         /* Draggable divider ("sash") to resize the sources sidebar. */
         .sidebar-sash {

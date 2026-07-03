@@ -10,8 +10,9 @@ import { pluginFor } from '../editors/registry.js';
 import { openOverlay, slug } from '../platform/overlay.js';
 import { buildContext } from './context.js';
 import type { EditorServices } from '../editors/types.js';
-import type { Production, TwistConfig, Hex } from '../model/index.js';
+import type { Production, TwistConfig, TipSpec, Hex } from '../model/index.js';
 import { el } from '../ui/dom.js';
+import { expectationTip } from '../ui/tip.js';
 import { renderSourcesPanel } from '../ui/sources/panel.js';
 import { wireSourceNodes } from '../ui/sources/interact.js';
 import { Footer, loadAllDestinations } from '../ui/console/footer.js';
@@ -25,6 +26,7 @@ import { initSourceFilter } from '../ui/console/source-filter.js';
 import { initPortals } from '../ui/console/portals.js';
 import { initMission } from '../ui/console/mission.js';
 import { initLcarsPulse } from '../ui/console/lcars-pulse.js';
+import { initChirality, applyStoredChirality } from '../ui/console/chirality.js';
 import { getBus, advertiseAll, startLogBridge } from '../platform/mqtt/index.js';
 import { initMqttTree } from '../ui/console/mqtt-tree.js';
 import { twistTopic, slug as topicSlug } from '../platform/mqtt/topics.js';
@@ -34,6 +36,31 @@ import { onRoleChange } from '../platform/auth.js';
 // TODO: package.json has no `version` field yet — track real releases here (or
 // wire a JSON import / build-time define) once a release scheme is in place.
 const APP_VERSION = 'v1.0.0';
+
+/** "What this window does" — the one-line lead of each editor's context-derived
+ *  expectation tip (Kind A). Keyed by plugin.id; an editor may override via its
+ *  own `plugin.blurb`. Sourced from the README editor catalogue. */
+const BLURBS: Record<string, string> = {
+  'vision-mixer': 'Broadcast switcher — cut/mix/wipe PGM & PVW; keyers for lower-thirds & logos. This drives tally.',
+  'multi-viewer': 'Configurable monitor wall (2×2→16×16) with PiP, tally states, and inline UMD labels.',
+  'iso-recorder': 'Per-camera clean ISO recording + instant replay: jog/shuttle, angle select, mark-to-air.',
+  'audio-mixer': 'Audio console — channel strips (fader/EQ/pan/aux), group buses; ⚙ jumps to Stage Box preamps.',
+  'audio-monitor': 'Confidence monitor: 1–24-ch PPM/VU, phase correlation, and ITU-R BS.1770 loudness.',
+  'audio-positioner': 'Object-based audio positioning (CMDP) — place beds and objects in the sound field.',
+  'intercom': 'Comms key panel — TALK/LISTEN keys and gangable talk groups. The source layer for IFB.',
+  'ifb': 'Talent earpiece: mix-minus (program minus own mic, to kill echo) plus the director interrupt.',
+  'camera-control': 'CCU / RCP — PTZ plus shading (iris/gamma/gain/blacks), scopes, and the robotics map.',
+  'encoder': 'Transcode/stream engine — 1:1 mezzanine → ABR ladder → RTMP/SRT, 2022-7 failover, DRM.',
+  'signaling': 'Distributes tally (red PGM / green PVW / amber ISO), the On-Air light, and GPI/SCTE triggers.',
+  'stagebox-input': 'Smart-object mic input — preamp gain/headroom, interlocked +48V phantom, impedance, HF comp.',
+  'signal-conditioner': 'Frame-sync / delay / proc-amp — legalise and align signal at the studio edge.',
+  'lighting': 'DMX console for a 3/4-point rig (Key/Fill/Back/Background) + set light; scene recall.',
+  'wysiwyg': 'Top-down pre-viz of the DMX rig: beam cones, foot-candle heat-map, camera frustum, tally glow.',
+  'graphics-engine': 'CG / title engine — lower-thirds, full-screen titles, and crawls on the rundown spine.',
+  'meter-input': 'Real-video/audio scope bench — waveform, vectorscope, meters: an objective source of truth.',
+  'person': 'A person as a routable virtual channel strip — identity, mic preference, and EQ/comp.',
+  'prompter': 'Teleprompter source — a script + live playhead fanned to prompt heads (mirrored) & confidence.',
+};
 
 /** Cross-editor services (M1): replaces the legacy window.openStageBox global. */
 const services: EditorServices = {
@@ -79,12 +106,24 @@ function openEditorForTwist(twistEl: HTMLElement): void {
   if (!plugin) return;
   const prodName = twistEl.dataset.prodName ?? '';
   const color = (twistEl.style.getPropertyValue('--lcars-color').trim() || '#646DCC') as Hex;
-  const prod: Production = { id: twistEl.dataset.prodId ?? 'prod', name: prodName, color };
+  // Room/floor/person-level hover tip authored in the Routes JSON, threaded here as
+  // data attributes by destinations.renderPrograms (see ui/tip expectationTip).
+  let prodTip: TipSpec | undefined;
+  if (twistEl.dataset.prodTip) { try { prodTip = JSON.parse(twistEl.dataset.prodTip) as TipSpec; } catch { /* ignore */ } }
+  const prod: Production = {
+    id: twistEl.dataset.prodId ?? 'prod', name: prodName, color,
+    parentName: twistEl.dataset.prodFloor || undefined, tip: prodTip,
+  };
   const twistSvc = twistServices(prodName, name);
   openOverlay(
     { title: prodName ? `${prodName} · ${plugin.title}` : plugin.title, color, prodName, twistName: name },
     (body, dispose) => {
       const ctx = buildContext(prod, twist, dispose, twistSvc, twistEl);
+      // "What the production expects of this window" — a hover tip on the title rail,
+      // derived from the context + any JSON-authored room/tool tip. Attached even on
+      // ACCESS DENIED so an op can see what the tool is and which role it needs.
+      const titleEl = body.parentElement?.querySelector<HTMLElement>('.ed-title');
+      if (titleEl) expectationTip(titleEl, ctx, { requiredCaps: plugin.requiredCaps, blurb: plugin.blurb ?? BLURBS[plugin.id] });
       const blocked = (plugin.requiredCaps ?? []).find((c) => !ctx.can(c));
       if (blocked) { body.innerHTML = `<div class="ed-h">ACCESS DENIED — requires "${blocked}"</div>`; return; }
       plugin.render(body, ctx);
@@ -121,6 +160,8 @@ function openFromHash(): void {
 
 /** Assemble the console shell and populate sources + destinations concurrently. */
 async function buildConsole(): Promise<void> {
+  // Paint the handedness attribute on <html> BEFORE the grid renders (no flash).
+  applyStoredChirality();
   document.body.innerHTML = '';
   const ingress = el('div', { class: 'panel ingress-panel', id: 'sources' });
   const sash = el('div', { class: 'sidebar-sash', id: 'sidebar-sash', title: 'Drag to resize the sources sidebar' });
@@ -157,6 +198,7 @@ async function buildConsole(): Promise<void> {
   initPortals();
   initMission();
   initLcarsPulse();
+  initChirality();   // handedness toggle (sources rail edge + drag-ghost side)
 
   // MQTT projection (audit: docs/Audit /TWIST-MQTT-Advertising-Audit.md). No-op
   // unless a broker is configured via ?mqtt=<host> — the console runs unchanged
