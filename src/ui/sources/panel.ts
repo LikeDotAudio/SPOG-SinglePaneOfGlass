@@ -187,20 +187,23 @@ export function toggleSuperPool(event: Event, container: HTMLElement): void {
       if (sib === container) return;
       const c = sib.querySelector<HTMLElement>(':scope > .super-pool-content');
       if (c) c.style.display = 'none';
+      sib.classList.add('folded');
       const ic = sib.querySelector<HTMLElement>(':scope > .super-pool-title .fold-icon');
       if (ic) ic.style.transform = 'rotate(-90deg)';
     });
     content.style.display = '';
+    container.classList.remove('folded');
     if (icon) icon.style.transform = 'rotate(0deg)';
   } else {
     content.style.display = 'none';
+    container.classList.add('folded');
     if (icon) icon.style.transform = 'rotate(-90deg)';
   }
 }
 
 export function buildSuperPool(panel: HTMLElement, name: string, color: Hex): HTMLElement {
   const container = document.createElement('div');
-  container.className = 'super-pool-container';
+  container.className = 'super-pool-container folded'; // starts collapsed (content hidden)
   container.style.setProperty('--lcars-color', color);
   container.innerHTML = `
     <div class="super-pool-emoji">${monoEmoji(name).trim()}</div>
@@ -230,6 +233,7 @@ export async function renderSourcesPanel(panel: HTMLElement, onRendered?: Render
   const first = built[0];
   if (first) {
     first.content.style.display = '';
+    first.content.parentElement?.classList.remove('folded');
     const ic = first.content.parentElement?.querySelector<HTMLElement>(':scope > .super-pool-title .fold-icon');
     if (ic) ic.style.transform = 'rotate(0deg)';
   }

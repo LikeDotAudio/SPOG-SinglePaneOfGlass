@@ -50,6 +50,13 @@ const RULES: Array<[RegExp, string]> = [
   [/cam|camera|video|vid/i, '■'],
   [/floor|stage|box|room|playout|player/i, '▤'],
   [/prod|program|control|gallery|studio/i, '◆'],
+  // Category glyphs that otherwise fall to the ▸ default — appended AFTER the
+  // specific media rules so per-leaf glyphs above win; only unmatched labels
+  // (STREAMS/GRAPHICS/PROMPTER/PEOPLE headers) pick these up, keeping each unique.
+  [/stream|\brtmp\b|\bsrt\b|webrtc|\bndi\b/i, '≋'],
+  [/graphic|gfx|\bcg\b|\bcgi\b|caption|lower.?third/i, '▧'],
+  [/prompt|teleprompt/i, '☰'],
+  [/people|person|talent|presenter|anchor|\bcrew\b|guest/i, '☺'],
 ];
 
 /** Return a leading monochrome glyph + hair space for the given label. */

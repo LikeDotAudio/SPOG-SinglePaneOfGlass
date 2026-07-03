@@ -52,6 +52,14 @@ const CSS = `
 .rc-panel.sel .rc-phead .kb{opacity:1;}
 .rc-hint{font:700 10px 'Courier New',monospace;letter-spacing:.4px;color:#6b7686;padding:0 4px;}
 .rc-hint b{color:#C864C8;}
+.rc-sc{background:#0a0a0d;border:1px solid #20202a;border-radius:8px;padding:10px 12px;}
+.rc-sc-title{font:800 11px 'Courier New',monospace;letter-spacing:2px;color:#C864C8;text-transform:uppercase;margin-bottom:9px;}
+.rc-sc-title span{color:#6b7686;letter-spacing:.4px;text-transform:none;font-weight:700;}
+.rc-sc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:7px 16px;}
+.rc-sc-row{display:flex;align-items:center;gap:10px;font:700 10px 'Courier New',monospace;}
+.rc-kbd{display:inline-flex;align-items:center;justify-content:center;min-width:38px;padding:4px 8px;border-radius:6px;
+  background:#161020;border:1px solid #2a2030;box-shadow:0 1px 0 #000;color:#ffd23c;font:800 11px 'Courier New',monospace;letter-spacing:1px;flex:0 0 auto;}
+.rc-sc-desc{color:#c9b6d6;}
 `;
 
 const plugin: EditorPlugin = {
@@ -185,11 +193,22 @@ const plugin: EditorPlugin = {
     panelA.panel.addEventListener('click', () => setSelected('A'));
     panelB.panel.addEventListener('click', () => setSelected('B'));
 
-    const hint = el('div', { class: 'rc-hint' }, [
-      'Touch a channel to select it — the keyboard number pad then drives it · ',
-      el('b', {}, ['0–9']), ' enter time · ',
-      el('b', {}, ['✳']), ' switch A/B · ',
-      el('b', {}, ['÷']), ' flip direction',
+    // Keyboard-shortcuts window: the numeric keypad drives the SELECTED channel.
+    // Kept in lock-step with the onKey handler below — every mapped key is listed.
+    const SHORTCUTS: Array<[string, string]> = [
+      ['0–9', 'Enter time digits'],
+      ['Enter', 'Start / Stop the timer'],
+      ['Shift', 'SHIFT — unlocks the shifted 0–6 functions'],
+      ['+', 'INC — calculator add'],
+      ['−', 'DEC — calculator subtract'],
+      ['Del', 'Clear the counter'],
+      ['✳', 'Switch channel A / B'],
+      ['÷', 'Flip count direction'],
+    ];
+    const hint = el('div', { class: 'rc-sc' }, [
+      el('div', { class: 'rc-sc-title' }, ['⌨ Keyboard Shortcuts ', el('span', {}, ['— touch a channel to select it, then the number pad drives it'])]),
+      el('div', { class: 'rc-sc-grid' }, SHORTCUTS.map(([k, d]) =>
+        el('div', { class: 'rc-sc-row' }, [el('span', { class: 'rc-kbd' }, [k]), el('span', { class: 'rc-sc-desc' }, [d])]))),
     ]);
 
     host.append(el('div', { class: 'rc' }, [
@@ -198,15 +217,22 @@ const plugin: EditorPlugin = {
     ]));
     setSelected('A');
 
-    // ---- physical keyboard: the numeric keypad drives the selected channel.
-    // Digits 0-9 enter time (same as the on-screen digit keys); ✳ (*) switches
-    // the selection A↔B; ÷ (/) flips the selected channel's direction. ----
+    // ---- physical keyboard: the numeric keypad mirrors the on-screen keys for the
+    // selected channel. Digits 0-9 enter time; Enter = START/STOP; Shift = the SHIFT
+    // toggle (so 0-6 then fire their SHIFT functions); + / − = the INC / DEC calc
+    // keys; Delete clears the counter; ✳ (*) switches A↔B; ÷ (/) flips direction.
+    // e.repeat is ignored so a held key can't spam the SHIFT toggle or transport. ----
     const onKey = (e: KeyboardEvent): void => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
       const t = e.target as HTMLElement | null;
       if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
       const k = e.key;
       if (k.length === 1 && k >= '0' && k <= '9') { engine.pressDigit(selected, Number(k)); e.preventDefault(); }
+      else if (k === 'Enter') { engine.startStop(selected); e.preventDefault(); }
+      else if (k === 'Shift') { engine.toggleShift(selected); e.preventDefault(); }
+      else if (k === '+') { engine.beginCalc(selected, '+'); e.preventDefault(); }
+      else if (k === '-') { engine.beginCalc(selected, '-'); e.preventDefault(); }
+      else if (k === 'Delete') { engine.clearAll(selected); e.preventDefault(); }
       else if (k === '*') { setSelected(selected === 'A' ? 'B' : 'A'); e.preventDefault(); }
       else if (k === '/') { engine.toggleDirection(selected); e.preventDefault(); }
     };

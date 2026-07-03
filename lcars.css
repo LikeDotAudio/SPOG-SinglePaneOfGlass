@@ -145,6 +145,9 @@
                 border-top-left-radius: 0; border-bottom-left-radius: 0;
                 border-top-right-radius: 40px; border-bottom-right-radius: 40px;
             }
+            html[data-chirality="right"] .ingress-panel .super-pool-container.folded::before {
+                border-top-right-radius: 15px; border-bottom-right-radius: 15px;
+            }
             html[data-chirality="right"] .ingress-panel .super-pool-container::after {
                 left: 0; right: 105px;
                 border-top-right-radius: 0; border-bottom-right-radius: 0;
@@ -1130,6 +1133,14 @@
             border-bottom-left-radius: 40px;
             box-sizing: border-box;
             z-index: 0;
+        }
+
+        /* Folded (collapsed) super-pool: the spine block is short, so the 40px
+           end-cap over-rounds into a blob. Match the folder header's tighter 15px
+           radius instead so a folded pool reads as a tidy pill, not a bubble. */
+        .super-pool-container.folded::before {
+            border-top-left-radius: 15px;
+            border-bottom-left-radius: 15px;
         }
 
         .super-pool-container::after {

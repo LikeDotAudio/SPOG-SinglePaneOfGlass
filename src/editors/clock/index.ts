@@ -1,8 +1,13 @@
 // src/editors/clock — the CLOCK / TIME GENERATOR editor (a graphics source).
 //
 // Opened when a WORLD CLOCKS feed (extraClass:"clock-source") is routed onto a
-// twist, or a twist is literally named "Clock". Each routed zone renders as a
-// broadcast wall-clock, and the operator can jump between four faces:
+// twist, or a twist is literally named "Clock".
+//
+// A free-form "clock bench" modelled on the METER INPUT test monitor: every clock
+// and the date read-out is an independent WINDOW ("device") you can drag-move (by
+// its header), resize (corner handle, like a window), close (×), or spawn more of
+// (+ Clock / + Date). Layout PRESETS re-tile every window at once, and the stage
+// itself is a resizable canvas. Each clock window carries its own zone + face:
 //   • DIGITAL      — a big red LED HH:MM read-out on black + zone caption.
 //   • DIGITAL·SEC  — the same, with seconds (HH:MM:SS).
 //   • LED RING     — HH:MM:SS ringed by 60 second ticks that pulse on the beat
@@ -11,46 +16,60 @@
 //                    red second hand that SWEEPS smoothly (the Evertz analog clock).
 //
 // Self-contained: zones are parsed from the routed feed labels (UTC / LOCAL /
-// LOCAL ±NH); no external time source — driven off the browser clock via rAF.
+// LOCAL ±NH) and are editable per window; no external time source — driven off the
+// browser clock via rAF.
 
 import type { EditorPlugin } from '../types.js';
 import { el, addStyles, ctx2d } from '../../ui/dom.js';
 
 const CSS = `
-.ck{display:flex;flex-direction:column;gap:12px;height:100%;min-height:0;color:#dfe8f5;}
-.ck-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
-.ck-bar h4{margin:0 8px 0 0;color:#C864C8;font:700 11px 'Courier New',monospace;letter-spacing:2px;text-transform:uppercase;}
+.ck{display:flex;flex-direction:column;gap:12px;height:100%;min-height:0;color:#dfe8f5;
+  font-family:'Courier New',Consolas,monospace;}
+.ck-bar{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;}
+.ck-grp{display:flex;flex-direction:column;gap:7px;}
+.ck-grp-lbl{font:800 10px 'Courier New',monospace;letter-spacing:2px;color:#C864C8;text-transform:uppercase;}
+.ck-grp-row{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center;}
 .ck-seg{display:inline-flex;border:1px solid #3a2b46;border-radius:10px;overflow:hidden;}
-.ck-btn{font:800 11px 'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;padding:8px 15px;border:none;
+.ck-btn{font:800 11px 'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;padding:8px 13px;border:none;
   background:#1a1220;color:#c9b6d6;cursor:pointer;}
+.ck-btn:hover{filter:brightness(1.25);}
 .ck-btn.on{background:#C864C8;color:#160a18;}
-.ck-grid{flex:1;min-height:0;overflow:auto;display:grid;gap:16px;padding:2px;
-  grid-template-columns:repeat(auto-fill,minmax(210px,1fr));align-content:start;}
-.ck-card{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px;
-  background:#07080c;border:1px solid #20222c;border-radius:14px;}
-.ck-card canvas{image-rendering:auto;}
-.ck-label{font:800 11px 'Courier New',monospace;letter-spacing:2px;color:#9fb0c8;text-transform:uppercase;}
-.ck-size{display:inline-flex;align-items:center;gap:8px;margin-left:auto;color:#9fb0c8;
-  font:700 10px 'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;}
-.ck-size input[type=range]{width:130px;accent-color:#C864C8;cursor:pointer;}
-.ck-size .ck-px{min-width:44px;text-align:right;color:#C864C8;}
+.ck-add{font:800 11px 'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;padding:8px 14px;cursor:pointer;
+  border:1px solid #3a6a3a;border-radius:10px;background:#12210f;color:#a6e2a6;}
+.ck-add:hover{background:#1a3216;}
+.ck-hint{font:700 10px 'Courier New',monospace;letter-spacing:.4px;color:#6b7686;}
 
-/* Date read-out window — a standalone broadcast display of YYYY MM DD DAY. */
-.ck-date{display:flex;align-items:stretch;gap:1px;align-self:flex-start;
-  background:#050505;border:1px solid #20222c;border-radius:12px;padding:6px;
-  box-shadow:inset 0 0 22px rgba(255,47,47,.12);}
-.ck-date .ck-cell{display:flex;flex-direction:column;align-items:center;gap:3px;
-  padding:6px 16px;min-width:56px;}
+/* The stage is the movable canvas — windows are absolutely placed within it and it
+   is itself vertically resizable, so the operator can size the whole wall. */
+.ck-stage{position:relative;flex:1;min-height:360px;overflow:auto;resize:vertical;
+  background:#05060a;border:1px solid #191b24;border-radius:12px;
+  background-image:radial-gradient(rgba(200,100,200,.09) 1px,transparent 1px);background-size:22px 22px;}
+
+.ck-win{position:absolute;display:flex;flex-direction:column;min-width:120px;min-height:120px;
+  background:#07080c;border:1px solid #20222c;border-radius:12px;overflow:hidden;resize:both;box-shadow:0 6px 20px rgba(0,0,0,.5);}
+.ck-win.sel{border-color:#C864C8;box-shadow:0 0 0 1px #C864C8,0 8px 26px rgba(200,100,200,.28);}
+.ck-win-head{display:flex;align-items:center;gap:6px;margin:0;padding:5px 7px;cursor:move;user-select:none;
+  background:#160c1a;border-bottom:1px solid #241a26;}
+.ck-win-title{flex:1;min-width:0;font:800 10px 'Courier New',monospace;letter-spacing:1px;color:#e79ae7;text-transform:uppercase;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;outline:none;cursor:text;}
+.ck-win-title:focus{color:#fff;}
+.ck-ico{cursor:pointer;color:#c9b6d6;background:rgba(255,255,255,.06);border-radius:6px;font:800 9px 'Courier New',monospace;
+  letter-spacing:1px;line-height:1;padding:4px 6px;}
+.ck-ico:hover{background:rgba(200,100,200,.3);color:#fff;}
+.ck-ico.ck-x{color:#f0a0a0;}
+.ck-win-body{flex:1;min-height:0;position:relative;}
+.ck-win-body canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:auto;display:block;}
+
+/* Date read-out window — a broadcast display of YYYY MM DD DAY, filling its window. */
+.ck-date{display:flex;align-items:stretch;justify-content:center;gap:1px;width:100%;height:100%;
+  background:#050505;box-shadow:inset 0 0 22px rgba(255,47,47,.12);}
+.ck-date .ck-cell{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;}
 .ck-date .ck-cell + .ck-cell{border-left:1px solid #1b1d24;}
 .ck-date .ck-cap{font:700 9px 'Courier New',monospace;letter-spacing:2px;color:#7d8ba0;text-transform:uppercase;}
 .ck-date .ck-val{font:800 26px 'Courier New',Consolas,monospace;letter-spacing:1px;color:#ff2f2f;
   text-shadow:0 0 12px rgba(255,47,47,.75);}
 .ck-date .ck-day .ck-val{font-size:20px;letter-spacing:2px;}
 `;
-
-// Face size (CSS px, square). The slider drives it; the bitmap is dpr-scaled.
-const SIZE_MIN = 120, SIZE_MAX = 480, SIZE_DEF = 186;
-const clampSize = (n: number): number => Math.max(SIZE_MIN, Math.min(SIZE_MAX, Math.round(n)));
 
 // ---- zone model -------------------------------------------------------------
 interface Zone { label: string; utc: boolean; offsetH: number; }
@@ -65,7 +84,7 @@ function parseZone(label: string): Zone {
   return { label: clean || 'LOCAL', utc: false, offsetH };
 }
 
-/** The zones to display: every routed feed, or a LOCAL + UTC default pair. */
+/** The zones to seed the bench with: every routed feed, or a LOCAL + UTC default pair. */
 function deriveZones(sources: ReadonlyArray<{ label: string }>): Zone[] {
   const zones = sources.map((s) => parseZone(s.label));
   return zones.length ? zones : [parseZone('LOCAL'), parseZone('UTC')];
@@ -213,122 +232,283 @@ function drawAnalog(g: CanvasRenderingContext2D, S: number, z: Zone): void {
   g.fillStyle = '#e01010'; g.beginPath(); g.arc(cx, cy, S * 0.014, 0, TAU); g.fill();
 }
 
+// ---- faces ------------------------------------------------------------------
+type Face = 'digital' | 'digitalsec' | 'ledring' | 'analog';
+const FACES: Array<{ id: Face; label: string; short: string }> = [
+  { id: 'digital', label: '◷ Digital', short: 'H:M' },
+  { id: 'digitalsec', label: '◷ Digital · Sec', short: 'H:M:S' },
+  { id: 'ledring', label: '◷ LED Ring', short: 'RING' },
+  { id: 'analog', label: '◴ Analog', short: 'ANLG' },
+];
+const faceShort = (f: Face): string => FACES.find((x) => x.id === f)?.short ?? 'RING';
+const nextFace = (f: Face): Face => {
+  const i = FACES.findIndex((x) => x.id === f);
+  return FACES[(i + 1) % FACES.length]?.id ?? 'ledring';
+};
+
+// A placed window's geometry: left, top, width, height (CSS px within the stage).
+type Rect = [number, number, number, number];
+
 const plugin: EditorPlugin = {
   id: 'clock',
   title: 'CLOCK · TIME GENERATOR',
   order: 8,
-  blurb: 'Broadcast clock source — UTC + local ±3h zones as a digital read-out (with or without seconds), a ticking LED second ring, or a smooth analog sweep.',
+  blurb: 'Broadcast clock bench — spawn, drag-move, resize and close clock + date windows on a canvas; each carries its own zone (UTC / local ±h) and face (digital, seconds, LED ring, analog). Presets re-tile the wall.',
   match: (n) => /\bclock\b/i.test(n),
   render(host, ctx) {
     addStyles('twist-editor-clock', CSS);
-    const zones = deriveZones(ctx.sources);
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
 
-    type Face = 'digital' | 'digitalsec' | 'ledring' | 'analog';
-    let style: Face = 'ledring';
-    const FACES: Array<{ id: Face; label: string }> = [
-      { id: 'digital', label: '◷ Digital' },
-      { id: 'digitalsec', label: '◷ Digital · Sec' },
-      { id: 'ledring', label: '◷ LED Ring' },
-      { id: 'analog', label: '◴ Analog' },
-    ];
+    // ---- device model: each clock/date is a floating window -----------------
+    interface Device {
+      id: number;
+      kind: 'clock' | 'date';
+      win: HTMLElement;
+      title: HTMLElement;
+      // clock only
+      zone?: Zone;
+      face?: Face;
+      cvs?: HTMLCanvasElement;
+      g?: CanvasRenderingContext2D | null;
+      // date only
+      cells?: { yyyy: HTMLElement; mm: HTMLElement; dd: HTMLElement; day: HTMLElement };
+    }
+    const devices: Device[] = [];
+    let seq = 0;
+    let defaultFace: Face = 'ledring';
+    let zTop = 10;
+    const front = (): number => ++zTop;
+    let selected: Device | null = null;
+
+    const stage = el('div', { class: 'ck-stage' });
+
+    const setRect = (d: Device, r: Rect): void => {
+      Object.assign(d.win.style, { left: `${r[0]}px`, top: `${r[1]}px`, width: `${r[2]}px`, height: `${r[3]}px` });
+    };
+    const select = (d: Device | null): void => {
+      selected = d;
+      for (const x of devices) x.win.classList.toggle('sel', x === d);
+    };
+
+    // Header icon button (face cycle, ×) — stops pointerdown so it doesn't drag.
+    const icon = (cls: string, txt: string, title: string, onClick: () => void): HTMLElement => {
+      const b = el('span', { class: `ck-ico ${cls}`, title }, [txt]);
+      b.addEventListener('pointerdown', (e) => e.stopPropagation());
+      b.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
+      return b;
+    };
+
+    // Make a window drag-movable (by its header) and bring-to-front on grab.
+    // Native `resize:both` (set in CSS) handles the corner scale — no JS needed.
+    const floatWin = (d: Device, head: HTMLElement): void => {
+      d.win.addEventListener('pointerdown', () => { select(d); d.win.style.zIndex = String(front()); });
+      head.addEventListener('pointerdown', (e) => {
+        if ((e.target as HTMLElement).closest('.ck-ico, .ck-win-title')) return; // buttons + rename own the click
+        e.preventDefault();
+        head.setPointerCapture(e.pointerId);
+        const sx = e.clientX, sy = e.clientY, ox = d.win.offsetLeft, oy = d.win.offsetTop;
+        const move = (ev: PointerEvent): void => {
+          d.win.style.left = `${Math.max(0, ox + ev.clientX - sx)}px`;
+          d.win.style.top = `${Math.max(0, oy + ev.clientY - sy)}px`;
+        };
+        const up = (): void => { head.removeEventListener('pointermove', move); head.removeEventListener('pointerup', up); };
+        head.addEventListener('pointermove', move); head.addEventListener('pointerup', up);
+      });
+    };
+
+    const removeDevice = (d: Device): void => {
+      const i = devices.indexOf(d);
+      if (i >= 0) devices.splice(i, 1);
+      d.win.remove();
+      if (selected === d) selected = null;
+      publishCount();
+    };
+
+    // ---- spawn a CLOCK window -----------------------------------------------
+    const addClock = (zone: Zone = parseZone('LOCAL'), face: Face = defaultFace, rect?: Rect): Device => {
+      const title = el('div', { class: 'ck-win-title', title: 'Click to rename / retime (e.g. "TOKYO +9")' }, [zone.label.toUpperCase()]);
+      title.contentEditable = 'true';
+      const cvs = el('canvas') as HTMLCanvasElement;
+      const faceBtn = icon('', faceShort(face), 'Cycle face', () => {
+        d.face = nextFace(d.face ?? 'ledring');
+        faceBtn.textContent = faceShort(d.face);
+      });
+      const head = el('div', { class: 'ck-win-head' }, [
+        title, faceBtn, icon('ck-x', '×', 'Close window', () => removeDevice(d)),
+      ]);
+      const win = el('div', { class: 'ck-win' }, [head, el('div', { class: 'ck-win-body' }, [cvs])]);
+      const d: Device = { id: ++seq, kind: 'clock', win, title, zone, face, cvs, g: ctx2d(cvs) };
+      // Retime/rename: reparse the edited label into a zone (keeps the typed text).
+      title.addEventListener('input', () => {
+        const txt = title.textContent ?? '';
+        const z = parseZone(txt);
+        d.zone = { ...z, label: txt.trim() || z.label };
+      });
+      floatWin(d, head);
+      devices.push(d);
+      stage.appendChild(win);
+      setRect(d, rect ?? [12 + (devices.length % 4) * 200, 12 + Math.floor(devices.length / 4) * 30, 190, 190]);
+      win.style.zIndex = String(front());
+      publishCount();
+      return d;
+    };
+
+    // ---- spawn a DATE window ------------------------------------------------
+    const addDate = (rect?: Rect): Device => {
+      const mkVal = (): HTMLElement => el('div', { class: 'ck-val' });
+      const cells = { yyyy: mkVal(), mm: mkVal(), dd: mkVal(), day: mkVal() };
+      const cell = (cap: string, val: HTMLElement, extra = ''): HTMLElement =>
+        el('div', { class: `ck-cell${extra}` }, [val, el('div', { class: 'ck-cap' }, [cap])]);
+      const title = el('div', { class: 'ck-win-title' }, ['DATE']);
+      const head = el('div', { class: 'ck-win-head' }, [title, icon('ck-x', '×', 'Close window', () => removeDevice(d))]);
+      const dateBody = el('div', { class: 'ck-date' }, [
+        cell('Year', cells.yyyy), cell('Month', cells.mm), cell('Day', cells.dd), cell('Weekday', cells.day, ' ck-day'),
+      ]);
+      const win = el('div', { class: 'ck-win' }, [head, el('div', { class: 'ck-win-body' }, [dateBody])]);
+      const d: Device = { id: ++seq, kind: 'date', win, title, cells };
+      floatWin(d, head);
+      devices.push(d);
+      stage.appendChild(win);
+      setRect(d, rect ?? [12, 12, 300, 120]);
+      win.style.zIndex = String(front());
+      publishCount();
+      return d;
+    };
+
+    // ---- layout presets: re-tile every window at once -----------------------
+    // Clocks tile as squares; date windows land in a strip beneath them.
+    const PAD = 12, TOP = 8;
+    const applyPreset = (name: string): void => {
+      const W = stage.clientWidth || host.clientWidth || 900;
+      const clocks = devices.filter((d) => d.kind === 'clock');
+      const dates = devices.filter((d) => d.kind === 'date');
+      let dateY = TOP;
+      if (clocks.length) {
+        let cols = clocks.length;
+        if (name === 'grid') cols = Math.ceil(Math.sqrt(clocks.length));
+        else if (name === 'column') cols = 1;
+        else cols = clocks.length; // row
+        const size = Math.max(140, Math.min(300, Math.floor((W - PAD * (cols + 1)) / cols)));
+        clocks.forEach((d, i) => {
+          const r = Math.floor(i / cols), c = i % cols;
+          setRect(d, [PAD + c * (size + PAD), TOP + r * (size + PAD), size, size]);
+        });
+        const rows = Math.ceil(clocks.length / cols);
+        dateY = TOP + rows * (size + PAD);
+      }
+      dates.forEach((d, i) => setRect(d, [PAD + i * 312, dateY, 300, 110]));
+      // Grow the stage so every window is reachable without clipping.
+      const bottom = devices.reduce((mx, d) => Math.max(mx, d.win.offsetTop + d.win.offsetHeight), 0);
+      stage.style.minHeight = `${Math.max(360, bottom + PAD)}px`;
+      activePreset = name;
+      presetBtns.forEach((x) => x.b.classList.toggle('on', x.name === name));
+    };
+
+    // ---- toolbar ------------------------------------------------------------
+    const addClockBtn = el('button', { class: 'ck-add' }, ['＋ Clock']);
+    addClockBtn.addEventListener('click', () => { addClock(); applyPreset(activePreset); });
+    const addDateBtn = el('button', { class: 'ck-add' }, ['＋ Date']);
+    addDateBtn.addEventListener('click', () => { addDate(); applyPreset(activePreset); });
+
+    // Global FACE — sets the default for new clocks AND retargets every clock now.
     const faceBtns = FACES.map((f) => {
-      const b = el('button', { class: `ck-btn${f.id === style ? ' on' : ''}` }, [f.label]);
-      b.addEventListener('click', () => { style = f.id; reflect(); ctx.services.publishParam?.('face', style, { throttle: false }); });
+      const b = el('button', { class: `ck-btn${f.id === defaultFace ? ' on' : ''}` }, [f.label]);
+      b.addEventListener('click', () => setFace(f.id));
       return { id: f.id, b };
     });
-    const reflect = (): void => { for (const x of faceBtns) x.b.classList.toggle('on', x.id === style); };
+    const setFace = (f: Face, publish = true): void => {
+      defaultFace = f;
+      for (const d of devices) if (d.kind === 'clock') {
+        d.face = f;
+        const fb = d.win.querySelector<HTMLElement>('.ck-win-head .ck-ico:not(.ck-x)');
+        if (fb) fb.textContent = faceShort(f);
+      }
+      faceBtns.forEach((x) => x.b.classList.toggle('on', x.id === f));
+      if (publish) ctx.services.publishParam?.('face', f, { throttle: false });
+    };
 
-    // One canvas per zone, backed by a devicePixelRatio-scaled bitmap for crisp
-    // ticks and numerals at any zoom. S (the CSS px size) is slider-driven.
-    const grid = el('div', { class: 'ck-grid' });
-    const dpr = Math.min(window.devicePixelRatio || 1, 3);
-    let S = SIZE_DEF;
-    const faces = zones.map((z) => {
-      const cvs = el('canvas') as HTMLCanvasElement;
-      const g = ctx2d(cvs);
-      grid.append(el('div', { class: 'ck-card' }, [cvs, el('div', { class: 'ck-label' }, [z.label.toUpperCase()])]));
-      return { z, cvs, g };
+    const PRESET_NAMES: Array<{ name: string; label: string }> = [
+      { name: 'row', label: '▭ Row' }, { name: 'grid', label: '▦ Grid' }, { name: 'column', label: '▯ Column' },
+    ];
+    let activePreset = 'row';
+    const presetBtns = PRESET_NAMES.map((p) => {
+      const b = el('button', { class: `ck-btn${p.name === activePreset ? ' on' : ''}` }, [p.label]);
+      b.addEventListener('click', () => { applyPreset(p.name); ctx.services.publishParam?.('preset', p.name, { throttle: false }); });
+      return { name: p.name, b };
     });
 
-    // (Re)size every face bitmap to S·dpr and reset the transform so 1 unit = 1 CSS px.
-    // Cards flex to fit the face, so the grid columns track the size too.
-    const applySize = (): void => {
-      grid.style.gridTemplateColumns = `repeat(auto-fill,minmax(${S + 24}px,1fr))`;
-      for (const f of faces) {
-        f.cvs.width = S * dpr; f.cvs.height = S * dpr;
-        f.cvs.style.width = `${S}px`; f.cvs.style.height = `${S}px`;
-        f.g?.setTransform(dpr, 0, 0, dpr, 0, 0);
-      }
-    };
-
-    // Size slider — resizes the clock faces live on the canvas.
-    const sizeInput = el('input', {
-      type: 'range', min: String(SIZE_MIN), max: String(SIZE_MAX), step: '2', value: String(S),
-    }) as HTMLInputElement;
-    const sizePx = el('span', { class: 'ck-px' }, [`${S}px`]);
-    const setSize = (n: number, publish = true): void => {
-      S = clampSize(n);
-      sizeInput.value = String(S);
-      sizePx.textContent = `${S}px`;
-      applySize();
-      if (publish) ctx.services.publishParam?.('size', S, { throttle: true });
-    };
-    sizeInput.addEventListener('input', () => setSize(Number(sizeInput.value)));
-
-    // Date read-out window — its own standalone display of YYYY MM DD DAY.
-    const yyyyV = el('div', { class: 'ck-val' });
-    const mmV = el('div', { class: 'ck-val' });
-    const ddV = el('div', { class: 'ck-val' });
-    const dayV = el('div', { class: 'ck-val' });
-    const cell = (cap: string, val: HTMLElement, extra = ''): HTMLElement =>
-      el('div', { class: `ck-cell${extra}` }, [val, el('div', { class: 'ck-cap' }, [cap])]);
-    const dateWin = el('div', { class: 'ck-date' }, [
-      cell('Year', yyyyV),
-      cell('Month', mmV),
-      cell('Day', ddV),
-      cell('Weekday', dayV, ' ck-day'),
-    ]);
-    let lastDate = '';
-    const paintDate = (): void => {
-      const d = dateParts();
-      const key = `${d.yyyy}${d.mm}${d.dd}${d.day}`;
-      if (key === lastDate) return;
-      lastDate = key;
-      yyyyV.textContent = d.yyyy;
-      mmV.textContent = d.mm;
-      ddV.textContent = d.dd;
-      dayV.textContent = d.day;
-    };
-    paintDate();
+    const grp = (label: string, ...kids: HTMLElement[]): HTMLElement =>
+      el('div', { class: 'ck-grp' }, [el('div', { class: 'ck-grp-lbl' }, [label]), el('div', { class: 'ck-grp-row' }, kids)]);
 
     host.append(el('div', { class: 'ck' }, [
-      dateWin,
       el('div', { class: 'ck-bar' }, [
-        el('h4', {}, ['Face']),
-        el('div', { class: 'ck-seg' }, faceBtns.map((x) => x.b)),
-        el('label', { class: 'ck-size' }, ['Size', sizeInput, sizePx]),
+        grp('Add', addClockBtn, addDateBtn),
+        grp('Face', el('div', { class: 'ck-seg' }, faceBtns.map((x) => x.b))),
+        grp('Preset', el('div', { class: 'ck-seg' }, presetBtns.map((x) => x.b))),
+        grp('Canvas', el('span', { class: 'ck-hint' }, ['drag a header to move · corner to scale · × to close · drag the stage edge to resize'])),
       ]),
-      grid,
+      stage,
     ]));
-    applySize();
 
-    // Advertise the face + size selectors so an external controller can drive the wall.
+    // ---- seed from the routed zones + a date window, then tile --------------
+    for (const z of deriveZones(ctx.sources)) addClock(z, defaultFace);
+    addDate();
+    applyPreset('row');
+    // Re-tile once the stage has a real width (first layout can measure 0).
+    let laidOut = stage.clientWidth > 0;
+
+    // ---- MQTT: default face + preset are the wall-level, R/W controls -------
     ctx.services.advertiseParams?.([
       { name: 'face', type: 'string', writable: true },
-      { name: 'size', type: 'number', writable: true },
+      { name: 'preset', type: 'string', writable: true },
+      { name: 'clocks', type: 'number' },
     ]);
-    ctx.services.onParam?.('face', (v) => { if (v === 'digital' || v === 'digitalsec' || v === 'ledring' || v === 'analog') { style = v; reflect(); } });
-    ctx.services.onParam?.('size', (v) => { const n = Number(v); if (Number.isFinite(n)) setSize(n, false); });
-    ctx.services.publishParam?.('face', style, { throttle: false });
-    ctx.services.publishParam?.('size', S, { throttle: false });
+    function publishCount(): void {
+      ctx.services.publishParam?.('clocks', devices.filter((d) => d.kind === 'clock').length, { throttle: false });
+    }
+    ctx.services.onParam?.('face', (v) => { if (FACES.some((f) => f.id === v)) setFace(v as Face, false); });
+    ctx.services.onParam?.('preset', (v) => { if (PRESET_NAMES.some((p) => p.name === v)) applyPreset(String(v)); });
+    ctx.services.publishParam?.('face', defaultFace, { throttle: false });
+    ctx.services.publishParam?.('preset', activePreset, { throttle: false });
+    publishCount();
+
+    // ---- paint loop: date read-outs + clock faces (each fills its window) ---
+    let lastDate = '';
+    const paintDate = (cells: NonNullable<Device['cells']>): void => {
+      const d = dateParts();
+      const key = `${d.yyyy}${d.mm}${d.dd}${d.day}`;
+      if (key === lastDate && cells.yyyy.textContent) return;
+      lastDate = key;
+      cells.yyyy.textContent = d.yyyy; cells.mm.textContent = d.mm; cells.dd.textContent = d.dd; cells.day.textContent = d.day;
+    };
+    const drawFace = (d: Device): void => {
+      const cvs = d.cvs, g = d.g;
+      if (!cvs || !g) return;
+      const cw = cvs.clientWidth, ch = cvs.clientHeight;
+      if (!cw || !ch) return;
+      const bw = Math.round(cw * dpr), bh = Math.round(ch * dpr);
+      if (cvs.width !== bw) cvs.width = bw;
+      if (cvs.height !== bh) cvs.height = bh;
+      // Clear the whole bitmap, then draw a centred square face of side S (CSS px).
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.clearRect(0, 0, bw, bh);
+      const S = Math.min(cw, ch);
+      const ox = (cw - S) / 2, oy = (ch - S) / 2;
+      g.setTransform(dpr, 0, 0, dpr, ox * dpr, oy * dpr);
+      const face = d.face ?? 'ledring', z = d.zone as Zone;
+      if (face === 'analog') drawAnalog(g, S, z);
+      else if (face === 'ledring') drawLed(g, S, z);
+      else drawDigital(g, S, z, face === 'digitalsec');
+    };
 
     ctx.dispose.raf(() => {
-      paintDate();
-      for (const f of faces) {
-        if (!f.g) continue;
-        if (style === 'analog') drawAnalog(f.g, S, f.z);
-        else if (style === 'ledring') drawLed(f.g, S, f.z);
-        else drawDigital(f.g, S, f.z, style === 'digitalsec');
+      if (!laidOut && stage.clientWidth > 0) { laidOut = true; applyPreset(activePreset); }
+      // paintDate keys on the calendar day, so a single lastDate guard is fine even
+      // with several date windows — force each to fill on its first frame.
+      let dateSeen = false;
+      for (const d of devices) {
+        if (d.kind === 'date') { if (d.cells) { if (dateSeen) lastDate = ''; paintDate(d.cells); dateSeen = true; } continue; }
+        drawFace(d);
       }
     });
   },

@@ -13,10 +13,10 @@ import { createThrottler, type Throttler } from './throttle.js';
 
 export const SPOG_ROOT = 'SPOG';
 const DEFAULT_PORT = 9001;
-// Compiled default host. EMPTY ⇒ MQTT disabled out of the box; enable per-session
-// with `?mqtt=<host[:port]>` (matches comMQTT's `?mqtt=` convention) or by setting
-// localStorage.twistMqtt. A backend deployment can bake a host in here.
-const DEFAULT_HOST = '';
+// Compiled default host. Baked to the house broker so MQTT is live out of the box;
+// override per-session with `?mqtt=<host[:port]>` (matches comMQTT's `?mqtt=`
+// convention), by setting localStorage.twistMqtt, or via the connection form.
+const DEFAULT_HOST = '44.44.44.163';
 
 // ---- minimal mqtt.js typings (no @types/mqtt dependency) --------------------
 interface MqttClient {
@@ -36,13 +36,16 @@ declare global {
 const LS_KEY = 'twistMqtt';
 const LS_PORT = 'twistMqttPort', LS_USER = 'twistMqttUser', LS_PASS = 'twistMqttPass';
 const DEFAULT_USER = 'guest', DEFAULT_PASS = 'guest';
-/** The persisted broker setting (host[:port] or ws(s):// url), '' if unset. */
+/** The persisted broker setting (host[:port] or ws(s):// url). Falls back to the
+ *  compiled DEFAULT_HOST only when never set; an explicit Disable stores '' so the
+ *  bus stays off across reloads instead of snapping back to the default. */
 export function getBrokerSetting(): string {
-  try { return localStorage.getItem(LS_KEY) ?? ''; } catch { return ''; }
+  try { return localStorage.getItem(LS_KEY) ?? DEFAULT_HOST; } catch { return DEFAULT_HOST; }
 }
-/** Persist the broker setting (empty string clears it → MQTT disabled next boot). */
+/** Persist the broker setting; a trimmed-empty host stores '' → MQTT disabled next
+ *  boot (a stored '' beats the default; use it to opt out of the baked-in host). */
 export function setBrokerSetting(host: string): void {
-  try { const v = (host || '').trim(); if (v) localStorage.setItem(LS_KEY, v); else localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
+  try { localStorage.setItem(LS_KEY, (host || '').trim()); } catch { /* ignore */ }
 }
 
 /** The full broker connection config — host, port, and credentials. Port/user/pass
