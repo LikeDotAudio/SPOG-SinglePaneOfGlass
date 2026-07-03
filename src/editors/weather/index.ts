@@ -25,6 +25,9 @@ import {
   clockOf, weekdayOf, timeInZone, dateInZone, isDaytimeHour, hourLabel,
   seedQueries,
 } from './data.js';
+import { makeStrip } from './faces/strip.js';
+
+type Mode = 'board' | 'strip';
 
 const CSS = `
 .wx{display:flex;flex-direction:column;gap:12px;height:100%;min-height:0;color:#dfe8f5;}
@@ -96,6 +99,7 @@ const CSS = `
 .wx-msg{padding:22px 14px;text-align:center;font:700 11px 'Courier New',monospace;letter-spacing:1px;color:#7ea6c8;}
 .wx-msg.err{color:#ff9db0;}
 .wx-empty{margin:auto;text-align:center;color:#5a7a99;font:700 12px 'Courier New',monospace;letter-spacing:1px;}
+.wx-striphost{flex:1;min-height:0;overflow:auto;display:flex;}
 `;
 
 let uid = 0;
@@ -111,8 +115,10 @@ const plugin: EditorPlugin = {
     addStyles('twist-editor-weather', CSS);
 
     let unit: Unit = 'C';
+    let mode: Mode = 'board';
     const locations: Location[] = [];
     const cards = new Map<string, ReturnType<typeof makeCard>>();
+    let activeStrip: ReturnType<typeof makeStrip> | null = null;
     // A shared abort controller for all in-flight fetches; aborted on close.
     const ac = new AbortController();
     ctx.dispose.add(() => ac.abort());
@@ -125,10 +131,43 @@ const plugin: EditorPlugin = {
       cBtn.classList.toggle('on', u === 'C');
       fBtn.classList.toggle('on', u === 'F');
       for (const card of cards.values()) card.repaint();
+      activeStrip?.repaint();
       if (publish) ctx.services.publishParam?.('unit', u, { throttle: false });
     };
     cBtn.addEventListener('click', () => setUnit('C'));
     fBtn.addEventListener('click', () => setUnit('F'));
+
+    // Board (operator grid) vs Strip (on-air single-anchor timeline).
+    const bBtn = el('button', { class: 'wx-btn on' }, ['▤ Board']);
+    const sBtn = el('button', { class: 'wx-btn' }, ['▭ Strip']);
+    const setMode = (m: Mode, publish = true): void => {
+      mode = m;
+      bBtn.classList.toggle('on', m === 'board');
+      sBtn.classList.toggle('on', m === 'strip');
+      grid.style.display = m === 'board' ? '' : 'none';
+      stripHost.style.display = m === 'strip' ? '' : 'none';
+      if (m === 'strip') renderStrip();
+      if (publish) ctx.services.publishParam?.('mode', m, { throttle: false });
+    };
+    bBtn.addEventListener('click', () => setMode('board'));
+    sBtn.addEventListener('click', () => setMode('strip'));
+
+    // The on-air strip renders the ANCHOR city (locations[0]).
+    function renderStrip(): void {
+      const anchor = locations[0];
+      if (!anchor) {
+        activeStrip = null;
+        stripHost.replaceChildren(el('div', { class: 'wx-empty' }, ['No location yet — add a city to build the on-air strip.']));
+        return;
+      }
+      activeStrip = makeStrip(anchor, {
+        signal: ac.signal,
+        getUnit: () => unit,
+        publishTemp: (c) => ctx.services.publishParam?.(`temp.${anchor.key}`, round(c), { throttle: true }),
+      });
+      stripHost.replaceChildren(activeStrip.root);
+      void activeStrip.load();
+    }
 
     const input = el('input', { type: 'text', placeholder: 'City, Province / Country…' }) as HTMLInputElement;
     const goBtn = el('button', { class: 'wx-go' }, ['＋ Add']);
@@ -193,16 +232,20 @@ const plugin: EditorPlugin = {
     const grid = el('div', { class: 'wx-grid' });
     const empty = el('div', { class: 'wx-empty' }, ['No locations yet — search a city or add one above.']);
     grid.append(empty);
+    const stripHost = el('div', { class: 'wx-striphost' });
+    stripHost.style.display = 'none';
 
     host.append(el('div', { class: 'wx' }, [
       el('div', { class: 'wx-bar' }, [
         el('h4', {}, ['Weather']),
+        el('div', { class: 'wx-seg' }, [bBtn, sBtn]),
         el('div', { class: 'wx-seg' }, [cBtn, fBtn]),
         el('div', { class: 'wx-search' }, [input, goBtn, menu]),
         geoBtn,
         hint,
       ]),
       grid,
+      stripHost,
     ]));
 
     // ---------- one weather card ----------
@@ -313,6 +356,8 @@ const plugin: EditorPlugin = {
       grid.append(card.root);
       void card.load();
       publishLocationList();
+      // Build the on-air strip once the first (anchor) city lands.
+      if (mode === 'strip' && !activeStrip) renderStrip();
     }
     function removeLocation(key: string): void {
       const i = locations.findIndex((l) => l.key === key);
@@ -321,6 +366,8 @@ const plugin: EditorPlugin = {
       cards.delete(key);
       if (!locations.length) grid.append(empty);
       publishLocationList();
+      // The anchor may have changed — re-point the strip at the new locations[0].
+      if (mode === 'strip') renderStrip();
     }
     function publishLocationList(): void {
       ctx.services.publishParam?.('locations', locations.map((l) => l.name).join(' | '), { throttle: false });
@@ -343,14 +390,23 @@ const plugin: EditorPlugin = {
     // ---------- MQTT surface ----------
     ctx.services.advertiseParams?.([
       { name: 'unit', type: 'string', writable: true },
+      { name: 'mode', type: 'string', writable: true },
       { name: 'locations', type: 'string', writable: false },
     ]);
     ctx.services.onParam?.('unit', (v) => { if (v === 'C' || v === 'F') setUnit(v, false); });
+    ctx.services.onParam?.('mode', (v) => { if (v === 'board' || v === 'strip') setMode(v, false); });
     ctx.services.publishParam?.('unit', unit, { throttle: false });
+    ctx.services.publishParam?.('mode', mode, { throttle: false });
 
     // ---------- live clocks + periodic refresh ----------
-    ctx.dispose.interval(() => { for (const c of cards.values()) c.paintTime(); }, 1000);
-    ctx.dispose.interval(() => { for (const c of cards.values()) void c.load(); }, 10 * 60 * 1000);
+    ctx.dispose.interval(() => {
+      for (const c of cards.values()) c.paintTime();
+      activeStrip?.paintTime();
+    }, 1000);
+    ctx.dispose.interval(() => {
+      for (const c of cards.values()) void c.load();
+      if (mode === 'strip') void activeStrip?.load();
+    }, 10 * 60 * 1000);
   },
 };
 
