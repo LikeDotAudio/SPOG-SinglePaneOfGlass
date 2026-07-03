@@ -330,7 +330,12 @@ src/
   app/                   # main.ts composition root + context.ts (twist → EditorContext)
 index.next.html          # the entry (loads /src/app/main.ts in dev; the built bundle in prod)
 lcars.css                # the shared LCARS stylesheet
+LCARS.md                 # the LCARS style guide (the Corner Law, palette, typography)
 ```
+
+The visual language — the **Corner Law** (inner radius = ½ the outer; tops/bottoms
+square unless horizontal), the palette tokens, typography and chirality rules — is
+documented in **[`LCARS.md`](LCARS.md)**.
 
 The retired plain-JS app (the original `js/` tree, `index.htm`, `sw.js`) is preserved under
 [`archive/`](archive/) for reference — nothing there is imported, built, or deployed. See
