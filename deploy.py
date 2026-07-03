@@ -21,7 +21,9 @@ What it does, over one Explicit-FTPS connection:
      index.next.html entry.
 
 Routes upload is incremental by default (git diff); the small app bundle is always
-re-uploaded.
+re-uploaded. When the working tree is CLEAN (nothing to commit), the incremental
+diff is empty, so the deploy pushes the FULL Routes tree instead of skipping — a
+committed state always publishes everything. `--all` forces a full push regardless.
 
 Run:
     python3 deploy.py            # CUTOVER: publish as /index.htm + delete legacy js/
@@ -130,6 +132,15 @@ def generate_manifests(project_dir):
 def _under_roots(rel_path):
     parts = rel_path.split('/')
     return parts[0] in MANIFEST_ROOTS and not any(p.startswith('.') for p in parts)
+
+
+def is_tree_clean(project_dir):
+    """True if `git status` reports nothing to commit (a clean working tree)."""
+    result = subprocess.run(
+        ['git', '-C', project_dir, 'status', '--porcelain'],
+        capture_output=True, text=True, check=True
+    )
+    return not result.stdout.strip()
 
 
 def get_changed_routes(project_dir):
@@ -277,7 +288,16 @@ def main():
     else:
         routes_upload, routes_delete = get_changed_routes(project_dir)
         if not routes_upload and not routes_delete:
-            print("No Routes changes — data already on server (use --all to force).")
+            # A clean working tree (nothing to commit) makes the incremental git
+            # diff empty — but the committed data still needs to reach the server.
+            # So when there's nothing to commit, push EVERYTHING (full Routes tree)
+            # rather than skipping. A DIRTY tree with no *Routes* changes genuinely
+            # has no data to send, so that stays a no-op.
+            if is_tree_clean(project_dir):
+                print("Nothing to commit — pushing the full Routes tree.")
+                routes_upload, routes_delete = get_all_routes(project_dir), []
+            else:
+                print("No Routes changes — data already on server (use --all to force).")
 
     # 3) Connect + deploy.
     env = load_env()
