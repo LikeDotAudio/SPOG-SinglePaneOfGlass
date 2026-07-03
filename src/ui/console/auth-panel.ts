@@ -11,10 +11,10 @@ import { ROLES, role, setRole, can, onRoleChange } from '../../platform/auth.js'
 
 const AUTH_CSS = `
 .au-badge{position:fixed;right:34px;top:10px;z-index:1500;display:flex;align-items:center;gap:0;font-family:Arial,Helvetica,sans-serif;border-radius:8px 16px 16px 8px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.5);cursor:default;}
-.au-badge .who{display:flex;flex-direction:column;padding:7px 14px 7px 18px;background:var(--rc,#F2B74B);color:#0a1206;}
-.au-badge .who b{font-size:12px;font-weight:900;letter-spacing:1px;line-height:1.1;}
-.au-badge .who span{font-size:8px;letter-spacing:1px;opacity:.8;text-transform:uppercase;}
-.au-badge .out{background:#0c1730;color:#bcd3ee;border:none;padding:0 14px;align-self:stretch;font:900 10px sans-serif;letter-spacing:1px;cursor:pointer;}
+.au-badge .who{display:flex;flex-direction:column;justify-content:center;padding:5px 12px 5px 14px;background:var(--rc,#F2B74B);color:#0a1206;}
+.au-badge .who b{font-size:10.5px;font-weight:900;letter-spacing:.8px;line-height:1.1;}
+.au-badge .who span{font-size:7px;letter-spacing:.8px;opacity:.8;text-transform:uppercase;}
+.au-badge .out{background:#0c1730;color:#bcd3ee;border:none;padding:0 11px;align-self:stretch;font:900 9px sans-serif;letter-spacing:1px;cursor:pointer;}
 .au-badge .out:hover{background:#16243d;color:#fff;}
 .au-focus{position:fixed;left:50%;top:0;transform:translate(-50%,-110%);z-index:1600;background:#0a1326;border:1px solid var(--rc,#F2B74B);border-top:none;border-radius:0 0 14px 14px;padding:11px 26px;color:#e0f0ff;font:bold 13px sans-serif;letter-spacing:1px;box-shadow:0 8px 22px rgba(0,0,0,.5);transition:transform .35s cubic-bezier(.2,1.2,.4,1);white-space:nowrap;}
 .au-focus.show{transform:translate(-50%,0);}
@@ -32,7 +32,7 @@ const AUTH_CSS = `
 .au-role .ti{color:#9fb6cc;font-size:10px;letter-spacing:1px;text-transform:uppercase;margin:2px 0 6px;}
 .au-role .ds{color:#aec6e4;font-size:11px;line-height:1.4;}
 .au-role.sel{border-color:#F2B74B;box-shadow:0 0 14px rgba(242,183,75,.4);}
-.au-badge .rights{background:#13233c;color:#F2B74B;border:none;padding:0 12px;align-self:stretch;font:900 10px sans-serif;letter-spacing:1px;cursor:pointer;display:none;}
+.au-badge .rights{background:#13233c;color:#F2B74B;border:none;padding:0 10px;align-self:stretch;font:900 9px sans-serif;letter-spacing:1px;cursor:pointer;display:none;}
 .au-badge .rights:hover{background:#1b2f4f;} .au-badge.admin .rights{display:block;}
 .au-matrix{display:grid;gap:6px;align-items:center;}
 .au-mh{font:bold 9px sans-serif;color:#9fb6cc;letter-spacing:1px;text-transform:uppercase;text-align:center;}
@@ -45,7 +45,8 @@ const AUTH_CSS = `
 
 const CAPS: Array<[Capability, string]> = [
   ['switch', 'Switch'], ['route', 'Route'], ['signal', 'Signal'], ['shade', 'Shade'], ['audio', 'Audio'],
-  ['gfx', 'Graphics'], ['comms', 'Comms'], ['book', 'Booking'], ['view', 'View'], ['admin', 'Admin'],
+  ['gfx', 'Graphics'], ['comms', 'Comms'], ['book', 'Booking'], ['view', 'View'],
+  ['build', 'Build'], ['arrange', 'Arrange'], ['admin', 'Admin'],
 ];
 
 const capLine = (r: Role): string =>

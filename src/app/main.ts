@@ -27,15 +27,17 @@ import { initPortals } from '../ui/console/portals.js';
 import { initMission } from '../ui/console/mission.js';
 import { initLcarsPulse } from '../ui/console/lcars-pulse.js';
 import { initChirality, applyStoredChirality } from '../ui/console/chirality.js';
+import { initAuthoring } from '../ui/console/authoring.js';
 import { getBus, advertiseAll, startLogBridge } from '../platform/mqtt/index.js';
 import { initMqttTree } from '../ui/console/mqtt-tree.js';
 import { twistTopic, slug as topicSlug } from '../platform/mqtt/topics.js';
 import { onRoleChange } from '../platform/auth.js';
 
-// Release tag shown beside the credit byline (bottom-right footer chrome).
-// TODO: package.json has no `version` field yet — track real releases here (or
-// wire a JSON import / build-time define) once a release scheme is in place.
-const APP_VERSION = 'v1.0.0';
+// Real build stamp shown beside the credit byline — injected by Vite's `define`
+// at build time (see vite.config.ts `buildId`), so it changes on every deploy.
+// `.short` shows on the badge; `.full` (with git commit) is the hover title.
+declare const __BUILD_ID__: { short: string; full: string };
+const BUILD = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : { short: 'dev', full: 'dev build' };
 
 /** "What this window does" — the one-line lead of each editor's context-derived
  *  expectation tip (Kind A). Keyed by plugin.id; an editor may override via its
@@ -177,7 +179,7 @@ async function buildConsole(): Promise<void> {
     target: '_blank', rel: 'noopener',
   }, [
     'CREATED BY ANTHONY PETER KUZUB  -  WWW.LIKE.AUDIO',
-    el('span', { class: 'app-version' }, [APP_VERSION]),
+    el('span', { class: 'app-version', title: BUILD.full }, [BUILD.short]),
   ]));
 
   Footer.init(footer.querySelector('#production-tabs') as HTMLElement, content);
@@ -199,6 +201,7 @@ async function buildConsole(): Promise<void> {
   initMission();
   initLcarsPulse();
   initChirality();   // handedness toggle (sources rail edge + drag-ghost side)
+  initAuthoring();   // single-pane layout editing (EDIT LAYOUT toggle, bottom-left)
 
   // MQTT projection (audit: docs/Audit /TWIST-MQTT-Advertising-Audit.md). No-op
   // unless a broker is configured via ?mqtt=<host> — the console runs unchanged

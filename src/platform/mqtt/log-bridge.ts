@@ -9,10 +9,16 @@
 import { onLogEntry, type LogEntryEvent } from '../../ui/console/captains-log.js';
 import type { TwistBus, LogMsg } from './types.js';
 
-/** Wire the Captain's Log to the bus. Returns an unsubscribe. No-op when disabled. */
+/** Wire the Captain's Log to the bus. Returns an unsubscribe.
+ *
+ * Subscribes UNCONDITIONALLY and gates each entry on `enabled`, so the bridge also
+ * publishes when the broker connects AFTER boot (e.g. the MQTT tree's Save & Connect,
+ * or a reconnect): a no-op bus stays silent; a live one publishes. Gating at setup
+ * time (the old behaviour) left the bridge permanently dead if MQTT wasn't up yet.
+ * mqtt.js buffers any pre-`connect` publishes and flushes them on connect. */
 export function startLogBridge(bus: TwistBus): () => void {
-  if (!bus.status().enabled) return () => {};
   return onLogEntry((e: LogEntryEvent) => {
+    if (!bus.status().enabled) return;
     const msg: Omit<LogMsg, 'full_id'> = {
       voyage: e.voyage, entry: e.entry, ts: e.ts,
       dest: e.dest, prod: e.prod, added: e.added, removed: e.removed,

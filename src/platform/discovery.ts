@@ -6,6 +6,7 @@
 // parity harness lies (A.8 "share data, don't fork"; the Audio/→Sound/ bug class).
 
 import type { Manifest } from '../model/index.js';
+import { getDraft } from './routes-store.js';
 
 export interface Entry {
   name: string;
@@ -17,6 +18,10 @@ export interface Listing {
 }
 
 export async function fetchJSON<T = unknown>(url: string): Promise<T | null> {
+  // Authoring overlay (audit §7): a drafted file wins over disk, so edits persist
+  // and re-render with no backend. No draft → identical to the original fetch.
+  const draft = getDraft<T>(url);
+  if (draft != null) return draft;
   try {
     // no-store bypasses a stale browser cache (e.g. an empty copy cached before
     // the file existed), which otherwise yields "Unexpected end of JSON input".

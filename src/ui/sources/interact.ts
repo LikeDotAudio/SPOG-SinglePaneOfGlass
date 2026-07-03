@@ -52,7 +52,11 @@ export function wireSourceNode(node: HTMLElement): void {
           });
         }
         children.style.display = opening ? 'flex' : 'none';
-        if (node.classList.contains('gang-cell')) node.classList.toggle('expanded', opening);
+        // Mark the node expanded so CSS can give it the FULL grid width (its
+        // sub-feeds get room and the sibling flows to the next row, instead of a
+        // tall empty column beside it). Applies to every studio multiplex, not just
+        // gang cells — the gang accordion above still keys off the same class.
+        node.classList.toggle('expanded', opening);
       }, HOLD_MS);
     };
     const clearHold = (): void => { if (holdTimer) clearTimeout(holdTimer); };

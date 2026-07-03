@@ -11,9 +11,9 @@ import type { Capability, Role } from '../model/index.js';
 // Starfleet role · broadcast equivalent. caps use the model Capability union.
 export const ROLES: Role[] = [
   { id: 'ep', name: 'Captain', sub: 'Executive Producer', tier: 'Command', color: '#F2B74B', task: 'Final authority — creative vision & mission success. Full grid.', caps: { admin: 1 } },
-  { id: 'director', name: 'First Officer', sub: 'Director', tier: 'Command', color: '#ff6a6a', task: 'Execute the vision — call the shots, manage pacing.', caps: { switch: 1, signal: 1 } },
-  { id: 'td', name: 'Conn · Helm', sub: 'Technical Director', tier: 'Operations', color: '#cba6ff', task: 'Pilot the switcher — frame-accurate cuts & transitions.', caps: { switch: 1, route: 1 } },
-  { id: 'ops', name: 'Ops', sub: 'System Engineer', tier: 'Operations', color: '#3FC1C9', task: 'Manage the grid — system health, routing, resource booking.', caps: { route: 1, signal: 1, book: 1 } },
+  { id: 'director', name: 'First Officer', sub: 'Director', tier: 'Command', color: '#ff6a6a', task: 'Execute the vision — call the shots, manage pacing.', caps: { switch: 1, signal: 1, build: 1, arrange: 1 } },
+  { id: 'td', name: 'Conn · Helm', sub: 'Technical Director', tier: 'Operations', color: '#cba6ff', task: 'Pilot the switcher — frame-accurate cuts & transitions.', caps: { switch: 1, route: 1, arrange: 1 } },
+  { id: 'ops', name: 'Ops', sub: 'System Engineer', tier: 'Operations', color: '#3FC1C9', task: 'Manage the grid — system health, routing, resource booking.', caps: { route: 1, signal: 1, book: 1, build: 1, arrange: 1 } },
   { id: 'chief', name: 'Chief Engineer', sub: 'Vision Engineer / Shader', tier: 'Engineering', color: '#6FC8F0', task: 'Signal path & colour science — shade the optical nodes.', caps: { shade: 1 } },
   { id: 'tactical', name: 'Tactical', sub: 'Graphics & AR Lead', tier: 'Operations', color: '#ffd400', task: 'On-screen overlays, AR & data visualization.', caps: { gfx: 1 } },
   { id: 'comms', name: 'Comms', sub: 'Intercom Engineer', tier: 'Operations', color: '#39d353', task: 'IFB & intercom matrix — mix-minus, ducking, talkback.', caps: { comms: 1, audio: 1 } },

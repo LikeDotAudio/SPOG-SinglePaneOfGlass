@@ -45,6 +45,50 @@
         }
         .chir-toggle:hover { opacity: 1; filter: brightness(1.12); }
 
+        /* ── CHIRALITY C2 — editor bodies (docs/Audit /Editor-Chirality-Audit.md) ──
+           Editors open in .ed-overlay OUTSIDE the console mirror, so they flip on
+           their own. First wave = the clean-grid editors whose driven-control column
+           sits on the RIGHT (correct for the default right-hand-dominant mode). In
+           LEFT-handed mode we reverse the grid's inline axis so those controls dock
+           LEFT (the reachable, non-occluded corner). direction:rtl reorders the GRID
+           TRACKS only; the immediate children reset to ltr, so text is never reversed
+           and every canvas/scope/meter renders pixel-identical (they are not text and
+           ignore `direction`). Scoped to left mode → the default mode is untouched.
+           WYSIWYG (1fr|280) · IFB (200|1fr|320) · AUDIO MONITOR (1fr|300). */
+        html[data-chirality="left"] .wy,
+        html[data-chirality="left"] .ifb,
+        html[data-chirality="left"] .am2 { direction: rtl; }
+        html[data-chirality="left"] .wy > *,
+        html[data-chirality="left"] .ifb > *,
+        html[data-chirality="left"] .am2 > * { direction: ltr; }
+
+        /* CHIRALITY C2 — wave 2. Same grid-track reorder, plus the one editor whose
+           LCARS geometry is asymmetric (audio-mixer's rail vs master elbows). */
+        /* audio-mixer: swap the left LAYER RAIL ⇄ right MASTER tab, and mirror their
+           44px elbow curves so the big radius still hugs the OUTER edge after the swap. */
+        html[data-chirality="left"] .am-console { flex-direction: row-reverse; }
+        html[data-chirality="left"] .am-rail { border-radius: 10px 44px 44px 10px; }
+        html[data-chirality="left"] .am-rail-foot { border-radius: 6px 6px 6px 44px; }
+        html[data-chirality="left"] .am-master-tab { border-radius: 44px 10px 10px 44px; }
+        /* camera-control: the 580px control rail (joystick + shading dials) docks to
+           the dominant side; the glass + its docked scopes/maps ride along. The maps
+           and scopes are tagged .chir-exempt in markup (spatial — never mirror). */
+        html[data-chirality="left"] .cc-wrap { direction: rtl; }
+        html[data-chirality="left"] .cc-wrap > * { direction: ltr; }
+        /* stagebox: its rotary-dial card is coded on the LEFT, so it is the RIGHT-hand
+           mode that moves it to the reachable dominant side (left mode keeps the coded
+           layout — correct for a left-hander). The one editor that flips in right mode. */
+        html[data-chirality="right"] .sb { direction: rtl; }
+        html[data-chirality="right"] .sb > * { direction: ltr; }
+
+        /* chir-exempt — opt a node OUT of any chirality flip (spatial diagrams:
+           camera robotics maps, lighting rig, positioner room; and any raster/scope).
+           Under the current geometry mechanism a canvas already ignores `direction`,
+           so this is a defensive inline-direction reset + the governance marker every
+           spatial diagram carries (the hook for the review checklist and any future
+           scaleX phase). Audit: docs/Audit /Editor-Chirality-Audit.md §4. */
+        .chir-exempt { direction: ltr; }
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -108,6 +152,53 @@
             }
             html[data-chirality="right"] .ingress-panel .super-pool-title { right: auto; left: 15px; }
             html[data-chirality="right"] .ingress-panel .super-pool-emoji { left: auto; right: 40px; }
+
+            /* DESTINATION / PRODUCTION frame — mirror the same way. The production
+               spine hugs the outer (LEFT) edge, its title cap flips, and every twist
+               elbow curls the other way. Geometry only; text/data untouched. */
+            html[data-chirality="right"] .program-row::after {
+                right: auto; left: 0;
+                border-radius: 30px 0 30px 30px;
+            }
+            /* Title text hugs the INNER edge (toward the sources rail) — right in
+               right-handed mode, so ENCODER 1 sits close to the sources. */
+            html[data-chirality="right"] .program-title { border-radius: 30px 14px 14px 0; text-align: right; }
+            html[data-chirality="right"] .program-body { padding-right: 0; padding-left: 60px; }
+
+            html[data-chirality="right"] .twist-container { padding: 24px 55px 6px 10px; }
+            html[data-chirality="right"] .twist-container::before {
+                left: auto; right: 0;
+                /* Keep the left border's WIDTH (just hide it) so border-top still
+                   spans the full box — zeroing it collapsed the box and dropped the
+                   top-bar stub that bridges the spine to the rail. */
+                border-left-color: transparent;
+                border-right: 45px solid var(--lcars-color, #ffaa00);
+                border-top-left-radius: 0; border-bottom-left-radius: 0;
+                border-top-right-radius: 25px; border-bottom-right-radius: 25px;
+            }
+            html[data-chirality="right"] .twist-container::after {
+                left: 0; right: 110px;
+                border-top-right-radius: 0; border-bottom-right-radius: 0;
+                border-top-left-radius: 10px; border-bottom-left-radius: 10px;
+            }
+            html[data-chirality="right"] .twist-title { left: auto; right: 120px; }
+
+            html[data-chirality="right"] .twist-container.monitor-twist { padding: 18px 34px 6px 6px; }
+            html[data-chirality="right"] .twist-container.monitor-twist::before { border-right-width: 26px; }
+            html[data-chirality="right"] .twist-container.monitor-twist::after { left: auto; right: 64px; }
+            html[data-chirality="right"] .twist-container.monitor-twist .twist-title { left: auto; right: 70px; }
+
+            /* Top-rail furniture flips too: the SOURCES stats label to the LEFT end
+               (fixes the title/stats overlap), the fold lip's rounded cap + chevron
+               to the left, and the fold-bar to the right over the mirrored spine. */
+            html[data-chirality="right"] .twist-stats { right: auto; left: 40px; }
+            html[data-chirality="right"] .twist-lip {
+                right: auto; left: 0;
+                border-top-right-radius: 0; border-bottom-right-radius: 0;
+                border-top-left-radius: 10px; border-bottom-left-radius: 10px;
+            }
+            html[data-chirality="right"] .twist-lip::after { right: auto; left: 8px; }
+            html[data-chirality="right"] .twist-foldbar { left: auto; right: 0; }
         }
 
         /* Footer: the PRIMARY group (CONTROL ROOMS is first) sits on the dominant
@@ -153,11 +244,21 @@
            clear for the primary footer group. Classic RIGHT anchor = left-handed
            mode; right-handed mode mirrors the cluster to the LEFT. !important beats
            lcars-pulse.ts's own `right … !important` edge-nudge (else they stretch). */
-        html[data-chirality="right"] .ptp-clock     { right: auto !important; left: 14px !important; }
-        html[data-chirality="right"] .mq-chip        { right: auto !important; left: calc(28px + var(--ptp-clock-w, 180px)) !important; }
-        html[data-chirality="right"] .rv-btn         { right: auto !important; left: 14px !important; }
-        html[data-chirality="right"] .credit-button  { right: auto !important; left: 14px !important; }
-        html[data-chirality="right"] .chir-toggle    { right: auto !important; left: calc(120px + var(--ptp-clock-w, 180px)) !important; }
+        /* Offsets clear the 20px data-pulse strip on the LEFT (it moves with
+           chirality — see .lcp-strip below), mirroring the classic right-edge nudge. */
+        html[data-chirality="right"] .ptp-clock     { right: auto !important; left: 34px !important; }
+        html[data-chirality="right"] .mq-chip        { right: auto !important; left: calc(48px + var(--ptp-clock-w, 180px)) !important; }
+        html[data-chirality="right"] .rv-btn         { right: auto !important; left: 34px !important; }
+        html[data-chirality="right"] .credit-button  { right: auto !important; left: 34px !important; }
+        html[data-chirality="right"] .mqt            { right: auto !important; left: 34px !important; }
+        html[data-chirality="right"] .chir-toggle    { right: auto !important; left: calc(140px + var(--ptp-clock-w, 180px)) !important; }
+
+        /* The blinking LCARS data-pulse strip moves with chirality: it lives on the
+           NON-dominant edge (opposite the rail) — right classically, left in
+           right-handed mode — and its rounded caps flip to face inward. */
+        html[data-chirality="right"] .lcp-strip { right: auto !important; left: 0 !important; }
+        html[data-chirality="right"] .lcp-cap.top { border-radius: 0 0 11px 0; }
+        html[data-chirality="right"] .lcp-cap.bot { border-radius: 0 11px 0 0; }
 
         /* Draggable divider ("sash") to resize the sources sidebar. */
         .sidebar-sash {
@@ -253,6 +354,10 @@
                into a single LCARS elbow; bottom-right stays square (inner edge). */
             border-radius: 14px 30px 0 14px;
         }
+
+        /* Production twist content — padded clear of the LCARS spine (right by
+           default; flips to the left with the spine in right-handed mode). */
+        .program-body { padding-right: 60px; }
 
         /* Credit pill pinned to the bottom-right corner. */
         .credit-button {
@@ -429,6 +534,22 @@
         }
         .multiplex-header {
             pointer-events: none;
+        }
+
+        /* An expanded studio multiplex (a camera / stream / playout box) claims the
+           FULL grid width, so its sub-feeds get room and the sibling box flows to the
+           next row rather than sitting as a tall empty column beside it. Its children
+           then lay out as a wrapping row to use that width. Gang cells keep their own
+           .gang-grid rules (see panel.ts) and are unaffected. */
+        .input-grid-video > .signal-node.multiplex.expanded,
+        .input-grid-audio > .signal-node.multiplex.expanded {
+            grid-column: 1 / -1;
+        }
+        .input-grid-video > .signal-node.multiplex.expanded > .multiplex-children,
+        .input-grid-audio > .signal-node.multiplex.expanded > .multiplex-children {
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: flex-start;
         }
 
         /* ISO recorder RECORD / STOP control */

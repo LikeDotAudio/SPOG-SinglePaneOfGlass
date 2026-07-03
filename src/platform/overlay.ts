@@ -28,6 +28,17 @@ const CSS = `
 .ed-body{flex:1;min-height:0;overflow:auto;padding:12px 14px 14px;}
 .ed-h{color:var(--cyan,#00ffff);font-size:11px;font-weight:bold;letter-spacing:2px;
   text-transform:uppercase;margin:0 0 8px;}
+/* The back chevron is a pseudo so it can SWAP (‹→›), not mirror, under chirality
+   (platform layer can't import the ui chirality module — CSS reads the attribute). */
+.ed-back::before{content:'\\2039';}
+/* CHIRALITY C2 — mirror the overlay chrome in left-handed mode: back/close swap to
+   the non-occluded side, the corner radius and inner shadow flip, the chevron swaps
+   glyph. Scoped to left mode, so the default right mode is unchanged. */
+html[data-chirality="left"] .ed-topbar{flex-direction:row-reverse;border-radius:0 0 44px 16px;}
+html[data-chirality="left"] .ed-back{padding:0 26px 0 4px;}
+html[data-chirality="left"] .ed-back::before{content:'\\203A';}
+html[data-chirality="left"] .ed-title{padding-left:0;padding-right:8px;}
+html[data-chirality="left"] .ed-close{box-shadow:inset -2px 0 0 rgba(0,0,0,.25);}
 `;
 
 export const slug = (s: string): string =>
@@ -49,7 +60,7 @@ function ensureOverlay(): OverlayHandle {
   const root = el('div', { class: 'ed-overlay' });
   root.innerHTML = `
     <div class="ed-topbar" title="Click anywhere (or press Esc) to go back">
-      <span class="ed-back">‹</span>
+      <span class="ed-back"></span>
       <span class="ed-title"></span>
       <span class="ed-close" title="Close">&times;</span>
     </div>

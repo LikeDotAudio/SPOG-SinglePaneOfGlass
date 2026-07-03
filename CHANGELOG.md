@@ -2,6 +2,60 @@
 
 All notable changes to TwistRouting are recorded here.
 
+## [v100] — 2026-07-03
+
+### Added
+- **Real per-deploy build stamp** (`vite.config.ts`, `src/app/main.ts`) — the
+  bottom-corner byline badge (was a hardcoded `v1.0.0`) is now injected at build
+  time via Vite `define`: the CHANGELOG version + build date/time (UTC), with the
+  full detail (+ git commit + an `(uncommitted)` marker) on hover. It changes on
+  every `vite build`, so it always reflects what's actually deployed.
+- **Edit-Layout changes tracked in the Captain's Log** (`src/ui/console/captains-log.ts`,
+  `src/ui/console/authoring.ts`) — a new reversible `logAction(text, undo)` API.
+  Every layout edit (rename room/container, add, delete, re-order) is snapshotted,
+  narrated as a `Layout · <room> — …` entry, and undone by **Reverse Course** (which
+  now branches on an `undo` callback vs the routing-node restore). The badge count
+  updates even when the log panel is closed.
+
+### Changed — Chirality (destination frame + edge furniture)
+- **Destination / production frame mirrors** (`lcars.css`, `src/ui/console/destinations.ts`)
+  — in right-handed mode the production spine hugs the outer (left) edge, the title
+  right-aligns toward the sources rail, and every twist elbow curls to the right.
+  The SOURCES stats label + fold lip/foldbar flip to the opposite end (no more
+  title/stats overlap). Text is never mirrored.
+- **Twist elbow render fix** — the mirrored elbow's top-bar stub was dropping out
+  (a collapsed pseudo-element box from `border-left: 0`); keeping the border width
+  but transparent restores the full-width `border-top`, so the bracket is continuous.
+- **The blinking data-pulse strip moves with chirality** (`lcars.css`) — it sits on
+  the non-dominant edge (opposite the rail): right classically, left in right-handed
+  mode; caps flip and the bottom chrome offsets clear it.
+
+## [v99] — 2026-07-02
+
+### Added — Chirality C2 (editor overlays, first wave)
+Editors now respond to the selected handedness. Audit: `docs/Audit /Editor-Chirality-Audit.md`.
+- **Overlay chrome mirrors** (`src/platform/overlay.ts`) — in left-handed mode the
+  `.ed-topbar` flips (back/close swap, corner radius + inner shadow), and the back
+  chevron **swaps glyph** `‹`→`›` via a `.ed-back::before` pseudo (CSS reads the
+  attribute; the platform layer can't import the ui chirality module).
+- **Clean-grid editor bodies flip** (`lcars.css`) — WYSIWYG (`.wy`), IFB (`.ifb`),
+  and Audio Monitor (`.am2`): in left mode `direction:rtl` reverses the grid tracks
+  so the driven-control column docks to the reachable LEFT corner; children reset to
+  `ltr` (text upright, every canvas/scope/meter pixel-identical). All scoped to left
+  mode → the default right mode is byte-identical (zero regression).
+- Remaining editors (audio-mixer, camera-control, stagebox, lighting, …) are the
+  next C2 wave; the audit ranks them and flags the spatial-canvas exemption.
+
+### Changed — sources & chrome
+- **Production source feeds grouped by kind** (`src/ui/sources/pools.ts`) — a
+  production-as-source now renders labelled **Video / Audio / Control** sub-sections
+  instead of interleaving feeds box-by-box.
+- **Expanded studio multiplex goes full-width** (`src/ui/sources/interact.ts`,
+  `lcars.css`) — a held-open camera/stream/playout box spans the whole grid so its
+  sub-feeds get room and the sibling flows to the next row (no tall empty column).
+- **Role badge shrunk** (`src/ui/console/auth-panel.ts`) — smaller Captain badge so
+  it stops overrunning the RIGHTS / LOG OUT buttons and the program title.
+
 ## [v98] — 2026-07-02
 
 ### Added — Chirality (handedness) C0 + C1

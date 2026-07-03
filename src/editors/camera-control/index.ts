@@ -76,12 +76,15 @@ const plugin: EditorPlugin = {
           <div class="cc-smpte"><canvas></canvas><div class="cc-dvd"></div></div>
           <div class="cc-osd"></div>
           <div class="cc-rec">● REC</div>
-          <!-- camera ROBOTICS visualization — docked RIGHT -->
-          <div class="cc-map top"><div class="lbl">TOP-DOWN · PAN / DOLLY</div>${topSVG()}</div>
-          <div class="cc-map side"><div class="lbl">SIDE · TILT / PED</div>${sideSVG()}</div>
-          <!-- scopes — docked LEFT, each with a drag handle to grow -->
-          <div class="cc-vecbox cc-scope"><canvas class="cc-vec"></canvas><div class="cc-rsz" title="Drag to resize"></div></div>
-          <div class="cc-wfbox cc-scope"><div class="cc-wf-tag">RGB PARADE · IRE</div><canvas class="cc-wf"></canvas><div class="cc-rsz" title="Drag to resize"></div></div>
+          <!-- camera ROBOTICS visualization — docked RIGHT. chir-exempt: pan/tilt
+               geometry is stage L/R — the box may ride to the other side but its
+               contents must NEVER mirror (audit §4). -->
+          <div class="cc-map top chir-exempt"><div class="lbl">TOP-DOWN · PAN / DOLLY</div>${topSVG()}</div>
+          <div class="cc-map side chir-exempt"><div class="lbl">SIDE · TILT / PED</div>${sideSVG()}</div>
+          <!-- scopes — docked LEFT, each with a drag handle to grow. chir-exempt: I/Q
+               and IRE axes are semantic — never mirror. -->
+          <div class="cc-vecbox cc-scope chir-exempt"><canvas class="cc-vec"></canvas><div class="cc-rsz" title="Drag to resize"></div></div>
+          <div class="cc-wfbox cc-scope chir-exempt"><div class="cc-wf-tag">RGB PARADE · IRE</div><canvas class="cc-wf"></canvas><div class="cc-rsz" title="Drag to resize"></div></div>
           <div class="cc-tel-box"><div class="cap">TELEMETRY</div><div class="cc-tel"></div></div>
           <div class="cc-fbtn cc-bars-btn">Color Bars</div>
           <div class="cc-fbtn cc-wb-btn">Auto WB<div class="fill"></div></div>

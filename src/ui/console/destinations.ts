@@ -10,13 +10,16 @@ import { DEST_TAB_COLORS, DEST_GROUP_COLORS, paletteAt, rgbAt } from '../palette
 import { stripOrder, monoEmoji, faultTag } from '../sources/format.js';
 import { Footer, type GroupHandle } from './footer.js';
 import { initializeTwists, type OpenEditor } from './matrix.js';
+import { decorateRoom } from './authoring.js';
 
 const twistName = (t: string | TwistConfig): string => (typeof t === 'string' ? t : t.name);
 
 const acceptColor: Record<string, string> = { video: '#CC99CC', audio: '#FF9C63', both: '#CC99CC', camera: '#6FC8F0' };
 
-/** Render one production into its tab-content pane (#tab-<id>). */
-export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: OpenEditor): void {
+/** Render one production into its tab-content pane (#tab-<id>). `srcUrl` is the file
+ *  the room was loaded from — threaded so the authoring layer can draft edits back
+ *  to it (audit §7). */
+export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: OpenEditor, srcUrl?: string): void {
   const pgmTwists = pgm.twists ?? ['Processing', 'Recording', 'Switcher', 'Audio Mixer', 'Intercom'];
   const titleText = pgm.parentName ? `${pgm.parentName.toUpperCase()} — ${pgm.name}` : pgm.name;
   const faulted = isFaultStatus(pgm.status);
@@ -25,7 +28,7 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
   const rows: Record<string, string> = {};
   const rowOrder: string[] = [];
   let bigHtml = '';
-  pgmTwists.forEach((t) => {
+  pgmTwists.forEach((t, ti) => {
     const name = twistName(t);
     let cfgAttr = '', rowKey: string | null = null;
     let lcars: string = pColor;
@@ -48,7 +51,7 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
     const prodAttrs = `data-prod-id="${pgm.id}" data-prod-name="${(titleText || '').replace(/"/g, '&quot;')}"${prodTipAttr}${prodFloorAttr}`;
     const matrixId = `${pgm.id}-${name.replace(/\s+/g, '-').toLowerCase()}`;
     const twistHtml = `
-      <div class="twist-container${isSmall ? ' monitor-twist' : ''}" ${cfgAttr} ${prodAttrs} style="--lcars-color: ${lcars}; ${sizing}">
+      <div class="twist-container${isSmall ? ' monitor-twist' : ''}" data-twist-index="${ti}" ${cfgAttr} ${prodAttrs} style="--lcars-color: ${lcars}; ${sizing}">
         <div class="twist-title">${monoEmoji(name)}${name}</div>
         <div class="twist-lip" title="Fold / unfold strand"></div>
         <div class="twist-foldbar" title="Fold / unfold strand"></div>
@@ -62,7 +65,7 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
   let html = `
     <div class="program-row${faulted ? ' fault' : ''}" style="--prod-color: ${pColor}; position: relative; overflow: hidden; padding: 0; margin-bottom: 10px; flex: 1 1 auto;">
       <div class="program-title" style="background: ${pColor};">${monoEmoji(titleText)}${titleText}${faulted ? ' ' : ''}${faultTag(pgm.status)}</div>
-      <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding-right: 60px;">`;
+      <div class="program-body" style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start;">`;
   if (rows['cameras']) html += `<div class="monitor-row camera-row">${rows['cameras']}</div>`;
   if (rows['remotes']) html += `<div class="monitor-row remote-row">${rows['remotes']}</div>`;   // conditioned remotes, directly under the cameras
   if (bigHtml) html += `<div style="display:flex;flex-wrap:wrap;gap:6px;width:100%;align-items:flex-start;">${bigHtml}</div>`;
@@ -70,6 +73,9 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
   html += `</div></div>`;
   pane.innerHTML = html;
   initializeTwists(pane, openEditor);
+  // Authoring affordances (hidden unless EDIT LAYOUT is on); rerender re-runs this
+  // render with the mutated Production, so edits paint immediately.
+  decorateRoom(pane, pgm, srcUrl, () => renderPrograms(pgm, pane, openEditor, srcUrl));
 }
 
 /** Populate a destination category folder: subfolders → nested footer groups, *.json → lazy tabs. */
@@ -94,7 +100,7 @@ export async function addDestinationTree(
             if (parentName) data.parentName = parentName;
             data.color = color;
             const pane = document.getElementById('tab-' + id);
-            if (pane) renderPrograms(data, pane, openEditor);
+            if (pane) renderPrograms(data, pane, openEditor, baseUrl + f.href);
           });
         },
       });

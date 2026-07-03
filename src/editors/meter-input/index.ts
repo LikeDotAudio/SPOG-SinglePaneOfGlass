@@ -327,36 +327,44 @@ const plugin: EditorPlugin = {
     const cLoud = qs<HTMLCanvasElement>(host, '.c-loud');
     const lufsEl = qs<HTMLElement>(host, '.lufs-v');
 
-    // Pan + zoom on the parade / luma / vectorscope / goniometer: the mouse wheel
-    // zooms centred ON THE POINTER (the point under the cursor stays put), and
-    // dragging the canvas pans. Each scope keeps its own view {z, px, py}.
+    // Each scope keeps a {z,px,py} view, now held at IDENTITY (the draw + hover code
+    // still read it). The mouse WHEEL no longer zooms INTO the picture — it resizes
+    // the scope's CARD (see wheelResize).
     const mkView = (): { z: number; px: number; py: number } => ({ z: 1, px: 0, py: 0 });
     const views = { parade: mkView(), wave: mkView(), chroma: mkView(), vec: mkView(), gonio: mkView(), rgba: mkView(), stack: mkView(), cie: mkView(), diamond: mkView(), hsl: mkView() };
-    const panZoom = (cv: HTMLCanvasElement, v: { z: number; px: number; py: number }): void => {
-      cv.style.cursor = 'grab';
-      const toBacking = (clientX: number, clientY: number): [number, number] => {
-        const r = cv.getBoundingClientRect();
-        return [(clientX - r.left) * (cv.width / r.width), (clientY - r.top) * (cv.height / r.height)];
-      };
-      cv.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const [mx, my] = toBacking(e.clientX, e.clientY);
-        const nz = clamp(v.z * (e.deltaY < 0 ? 1.12 : 0.89), 0.25, 24), f = nz / v.z;
-        v.px = mx - (mx - v.px) * f; v.py = my - (my - v.py) * f; v.z = nz;   // keep pointer fixed
-      }, { passive: false });
-      cv.addEventListener('pointerdown', (e) => {
-        if (e.button !== 0) return;   // let right-click through to the marker handler
-        e.preventDefault(); cv.setPointerCapture(e.pointerId); cv.style.cursor = 'grabbing';
-        const r = cv.getBoundingClientRect(), sx = cv.width / r.width, sy = cv.height / r.height;
-        let lx = e.clientX, ly = e.clientY;
-        const move = (ev: PointerEvent): void => { v.px += (ev.clientX - lx) * sx; v.py += (ev.clientY - ly) * sy; lx = ev.clientX; ly = ev.clientY; };
-        const up = (): void => { cv.style.cursor = 'grab'; cv.removeEventListener('pointermove', move); cv.removeEventListener('pointerup', up); };
-        cv.addEventListener('pointermove', move); cv.addEventListener('pointerup', up);
+    // Wheel over a scope grows/shrinks its BOX, snapping the card WIDTH to fixed
+    // fractions of the grid width — 1/2 · 1/3 · 1/4 · 1/6 · 1/8 — with the height
+    // tracking width to keep the card's aspect. It makes the box bigger (and the scope
+    // redraws crisply at the new size), it does NOT scale the image. Cards stay
+    // draggable by the header; the native corner handle still does free resizing.
+    const SIZE_FRACS = [1 / 8, 1 / 6, 1 / 4, 1 / 3, 1 / 2];
+    const syncBacking = (host: HTMLElement): void => {
+      host.querySelectorAll<HTMLCanvasElement>('.mi-scope canvas').forEach((c) => {
+        const r = c.getBoundingClientRect();
+        if (r.width >= 1 && r.height >= 1) { c.width = Math.round(r.width); c.height = Math.round(r.height); }
       });
     };
-    panZoom(cParade, views.parade); panZoom(cWave, views.wave); panZoom(cChroma, views.chroma); panZoom(cVec, views.vec); panZoom(cGonio, views.gonio);
-    panZoom(cRGBA, views.rgba); panZoom(cStack, views.stack); panZoom(cCIE, views.cie);
-    panZoom(cDiamond, views.diamond); panZoom(cHSL, views.hsl);
+    const wheelResize = (cv: HTMLElement, target?: HTMLElement): void => {
+      const card = target ?? cv.closest<HTMLElement>('.mi-card, .mi-vidcard');
+      if (!card) return;
+      cv.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const gw = card.closest<HTMLElement>('.mi-grid')?.clientWidth || card.offsetWidth || 1;
+        const curFrac = card.offsetWidth / gw;
+        let idx = 0, best = Infinity;
+        SIZE_FRACS.forEach((f, i) => { const d = Math.abs(f - curFrac); if (d < best) { best = d; idx = i; } });
+        idx = clamp(idx + (e.deltaY < 0 ? 1 : -1), 0, SIZE_FRACS.length - 1);
+        const frac = SIZE_FRACS[idx] ?? 0.25;
+        const aspect = card.offsetHeight / Math.max(1, card.offsetWidth);
+        const w = Math.round(frac * gw);
+        card.style.width = `${w}px`;
+        card.style.height = `${Math.round(w * aspect)}px`;
+        syncBacking(card);   // redraw crisp at the new size, don't stretch the backing
+      }, { passive: false });
+    };
+    wheelResize(cParade); wheelResize(cChroma); wheelResize(cVec); wheelResize(cGonio);
+    wheelResize(cRGBA); wheelResize(cStack); wheelResize(cCIE); wheelResize(cDiamond); wheelResize(cHSL);
+    wheelResize(cWave, cardVideo);   // the luma waveform's width is frame-locked to the video card → resize the pair
 
     // ── Edit detector: average luminance + luma-histogram frame-differencing ──
     // A big frame-to-frame change in the global luma histogram = a scene cut, which
@@ -617,7 +625,11 @@ const plugin: EditorPlugin = {
       // each column reads directly against the picture (a real waveform monitor).
       cardWave.style.left = `${cardVideo.offsetLeft}px`;
       cardWave.style.width = `${cardVideo.offsetWidth}px`;
-      hover.sync();   // keep right-click markers pinned as views pan/zoom/resize
+      // Keep the waveform canvas backing matched to its (video-locked) display width
+      // so it stays crisp when the video/waveform pair is wheel-resized.
+      if (cWave.clientWidth && cWave.width !== cWave.clientWidth) cWave.width = cWave.clientWidth;
+      if (cWave.clientHeight && cWave.height !== cWave.clientHeight) cWave.height = cWave.clientHeight;
+      hover.sync();   // keep right-click markers pinned as the card resizes
     });
 
     ctx.dispose.add(() => { li.stop(); hover.dispose(); });

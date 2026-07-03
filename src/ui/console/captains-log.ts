@@ -7,7 +7,10 @@ import { addStyles } from '../dom.js';
 import { updateTwistVisuals } from './helix.js';
 
 interface Removed { node: HTMLElement; parent: Node; next: Node | null }
-interface Entry { id: number; ts: number; twist: HTMLElement; dest: string; prod: string; added: HTMLElement[]; removed: Removed[]; text: string; reversed: boolean }
+// `undo` is set on SEMANTIC entries (e.g. a layout edit via logAction): reversing
+// them runs the callback instead of restoring drop-zone nodes. Routing entries
+// carry a real `twist` + added/removed nodes; action entries carry `twist: null`.
+interface Entry { id: number; ts: number; twist: HTMLElement | null; dest: string; prod: string; added: HTMLElement[]; removed: Removed[]; text: string; reversed: boolean; undo?: () => void }
 interface Narrative { id: number; title: string; entries: Entry[] }
 
 /** A log entry surfaced to external listeners (the MQTT bridge, audit §4.6). */
@@ -16,6 +19,18 @@ const logListeners = new Set<(e: LogEntryEvent) => void>();
 /** Subscribe to every Captain's Log entry (and course reversals). Returns an unsubscribe. */
 export function onLogEntry(cb: (e: LogEntryEvent) => void): () => void { logListeners.add(cb); return () => logListeners.delete(cb); }
 function emitLog(e: LogEntryEvent): void { for (const l of logListeners) { try { l(e); } catch { /* a bad listener must not break logging */ } } }
+
+/** Log a SEMANTIC action (e.g. an Edit-Layout change) as a Captain's Log entry.
+ *  `undo`, if given, is run by Reverse Course to undo it — so layout edits are
+ *  narrated and reversible right alongside routing changes. */
+export function logAction(text: string, undo?: () => void): void {
+  const ts = Date.now();
+  const nar = ensureNarrative();
+  const entry: Entry = { id: ++eidSeq, ts, twist: null, dest: '', prod: '', added: [], removed: [], text, reversed: false, undo };
+  nar.entries.push(entry);
+  emitLog({ voyage: nar.id, entry: entry.id, ts, dest: '', prod: '', added: [], removed: [], text, reversed: false });
+  render();
+}
 
 let panel: HTMLElement | null = null, listEl: HTMLElement | null = null, observer: MutationObserver | null = null, paused = false;
 let narratives: Narrative[] = [];
@@ -93,16 +108,24 @@ function onMutations(records: MutationRecord[]): void {
 
 function reverseEntry(entry: Entry): void {
   if (entry.reversed) return;
+  // Semantic (layout) entry: run its undo callback instead of restoring nodes.
+  if (entry.undo) {
+    try { entry.undo(); } catch { /* a failed undo must not wedge the log */ }
+    entry.reversed = true;
+    const v = narratives.find((n) => n.entries.includes(entry))?.id ?? 0;
+    emitLog({ voyage: v, entry: entry.id, ts: Date.now(), dest: entry.dest, prod: entry.prod, added: [], removed: [], text: `Course reversed: ${entry.text}`, reversed: true });
+    return;
+  }
   entry.added.forEach((n) => { if (n.parentNode) n.parentNode.removeChild(n); });
   entry.removed.forEach(({ node, parent, next }) => {
     if (parent && (parent as Node).isConnected) {
       if (next && next.parentNode === parent) parent.insertBefore(node, next);
       else parent.appendChild(node);
     } else {
-      entry.twist.querySelector<HTMLElement>('.drop-zone')?.appendChild(node);
+      entry.twist?.querySelector<HTMLElement>('.drop-zone')?.appendChild(node);
     }
   });
-  try { updateTwistVisuals(entry.twist); } catch { /* ignore */ }
+  if (entry.twist) { try { updateTwistVisuals(entry.twist); } catch { /* ignore */ } }
   entry.reversed = true;
   const voyage = narratives.find((n) => n.entries.includes(entry))?.id ?? 0;
   emitLog({ voyage, entry: entry.id, ts: Date.now(), dest: entry.dest, prod: entry.prod, added: entry.added.map(nodeLabel).filter(Boolean), removed: entry.removed.map((r) => nodeLabel(r.node)).filter(Boolean), text: `Course reversed: ${entry.text}`, reversed: true });
@@ -152,10 +175,12 @@ const CL_CSS = `
 .cl-rb{color:#ff8a8a;font-style:italic;font-size:10px;}`;
 
 function render(): void {
-  if (!listEl) return;
+  // Update the badge even when the panel is closed (so layout edits & routing
+  // changes both bump the count before the log is ever opened).
   const total = narratives.reduce((a, n) => a + n.entries.length, 0);
   const badge = document.querySelector('.cl-badge');
   if (badge) badge.textContent = String(total);
+  if (!listEl) return;
   if (!total) { listEl.innerHTML = `<div class="cl-empty">— ship's log empty —<br>routing decisions appear here</div>`; return; }
   let html = '';
   [...narratives].reverse().forEach((n) => {
