@@ -75,9 +75,13 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
   pane.innerHTML = html;
   initializeTwists(pane, openEditor);
   // Every destination carries the standing fixtures (clock, chrono landing spot,
-  // per-destination chat log), regardless of its authored twists.
+  // per-destination chat log), regardless of its authored twists. Guarded so a
+  // fixture failure can never take down the room's twist render.
   const body = pane.querySelector('.program-body');
-  if (body instanceof HTMLElement) mountDestFixtures(body, pgm);
+  if (body instanceof HTMLElement) {
+    try { mountDestFixtures(body, pgm); }
+    catch (e) { console.error('dest-fixtures mount failed', e); }
+  }
   // Authoring affordances (hidden unless EDIT LAYOUT is on); rerender re-runs this
   // render with the mutated Production, so edits paint immediately.
   decorateRoom(pane, pgm, srcUrl, () => renderPrograms(pgm, pane, openEditor, srcUrl));
