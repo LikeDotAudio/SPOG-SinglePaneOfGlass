@@ -9,6 +9,15 @@ export type Hex = `#${string}`;
 /** A source/device is faulted when status is set and isn't "OK". */
 export type Status = 'OK' | (string & {});
 
+/**
+ * A hover tip ("tool tick") authored in the Routes JSON — on a production/room,
+ * a floor room, a person, a source box, or an individual twist. The bare-string
+ * form is the whole tip; the object form adds the same ✓ good / ✕ bad guidance the
+ * Meter Input scopes use. Surfaced by `ui/tip.ts` alongside the context-derived
+ * "what the production expects" tip. See docs/Audit /LCARS-Hover-Tooltips-*.
+ */
+export type TipSpec = string | { title?: string; lead: string; good?: string; bad?: string };
+
 // ---- Sources (Routes/Sources/**) -------------------------------------------
 
 export interface StageBox {
@@ -30,6 +39,8 @@ export interface Production {
   color?: Hex;
   parentName?: string;
   status?: Status;
+  /** Room/floor-room/person-level hover tip — what this production expects of an op. */
+  tip?: TipSpec;
   outputs?: { video?: string[]; audio?: string[]; intercom?: string[] };
   twists?: Array<string | TwistConfig>;
   // A Person's destination projection lives under `kit` (see PersonLeaf); the
@@ -87,6 +98,8 @@ export interface SourceLeaf {
   color?: Hex;
   status?: Status;
   origin?: string;
+  /** Person/source-box hover tip — authored in the Routes/People or Sources JSON. */
+  tip?: TipSpec;
   // stage box (video/audio)
   prefix?: string;
   count?: number;
@@ -124,6 +137,13 @@ export interface TwistConfig {
   maxVideo?: number;
   maxAudio?: number;
   cameraInput?: boolean;   // "CAM N" twists fed into a destination
+  /** Failover feeds used when the primary crosspoint(s) go to a fault status
+      (audit §6). `hot` auto-cuts, `warm` arms for one-click, `manual` records
+      intent; `twist` fails over to another named twist instead of feeds. */
+  backup?: { inputs?: string[]; mode?: 'hot' | 'warm' | 'manual'; twist?: string };
+  /** Per-twist (per-tool) hover tip — what this specific tool expects, authored
+      inline on the twist in the room/person JSON. Rides through data-config. */
+  tip?: TipSpec;
 }
 
 /** A folder manifest (index.json): entries ending "/" are directories. */

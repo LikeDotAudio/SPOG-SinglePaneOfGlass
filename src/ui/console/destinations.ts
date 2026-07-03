@@ -40,7 +40,12 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
     // Big (function) twists flow ~3-across (≈⅓ width) and wrap horizontally;
     // small (row) twists share their row equally.
     const sizing = isSmall ? 'flex: 1 1 0; min-width: 0;' : 'flex: 1 1 30%; min-width: 240px; max-width: 33%;';
-    const prodAttrs = `data-prod-id="${pgm.id}" data-prod-name="${(titleText || '').replace(/"/g, '&quot;')}"`;
+    // Production-level (and, via the same path, floor-room + person-level) hover
+    // tip authored in the room JSON, plus the floor/category it sits under. Both
+    // ride to the editor on the twist element and feed ui/tip's expectation tip.
+    const prodTipAttr = pgm.tip ? ` data-prod-tip='${JSON.stringify(pgm.tip).replace(/'/g, '&#39;')}'` : '';
+    const prodFloorAttr = pgm.parentName ? ` data-prod-floor="${pgm.parentName.replace(/"/g, '&quot;')}"` : '';
+    const prodAttrs = `data-prod-id="${pgm.id}" data-prod-name="${(titleText || '').replace(/"/g, '&quot;')}"${prodTipAttr}${prodFloorAttr}`;
     const matrixId = `${pgm.id}-${name.replace(/\s+/g, '-').toLowerCase()}`;
     const twistHtml = `
       <div class="twist-container${isSmall ? ' monitor-twist' : ''}" ${cfgAttr} ${prodAttrs} style="--lcars-color: ${lcars}; ${sizing}">

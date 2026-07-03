@@ -4,6 +4,11 @@
   "role": "remote contributor",
   "color": "#4BC0A8",
   "title": "REMOTE",
+  "tip": {
+    "lead": "Remote contributor on a variable-latency link. Name reads AH-nah SIL-vah. Runs her own mic + IFB return.",
+    "good": "Add ~6–8 frames of delay to lip-sync her to house; confirm IFB before hitting her.",
+    "bad": "No mix-minus on her IFB = she hears herself delayed and stumbles."
+  },
   "lowerThird": {
     "line1": "ANA SILVA",
     "line2": "REMOTE",
@@ -33,6 +38,7 @@
         "name": "IFB / IEM",
         "accepts": "audio",
         "row": "kit",
+        "tip": "Ana's earpiece: PROGRAM minus her own mic (mix-minus) + director INTERRUPT on top. Interrupt ducks program.",
         "inputs": [
           "PROGRAM",
           "MIX-MINUS",

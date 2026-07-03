@@ -80,7 +80,9 @@ export function buildContext(
   return {
     twist: { name, config },
     sources: routed.length ? routed : resolveSources(config, color),
-    production: { name: prod.name, color },
+    // `tip`/`floor` are the JSON-authored hover tips (room/person-level tip and the
+    // floor/category this room sits under) — resolved by the host, surfaced by ui/tip.
+    production: { name: prod.name, color, tip: prod.tip, floor: prod.parentName },
     siblings: resolveSiblings(prod, name, color),
     can,
     services,

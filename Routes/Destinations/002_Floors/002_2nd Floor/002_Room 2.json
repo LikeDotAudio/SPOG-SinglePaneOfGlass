@@ -2,6 +2,11 @@
   "id": "fl2-rm2",
   "name": "ROOM 2",
   "color": "#3FC1C9",
+  "tip": {
+    "lead": "2nd-floor studio floor room — monitors, studio speaker, IFB and tally for talent on set. No switching here; this is a floor position, not a gallery.",
+    "good": "Confirm the On-Air light and IFB before talent takes position.",
+    "bad": "Speaker live while mics are open on the same floor = feedback."
+  },
   "twists": [
     {
       "name": "Monitor 1",

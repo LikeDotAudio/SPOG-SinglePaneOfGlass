@@ -6,7 +6,7 @@
 // required capabilities. No editor imports another; cross-editor needs (e.g.
 // openStageBox) arrive as typed services on the context, never as window globals.
 
-import type { Capability, Hex, TwistConfig } from '../model/index.js';
+import type { Capability, Hex, TwistConfig, TipSpec } from '../model/index.js';
 import type { Feed } from '../domain/routing-core/index.js';
 import type { Disposer } from '../ui/timers.js';
 import type { ParamSpec } from '../platform/mqtt/types.js';
@@ -20,11 +20,13 @@ export interface Sibling {
 
 /** Everything an editor needs, as data — resolved by the host, not scraped. */
 export interface EditorContext {
-  /** This twist's display name and parsed config. */
+  /** This twist's display name and parsed config (config.tip = per-tool JSON tip). */
   twist: { name: string; config: TwistConfig | null };
   /** Feeds routed into this twist (groups already expanded). */
   sources: Feed[];
-  production: { name: string; color: Hex };
+  /** The owning production/room; `tip` + `floor` are the JSON-authored hover tips
+      (room/person-level tip, and the floor/category this room sits under). */
+  production: { name: string; color: Hex; tip?: TipSpec; floor?: string };
   /** Same-kind siblings in this production (includes this twist), for grid editors. */
   siblings: ReadonlyArray<Sibling>;
   /** Role gate — true if the current operator holds the capability. */
@@ -56,6 +58,9 @@ export interface EditorPlugin {
   /** Does this editor handle a twist with the given name? */
   match(twistName: string): boolean;
   title: string;
+  /** One-line "what this window does" — the lead of its context-derived tip.
+      Optional; the host falls back to a central blurb map, then the title. */
+  blurb?: string;
   /**
    * Dispatch precedence for overlapping regexes (lower wins; default 100).
    * Preserves the legacy import-order semantics (G8) without a central list:
