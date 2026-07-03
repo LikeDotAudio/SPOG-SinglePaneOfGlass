@@ -15,7 +15,7 @@
 // publishing bus also moves to the new host; the tree itself auto-connects on open.
 import { el, addStyles } from '../dom.js';
 import type { TwistBus } from '../../platform/mqtt/index.js';
-import { TWIST_ROOT, getBrokerSetting, setBrokerSetting } from '../../platform/mqtt/index.js';
+import { TWIST_ROOT, getBrokerConfig, setBrokerConfig } from '../../platform/mqtt/index.js';
 
 // ---- minimal mqtt.js typings (mirrors platform/mqtt/client.ts) --------------
 interface MqttClient {
@@ -42,13 +42,13 @@ function loadMqtt(): Promise<MqttModule | null> {
   });
 }
 
-/** Normalise a broker host[:port] or ws(s):// url to a WebSocket url (or null). */
-function resolveUrl(raw: string): string | null {
-  const v = (raw || '').trim();
+/** Normalise a broker host + port to a WebSocket url (or null when no host). */
+function resolveUrl(rawHost: string, port: number): string | null {
+  const v = (rawHost || '').trim();
   if (!v || v === 'off' || v === '0') return null;
   if (/^wss?:\/\//i.test(v)) return v;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  return v.includes(':') ? `${proto}://${v}` : `${proto}://${v}:9001`;
+  return v.includes(':') ? `${proto}://${v}` : `${proto}://${v}:${port || 9001}`;
 }
 
 const escapeHtml = (s: string): string => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] ?? c));
@@ -64,7 +64,7 @@ const MQ_CSS = `
     box-shadow:0 3px 12px rgba(0,0,0,.5);}
 .mq-chip:hover{border-color:#3a6acc;color:#fff;}
 .mq-dot{width:9px;height:9px;border-radius:50%;background:#6b82a3;box-shadow:0 0 6px currentColor;color:#6b82a3;}
-.mq-dot.on{background:#ffd400;color:#ffd400;} .mq-dot.live{background:#39d353;color:#39d353;}
+.mq-dot.on{background:#ffd400;color:#ffd400;} .mq-dot.live{background:#39d353;color:#39d353;} .mq-dot.err{background:#e33;color:#e33;}
 .mqt{position:fixed;right:14px;bottom:114px;z-index:1601;display:none;flex-direction:column;
     width:min(820px,94vw);height:min(70vh,720px);background:#0a0805;color:#ffcf6b;
     border:1px solid #3a2f10;border-radius:10px;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.7);
@@ -72,15 +72,29 @@ const MQ_CSS = `
 .mqt.open{display:flex;}
 .mqt-head{display:flex;align-items:center;gap:12px;padding:9px 14px;background:#C2B74B;color:#1a1206;
     font-weight:900;letter-spacing:2px;flex:0 0 auto;}
-.mqt-head input{font:inherit;padding:4px 8px;border:none;border-radius:4px;width:190px;}
 .mqt-head button{font:bold 11px sans-serif;letter-spacing:1px;text-transform:uppercase;border:none;
     border-radius:5px;padding:5px 10px;cursor:pointer;background:#1a1206;color:#ffcf6b;}
 .mqt-head button:hover{filter:brightness(1.3);}
 .mqt-head .sp{flex:1;}
 .mqt-head .mqt-count{background:#1a1206;color:#C2B74B;padding:2px 9px;border-radius:8px;font:bold 12px monospace;}
-.mqt-head .mqt-x{background:transparent;color:#1a1206;font-size:16px;padding:2px 6px;}
-.mqt-eff{padding:5px 14px;font:10px monospace;color:#8a7430;background:#140f06;flex:0 0 auto;
+.mqt-head .mqt-x{background:transparent;color:#1a1206;font-size:16px;padding:2px 6px;cursor:pointer;}
+/* Connection form — host / port / user / pass are ALWAYS shown and pre-filled. */
+.mqt-form{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 14px;background:#181206;
+    border-bottom:1px solid #2a2110;flex:0 0 auto;font:10px monospace;color:#C2B74B;}
+.mqt-form label{display:inline-flex;align-items:center;gap:5px;text-transform:uppercase;letter-spacing:1px;}
+.mqt-form input{font:12px 'Courier New',monospace;padding:5px 8px;border:1px solid #3a2f10;border-radius:5px;
+    background:#0a0805;color:#ffe9b0;}
+.mqt-form input:focus{outline:none;border-color:#C2B74B;}
+.mqt-form input.host{width:160px;} .mqt-form input.port{width:66px;}
+.mqt-form input.user,.mqt-form input.pass{width:110px;}
+.mqt-form button{font:bold 10px sans-serif;letter-spacing:1px;text-transform:uppercase;border:none;
+    border-radius:5px;padding:6px 11px;cursor:pointer;background:#C2B74B;color:#1a1206;}
+.mqt-form button.off{background:#3a2f10;color:#ffcf6b;}
+.mqt-form button:hover{filter:brightness(1.15);}
+.mqt-eff{padding:5px 14px;font:10px monospace;background:#140f06;flex:0 0 auto;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mqt-eff b.ok{color:#39d353;} .mqt-eff b.warn{color:#ffd400;} .mqt-eff b.bad{color:#ff6a6a;}
+.mqt-eff .u{color:#8a7430;}
 .mqt-scroll{flex:1 1 auto;overflow:auto;}
 .mqt table{width:100%;border-collapse:collapse;}
 .mqt th,.mqt td{text-align:left;padding:5px 14px;border-bottom:1px solid #1c1810;vertical-align:top;}
@@ -97,12 +111,18 @@ export function initMqttTree(bus: TwistBus): void {
   const dot = el('span', { class: 'mq-dot' });
   const chip = el('button', { class: 'mq-chip', title: 'MQTT — live retained topic tree' }, [dot, el('span', {}, ['MQTT'])]);
 
-  const hostInput = el('input', { type: 'text', placeholder: 'host[:port]', value: getBrokerSetting() }) as HTMLInputElement;
+  // Connection form — host / port / user / pass are ALWAYS shown and pre-filled
+  // from the persisted broker config (port/user/pass fall back to their defaults).
+  const cfg = getBrokerConfig();
+  const hostInput = el('input', { type: 'text', class: 'host', placeholder: 'broker host', value: cfg.host });
+  const portInput = el('input', { type: 'text', class: 'port', placeholder: 'port', value: String(cfg.port) });
+  const userInput = el('input', { type: 'text', class: 'user', placeholder: 'username', value: cfg.username });
+  const passInput = el('input', { type: 'password', class: 'pass', placeholder: 'password', value: cfg.password });
   const bGo = el('button', {}, ['Save & Connect']);
-  const bOff = el('button', {}, ['Disable']);
+  const bOff = el('button', { class: 'off' }, ['Disable']);
   const bX = el('button', { class: 'mqt-x', title: 'Close' }, ['×']);
   const countEl = el('span', { class: 'mqt-count' }, ['0']);
-  const effEl = el('div', { class: 'mqt-eff' }, ['— not connected —']);
+  const effEl = el('div', { class: 'mqt-eff' }, []);
   const rows = el('tbody');
   rows.innerHTML = '<tr><td colspan="3" class="empty">— not connected —</td></tr>';
 
@@ -116,8 +136,15 @@ export function initMqttTree(bus: TwistBus): void {
   ]);
   const panel = el('div', { class: 'mqt' }, [
     el('div', { class: 'mqt-head' }, [
-      el('span', {}, ['TWIST MQTT TREE']), hostInput, bGo, bOff,
+      el('span', {}, ['SPOG MQTT TREE']),
       el('span', { class: 'sp' }), countEl, bX,
+    ]),
+    el('div', { class: 'mqt-form' }, [
+      el('label', {}, ['Host', hostInput]),
+      el('label', {}, ['Port', portInput]),
+      el('label', {}, ['User', userInput]),
+      el('label', {}, ['Pass', passInput]),
+      bGo, bOff,
     ]),
     effEl,
     el('div', { class: 'mqt-scroll' }, [table]),
@@ -129,6 +156,29 @@ export function initMqttTree(bus: TwistBus): void {
   let client: MqttClient | null = null;
   let connected = false;
   let started = false;
+  type ConnState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'offline' | 'closed' | 'error';
+  let state: ConnState = 'idle';
+  let lastErr = '';
+  const STATE_LABEL: Record<ConnState, string> = {
+    idle: 'idle', connecting: 'connecting…', connected: 'connected',
+    reconnecting: 'reconnecting…', offline: 'offline', closed: 'disconnected', error: 'error',
+  };
+  const errMsg = (e: unknown): string => {
+    if (!e) return 'connection refused (check host, port, and that the broker exposes a WebSocket listener)';
+    if (typeof e === 'string') return e;
+    const m = (e as { message?: string }).message;
+    return m ? String(m) : String(e);
+  };
+  // The status line: resolved url · STATE (colour-coded) · subscription + topic count.
+  const setStatus = (): void => {
+    const url = resolveUrl(hostInput.value, Number(portInput.value)) ?? '(no host set)';
+    const cls = state === 'connected' ? 'ok' : (state === 'error' || state === 'offline') ? 'bad' : 'warn';
+    const err = state === 'error' && lastErr ? ` — ${escapeHtml(lastErr)}` : '';
+    const sub = state === 'connected'
+      ? ` <span class="u">· subscribed ${TWIST_ROOT}/# · ${store.size} topic${store.size === 1 ? '' : 's'}</span>`
+      : '';
+    effEl.innerHTML = `<span class="u">→ ${escapeHtml(url)} ·</span> <b class="${cls}">${STATE_LABEL[state]}${err}</b>${sub}`;
+  };
 
   const render = (): void => {
     countEl.textContent = String(store.size);
@@ -143,21 +193,23 @@ export function initMqttTree(bus: TwistBus): void {
       const age = Math.max(0, Math.round((now - ts) / 1000));
       return `<tr><td class="topic">${escapeHtml(rel)}</td><td class="val">${escapeHtml(payload)}</td><td class="age">${age}s</td></tr>`;
     }).join('');
+    setStatus();
   };
 
   const connect = (): void => {
-    const url = resolveUrl(hostInput.value);
-    if (!url) { effEl.textContent = '→ (disabled — enter a broker host, e.g. 44.44.44.152)'; return; }
-    effEl.textContent = `→ ${url}`;
+    const url = resolveUrl(hostInput.value, Number(portInput.value));
+    if (!url) { state = 'idle'; effEl.innerHTML = '<span class="u">→ enter a broker host, then Save &amp; Connect</span>'; return; }
+    state = 'connecting'; lastErr = ''; setStatus();
     void loadMqtt().then((mod) => {
-      if (!mod) { effEl.textContent = '→ mqtt.js unavailable (CDN blocked?)'; return; }
+      if (!mod) { state = 'error'; lastErr = 'mqtt.js unavailable (CDN blocked?)'; setStatus(); return; }
       if (client) { try { client.end(true); } catch { /* ignore */ } }
       connected = false; store.clear(); render();
-      client = mod.connect(url, { username: 'guest', password: 'guest', keepalive: 60, reconnectPeriod: 5000 });
-      client.on('connect', () => { connected = true; client!.subscribe(`${TWIST_ROOT}/#`, { qos: 0 }); render(); });
-      client.on('reconnect', () => { connected = false; });
-      client.on('close', () => { connected = false; });
-      client.on('offline', () => { connected = false; });
+      client = mod.connect(url, { username: userInput.value, password: passInput.value, keepalive: 60, reconnectPeriod: 5000, connectTimeout: 15000 });
+      client.on('connect', () => { connected = true; state = 'connected'; client!.subscribe(`${TWIST_ROOT}/#`, { qos: 0 }); render(); });
+      client.on('reconnect', () => { connected = false; state = 'reconnecting'; setStatus(); });
+      client.on('close', () => { connected = false; if (state !== 'error') state = 'closed'; setStatus(); });
+      client.on('offline', () => { connected = false; state = 'offline'; setStatus(); });
+      client.on('error', (e) => { connected = false; state = 'error'; lastErr = errMsg(e); setStatus(); });
       client.on('message', (topic: string, payload: Uint8Array) => {
         let txt = new TextDecoder().decode(payload);
         try { txt = JSON.stringify(JSON.parse(txt)); } catch { /* leave raw */ }
@@ -170,25 +222,33 @@ export function initMqttTree(bus: TwistBus): void {
   // Chip toggles the panel; the tree auto-connects on first open if a broker is set.
   chip.addEventListener('click', () => {
     const open = panel.classList.toggle('open');
-    if (open && !started && resolveUrl(hostInput.value)) { started = true; connect(); }
+    if (open && !started && resolveUrl(hostInput.value, Number(portInput.value))) { started = true; connect(); }
   });
   bX.addEventListener('click', () => panel.classList.remove('open'));
-  // Save & Connect persists the host (so the shared publishing bus adopts it on the
-  // next boot) and reloads; Disable clears it. Both mirror the old settings popover.
-  bGo.addEventListener('click', () => { setBrokerSetting(hostInput.value); location.reload(); });
-  bOff.addEventListener('click', () => { setBrokerSetting(''); location.reload(); });
+  // Save & Connect persists the full config (host/port/user/pass) so the shared
+  // PUBLISHING bus adopts it on the next boot and starts advertising the tree, then
+  // reloads. Disable clears the host. Both mirror the old settings popover.
+  const persist = (): void => setBrokerConfig({
+    host: hostInput.value, port: Number(portInput.value) || 9001,
+    username: userInput.value, password: passInput.value,
+  });
+  bGo.addEventListener('click', () => { persist(); location.reload(); });
+  bOff.addEventListener('click', () => { setBrokerConfig({ host: '' }); location.reload(); });
 
   // The chip dot reflects the live diagnostic connection, falling back to the shared
   // bus's configured/connected state before the panel has been opened.
   const paint = (): void => {
     const s = bus.status();
-    const live = started ? connected : s.connected;
-    const enabled = started ? !!resolveUrl(hostInput.value) : s.enabled;
-    dot.className = 'mq-dot' + (live ? ' live' : enabled ? ' on' : '');
-    chip.title = live ? 'MQTT connected — click for the topic tree'
+    const err = started && state === 'error';
+    const live = started ? state === 'connected' : s.connected;
+    const enabled = started ? !!resolveUrl(hostInput.value, Number(portInput.value)) : s.enabled;
+    dot.className = 'mq-dot' + (err ? ' err' : live ? ' live' : enabled ? ' on' : '');
+    chip.title = err ? `MQTT error — ${lastErr}`
+      : live ? 'MQTT connected — click for the topic tree'
       : enabled ? 'MQTT configured — click for the topic tree'
       : 'MQTT off — click to set a broker';
   };
+  setStatus();
   paint();
   setInterval(() => { paint(); if (panel.classList.contains('open')) render(); }, 1000);
 }

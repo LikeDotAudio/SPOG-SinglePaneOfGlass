@@ -34,6 +34,8 @@ declare global {
 }
 
 const LS_KEY = 'twistMqtt';
+const LS_PORT = 'twistMqttPort', LS_USER = 'twistMqttUser', LS_PASS = 'twistMqttPass';
+const DEFAULT_USER = 'guest', DEFAULT_PASS = 'guest';
 /** The persisted broker setting (host[:port] or ws(s):// url), '' if unset. */
 export function getBrokerSetting(): string {
   try { return localStorage.getItem(LS_KEY) ?? ''; } catch { return ''; }
@@ -41,6 +43,28 @@ export function getBrokerSetting(): string {
 /** Persist the broker setting (empty string clears it → MQTT disabled next boot). */
 export function setBrokerSetting(host: string): void {
   try { const v = (host || '').trim(); if (v) localStorage.setItem(LS_KEY, v); else localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
+}
+
+/** The full broker connection config — host, port, and credentials. Port/user/pass
+ *  always resolve to a value (the defaults) so the connection form is never blank. */
+export interface BrokerConfig { host: string; port: number; username: string; password: string; }
+const lsGet = (k: string, d: string): string => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+export function getBrokerConfig(): BrokerConfig {
+  return {
+    host: getBrokerSetting(),
+    port: Number(lsGet(LS_PORT, String(DEFAULT_PORT))) || DEFAULT_PORT,
+    username: lsGet(LS_USER, DEFAULT_USER),
+    password: lsGet(LS_PASS, DEFAULT_PASS),
+  };
+}
+/** Persist any subset of the broker config (host '' clears MQTT next boot). */
+export function setBrokerConfig(c: Partial<BrokerConfig>): void {
+  try {
+    if (c.host !== undefined) setBrokerSetting(c.host);
+    if (c.port !== undefined) localStorage.setItem(LS_PORT, String(c.port));
+    if (c.username !== undefined) localStorage.setItem(LS_USER, c.username);
+    if (c.password !== undefined) localStorage.setItem(LS_PASS, c.password);
+  } catch { /* ignore */ }
 }
 
 /** Resolve the broker WS url from `?mqtt=`, localStorage, or the compiled default. */
@@ -55,7 +79,8 @@ export function resolveBrokerUrl(): string | null {
   if (!raw || raw === 'off' || raw === '0') return null;
   if (/^wss?:\/\//i.test(raw)) return raw;
   const proto = (typeof location !== 'undefined' && location.protocol === 'https:') ? 'wss' : 'ws';
-  return raw.includes(':') ? `${proto}://${raw}` : `${proto}://${raw}:${DEFAULT_PORT}`;
+  const port = Number(lsGet(LS_PORT, String(DEFAULT_PORT))) || DEFAULT_PORT;
+  return raw.includes(':') ? `${proto}://${raw}` : `${proto}://${raw}:${port}`;
 }
 
 /** Load mqtt.js: use an already-present global, else inject the unpkg script. */
@@ -131,8 +156,9 @@ export function createTwistBus(): TwistBus {
     if (disposed) return;
     if (!mod) { clearTimeout(readyTimer); resolveReady(); return; }
     dbg('connecting', url);
+    const cfg = getBrokerConfig();
     client = mod.connect(url, {
-      username: 'guest', password: 'guest',
+      username: cfg.username, password: cfg.password,
       keepalive: 60, reconnectPeriod: 5000, connectTimeout: 30_000,
       will: { topic: presenceTopic, payload: JSON.stringify({ active: false, full_id: sessionId }), retain: true, qos: 0 },
     });

@@ -9,7 +9,7 @@ import type { TwistBus } from './types.js';
 import { createTwistBus } from './client.js';
 
 export type { TwistBus, ConfigMsg, ValueMsg, LogMsg, ParamSpec } from './types.js';
-export { TWIST_ROOT, resolveBrokerUrl, getBrokerSetting, setBrokerSetting } from './client.js';
+export { TWIST_ROOT, resolveBrokerUrl, getBrokerSetting, setBrokerSetting, getBrokerConfig, setBrokerConfig, type BrokerConfig } from './client.js';
 export { advertiseAll } from './advertise.js';
 export { startLogBridge } from './log-bridge.js';
 export * as topics from './topics.js';

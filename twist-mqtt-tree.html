@@ -3,20 +3,28 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>TWIST MQTT Tree</title>
+<title>SPOG MQTT Tree</title>
 <!-- Standalone diagnostic (audit §appendix — the twist equivalent of comMQTT's
      MqttConnectionTester.html). Subscribes to Twist/# and shows the live retained
-     topic tree the TwistBus advertises. Open with ?mqtt=<host[:port]> — the SAME
-     convention the console uses. No build step; drop it next to index.htm. -->
+     topic tree the TwistBus advertises. Host / port / user / pass are always shown
+     and pre-filled; connection status + errors are surfaced. Shares the console's
+     localStorage config (twistMqtt / twistMqttPort / twistMqttUser / twistMqttPass)
+     and the ?mqtt=<host[:port]> convention. No build step; drop it next to index.htm. -->
 <style>
   :root { color-scheme: dark; }
   body { margin: 0; background: #0a0805; color: #ffcf6b; font: 13px/1.4 'Courier New', monospace; }
-  header { display: flex; align-items: center; gap: 14px; padding: 10px 16px; background: #C2B74B; color: #1a1206; font-weight: 900; letter-spacing: 2px; }
-  header input { font: inherit; padding: 4px 8px; border: none; border-radius: 4px; width: 220px; }
-  header .dot { width: 12px; height: 12px; border-radius: 50%; background: #cc3a3a; box-shadow: 0 0 8px #cc3a3a; }
-  header .dot.on { background: #6cdf4a; box-shadow: 0 0 8px #6cdf4a; }
+  header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 10px 16px; background: #C2B74B; color: #1a1206; font-weight: 900; letter-spacing: 2px; }
+  header label { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; }
+  header input { font: 12px 'Courier New', monospace; padding: 5px 8px; border: none; border-radius: 4px; width: 150px; font-weight: 400; }
+  header input.sm { width: 62px; } header input.md { width: 104px; }
+  header button { font: bold 11px sans-serif; letter-spacing: 1px; text-transform: uppercase; border: none; border-radius: 5px; padding: 6px 11px; cursor: pointer; background: #1a1206; color: #ffcf6b; }
+  header button:hover { filter: brightness(1.3); }
+  header .dot { width: 12px; height: 12px; border-radius: 50%; background: #6b6b6b; box-shadow: 0 0 8px currentColor; color: #6b6b6b; }
+  header .dot.on { background: #6cdf4a; color: #6cdf4a; } header .dot.err { background: #e33; color: #e33; }
   header .sp { flex: 1; }
-  header small { font-weight: 400; letter-spacing: 0; opacity: .8; }
+  header .count { background: #1a1206; color: #C2B74B; padding: 2px 8px; border-radius: 8px; }
+  .status { padding: 6px 16px; background: #140f06; font: 11px 'Courier New', monospace; color: #8a7430; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .status b.ok { color: #6cdf4a; } .status b.warn { color: #ffd400; } .status b.bad { color: #ff6a6a; }
   table { width: 100%; border-collapse: collapse; }
   th, td { text-align: left; padding: 5px 16px; border-bottom: 1px solid #1c1810; vertical-align: top; }
   th { position: sticky; top: 0; background: #140f06; color: #C2B74B; letter-spacing: 1px; }
@@ -24,20 +32,21 @@
   td.val { color: #ffe9b0; white-space: pre-wrap; word-break: break-word; }
   td.age { color: #8a7430; text-align: right; white-space: nowrap; }
   .empty { padding: 40px; text-align: center; color: #6a5a30; letter-spacing: 1px; }
-  .count { color: #1a1206; background: #1a1206; }
-  header .count { background: #1a1206; color: #C2B74B; padding: 2px 8px; border-radius: 8px; }
 </style>
 </head>
 <body>
 <header>
   <span class="dot" id="dot"></span>
-  <span>TWIST MQTT TREE</span>
-  <input id="host" placeholder="host[:port]" />
-  <button id="go">CONNECT</button>
+  <span>SPOG MQTT TREE</span>
+  <label>Host <input id="host" placeholder="broker host" /></label>
+  <label>Port <input id="port" class="sm" placeholder="9001" /></label>
+  <label>User <input id="user" class="md" placeholder="username" /></label>
+  <label>Pass <input id="pass" type="password" class="md" placeholder="password" /></label>
+  <button id="go">Save &amp; Connect</button>
   <span class="sp"></span>
   <span class="count" id="count">0</span>
-  <small id="url"></small>
 </header>
+<div class="status" id="status">— not connected —</div>
 <table>
   <thead><tr><th style="width:44%">TOPIC (Twist/…)</th><th>PAYLOAD</th><th style="width:70px">AGE</th></tr></thead>
   <tbody id="rows"><tr><td colspan="3" class="empty">— not connected —</td></tr></tbody>
@@ -47,49 +56,76 @@
   const ROOT = 'Twist';
   const q = new URLSearchParams(location.search);
   const store = new Map();      // topic -> { payload, ts }
-  let client = null;
+  let client = null, state = 'idle', lastErr = '';
 
   const dot = document.getElementById('dot');
   const rows = document.getElementById('rows');
   const count = document.getElementById('count');
-  const urlEl = document.getElementById('url');
+  const statusEl = document.getElementById('status');
   const hostInput = document.getElementById('host');
+  const portInput = document.getElementById('port');
+  const userInput = document.getElementById('user');
+  const passInput = document.getElementById('pass');
+  // Pre-fill every field: host from ?mqtt= / storage, the rest from storage or defaults.
   hostInput.value = q.get('mqtt') || localStorage.getItem('twistMqtt') || '';
+  portInput.value = localStorage.getItem('twistMqttPort') || '9001';
+  userInput.value = localStorage.getItem('twistMqttUser') || 'guest';
+  passInput.value = localStorage.getItem('twistMqttPass') || 'guest';
 
-  function resolveUrl(raw) {
-    raw = (raw || '').trim();
-    if (!raw) return null;
-    if (/^wss?:\/\//i.test(raw)) return raw;
+  const STATE_LABEL = { idle: 'idle', connecting: 'connecting…', connected: 'connected', reconnecting: 'reconnecting…', offline: 'offline', closed: 'disconnected', error: 'error' };
+  function escapeHtml(s) { return String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+  function errMsg(e) { if (!e) return 'connection refused (check host, port, and that the broker exposes a WebSocket listener)'; if (typeof e === 'string') return e; return e.message ? String(e.message) : String(e); }
+
+  function resolveUrl(host, port) {
+    host = (host || '').trim();
+    if (!host) return null;
+    if (/^wss?:\/\//i.test(host)) return host;
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    return raw.includes(':') ? `${proto}://${raw}` : `${proto}://${raw}:9001`;
+    return host.includes(':') ? `${proto}://${host}` : `${proto}://${host}:${port || 9001}`;
+  }
+
+  function setStatus() {
+    const url = resolveUrl(hostInput.value, portInput.value) || '(no host set)';
+    const cls = state === 'connected' ? 'ok' : (state === 'error' || state === 'offline') ? 'bad' : 'warn';
+    const err = state === 'error' && lastErr ? ' — ' + escapeHtml(lastErr) : '';
+    const sub = state === 'connected' ? ` · subscribed ${ROOT}/# · ${store.size} topic${store.size === 1 ? '' : 's'}` : '';
+    statusEl.innerHTML = `→ ${escapeHtml(url)} · <b class="${cls}">${STATE_LABEL[state]}${err}</b>${sub}`;
+    dot.className = 'dot' + (state === 'error' ? ' err' : state === 'connected' ? ' on' : '');
   }
 
   function render() {
     count.textContent = store.size;
-    if (!store.size) { rows.innerHTML = '<tr><td colspan="3" class="empty">— no retained topics yet —</td></tr>'; return; }
+    if (!store.size) { rows.innerHTML = `<tr><td colspan="3" class="empty">${state === 'connected' ? '— no retained topics yet —' : '— not connected —'}</td></tr>`; setStatus(); return; }
     const now = Date.now();
-    const keys = [...store.keys()].sort();
-    rows.innerHTML = keys.map((k) => {
+    rows.innerHTML = [...store.keys()].sort().map((k) => {
       const { payload, ts } = store.get(k);
       const rel = k.startsWith(ROOT + '/') ? k.slice(ROOT.length + 1) : k;
       const age = Math.max(0, Math.round((now - ts) / 1000));
-      return `<tr><td class="topic">${rel}</td><td class="val">${escapeHtml(payload)}</td><td class="age">${age}s</td></tr>`;
+      return `<tr><td class="topic">${escapeHtml(rel)}</td><td class="val">${escapeHtml(payload)}</td><td class="age">${age}s</td></tr>`;
     }).join('');
+    setStatus();
   }
-  function escapeHtml(s) { return String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+
+  function persist() {
+    localStorage.setItem('twistMqtt', hostInput.value.trim());
+    localStorage.setItem('twistMqttPort', portInput.value.trim() || '9001');
+    localStorage.setItem('twistMqttUser', userInput.value);
+    localStorage.setItem('twistMqttPass', passInput.value);
+  }
 
   function connect() {
-    const url = resolveUrl(hostInput.value);
-    if (!url) { alert('Enter a broker host, e.g. 44.44.44.152'); return; }
-    localStorage.setItem('twistMqtt', hostInput.value.trim());
-    urlEl.textContent = url;
+    const url = resolveUrl(hostInput.value, portInput.value);
+    if (!url) { state = 'idle'; statusEl.textContent = '→ enter a broker host, then Save & Connect'; return; }
+    persist();
+    state = 'connecting'; lastErr = ''; setStatus();
     if (client) { try { client.end(true); } catch (e) {} }
     store.clear(); render();
-    client = mqtt.connect(url, { username: 'guest', password: 'guest', keepalive: 60, reconnectPeriod: 5000 });
-    client.on('connect', () => { dot.classList.add('on'); client.subscribe(ROOT + '/#'); });
-    client.on('reconnect', () => dot.classList.remove('on'));
-    client.on('close', () => dot.classList.remove('on'));
-    client.on('offline', () => dot.classList.remove('on'));
+    client = mqtt.connect(url, { username: userInput.value, password: passInput.value, keepalive: 60, reconnectPeriod: 5000, connectTimeout: 15000 });
+    client.on('connect', () => { state = 'connected'; client.subscribe(ROOT + '/#'); render(); });
+    client.on('reconnect', () => { state = 'reconnecting'; setStatus(); });
+    client.on('close', () => { if (state !== 'error') state = 'closed'; setStatus(); });
+    client.on('offline', () => { state = 'offline'; setStatus(); });
+    client.on('error', (e) => { state = 'error'; lastErr = errMsg(e); setStatus(); });
     client.on('message', (topic, payload) => {
       let txt = new TextDecoder().decode(payload);
       try { txt = JSON.stringify(JSON.parse(txt)); } catch (e) {}
@@ -99,8 +135,9 @@
   }
 
   document.getElementById('go').addEventListener('click', connect);
-  hostInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
-  setInterval(render, 1000);   // refresh the age column
+  [hostInput, portInput, userInput, passInput].forEach((inp) => inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); }));
+  setInterval(render, 1000);   // refresh the age column + status
+  setStatus();
   if (hostInput.value) connect();
 </script>
 </body>
