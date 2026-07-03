@@ -15,7 +15,13 @@ function buildId(): { short: string; full: string } {
   let hash = '', dirty = false;
   const git = (a: string): string => execSync(a, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
   try { hash = git('git rev-parse --short HEAD'); } catch { /* not a repo */ }
-  try { dirty = !!git('git status --porcelain'); } catch { /* ignore */ }
+  try {
+    // Ignore vite's own temp config file (`vite.config.ts.timestamp-*.mjs`), which
+    // exists in the tree while this very config is being evaluated — else every
+    // build would falsely read as dirty.
+    dirty = git('git status --porcelain').split('\n')
+      .some((l) => l.trim() && !/vite\.config\.[jt]s\.timestamp-/.test(l));
+  } catch { /* ignore */ }
   return {
     short: [ver, `${date} ${hm}Z`].filter(Boolean).join(' · '),
     full: [ver, `${date} ${hm} UTC`, hash && `git ${hash}${dirty ? ' (uncommitted)' : ''}`].filter(Boolean).join(' · '),

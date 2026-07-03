@@ -4,3 +4,6 @@ dist/
 .DS_Store
 .vite/
 __pycache__/
+
+# vite temp config file (created during config eval)
+vite.config.*.timestamp-*
