@@ -76,7 +76,7 @@ export function initAuthPanel(): void {
   // login overlay (role picker)
   const login = document.createElement('div');
   login.className = 'au-overlay';
-  login.innerHTML = `<div class="au-box"><h2>SINGLE PANE OF GLASS</h2><p>SELECT ROLE · context-aware scope loads for the live production</p><div class="au-roles"></div></div>`;
+  login.innerHTML = `<div class="au-box"><h2>SPOG · SINGLE PANE OF GLASS</h2><p>SELECT ROLE · context-aware scope loads for the live production</p><div class="au-roles"></div></div>`;
   const rolesHost = login.querySelector<HTMLElement>('.au-roles')!;
   const roleCards: HTMLElement[] = [];
   ROLES.forEach((r) => {

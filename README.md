@@ -1,4 +1,8 @@
-# TwistRouting — Anthony's Media Workflow Matrix
+# SPOG — Single Pane Of Glass
+
+**SPOG** (Single Pane Of Glass) is the overall system: one operator surface for an entire
+multi-floor production facility. Its connection points — where a source meets a destination —
+are called **twists**.
 
 A browser-based **broadcast signal routing visualizer**, dressed in full LCARS regalia.
 It maps the living signal flow of a multi-floor production facility — every stage box,
