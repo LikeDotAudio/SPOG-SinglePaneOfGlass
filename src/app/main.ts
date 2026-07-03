@@ -21,6 +21,7 @@ import { initClock } from '../ui/console/clock.js';
 import { showSchedule } from '../ui/console/schedule.js';
 import { initAuthPanel, applyScope } from '../ui/console/auth-panel.js';
 import { initRouterView } from '../ui/console/router-view.js';
+import { initChatDock } from '../ui/console/chat-dock.js';
 import { initCaptainsLog } from '../ui/console/captains-log.js';
 import { initSourceFilter } from '../ui/console/source-filter.js';
 import { initPortals } from '../ui/console/portals.js';
@@ -190,13 +191,15 @@ async function buildConsole(): Promise<void> {
   const footer = el('footer', { class: 'app-footer' }, [el('div', { id: 'production-tabs', class: 'tabs-header' })]);
   document.body.append(container, footer);
   // Footer chrome: the by-line credit link + the radial destination selector (◎).
-  document.body.append(el('a', {
+  // The credit link shares a row with the relocated "1990s VIEW" launcher, which
+  // router-view mounts into `.credit-row` (freeing the bottom corner for chat).
+  document.body.append(el('div', { class: 'credit-row' }, [el('a', {
     class: 'credit-button', href: 'https://like.audio/20260627/twist-like-audio/',
     target: '_blank', rel: 'noopener',
   }, [
     'CREATED BY ANTHONY PETER KUZUB  -  WWW.LIKE.AUDIO',
     el('span', { class: 'app-version', title: BUILD.full }, [BUILD.short]),
-  ]));
+  ])]));
 
   Footer.init(footer.querySelector('#production-tabs') as HTMLElement, content);
   await Promise.all([
@@ -209,6 +212,8 @@ async function buildConsole(): Promise<void> {
   initAuthPanel();
   // The "1990s VIEW" launcher — the Minesweeper-styled router crosspoint grid.
   initRouterView();
+  // Production chat dock — bottom corner opposite the sources (the old 1990s slot).
+  initChatDock();
   // Remaining LCARS chrome. Order: log button (top of sources) → filter (below it)
   // → portals pool (kept last) → mission bar + edge pulse (body-level).
   initCaptainsLog();

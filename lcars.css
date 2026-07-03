@@ -268,8 +268,9 @@
            chirality — see .lcp-strip below), mirroring the classic right-edge nudge. */
         html[data-chirality="right"] .ptp-clock     { right: auto !important; left: 34px !important; }
         html[data-chirality="right"] .mq-chip        { right: auto !important; left: calc(48px + var(--ptp-clock-w, 180px)) !important; }
-        html[data-chirality="right"] .rv-btn         { right: auto !important; left: 34px !important; }
-        html[data-chirality="right"] .credit-button  { right: auto !important; left: 34px !important; }
+        html[data-chirality="right"] .chat-launch    { right: auto !important; left: 34px !important; }
+        html[data-chirality="right"] .chat-panel     { right: auto !important; left: 34px !important; }
+        html[data-chirality="right"] .credit-row     { right: auto !important; left: 34px !important; }
         html[data-chirality="right"] .mqt            { right: auto !important; left: 34px !important; }
         html[data-chirality="right"] .chir-toggle    { right: auto !important; left: calc(140px + var(--ptp-clock-w, 180px)) !important; }
 
@@ -380,11 +381,23 @@
         .program-body { padding-right: 60px; }
 
         /* Credit pill pinned to the bottom-right corner. */
-        .credit-button {
+        /* The credit line + the relocated 1990s-VIEW button share this fixed row,
+           freeing the bottom corner (was the 1990s slot) for the chat launcher. */
+        .credit-row {
             position: fixed;
             bottom: 10px;
             right: 14px;
             z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .credit-row .rv-btn {
+            position: static;
+            padding: 6px 14px;
+            box-shadow: inset 4px 0 0 #2a8b91;
+        }
+        .credit-button {
             display: inline-block;
             background: var(--program-color, #646DCC);
             color: #000;

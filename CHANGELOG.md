@@ -2,6 +2,26 @@
 
 All notable changes to TwistRouting are recorded here.
 
+## [v101] — 2026-07-03
+
+### Added — license & terms (source-available, personal-use)
+- **`LICENSE.md`** — a source-available, personal-use license: the source is open
+  to read, study, run locally, and modify for personal use, but **commercial use
+  and broadcast use are prohibited**, and any deployment beyond a single private
+  machine requires **Anthony Kuzub's prior written consent**. A separate absolute
+  clause forbids **deployment in/by/for any publicly funded or national
+  broadcaster** — non-waivable, no consent available.
+- **`TERMS-OF-SERVICE.md`** — a conduct companion to the license restating the
+  personal-use / no-commercial / no-broadcast / consent-to-deploy rules plus
+  no-affiliation, not-for-operational-reliance, and warranty/liability disclaimers.
+- **README "License & terms — personal use only" section** (`README.md`) — a
+  ✅/❌/🔒/⛔ summary linking to both documents.
+
+### Changed
+- **Internal audit notes untracked** (`.gitignore`) — the `docs/Audit ` folder is
+  now git-ignored (escaped trailing-space rule) and its files removed from the
+  repo (kept locally on disk), so working notes no longer ship in the tree.
+
 ## [v100] — 2026-07-03
 
 ### Added

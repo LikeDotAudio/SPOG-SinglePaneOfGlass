@@ -405,7 +405,9 @@ export function initRouterView(): void {
     btn.className = 'rv-btn'; btn.textContent = '1990s VIEW';
     btn.title = 'Router crosspoint matrix (opens #/1990s)';
     btn.addEventListener('click', open);
-    document.body.appendChild(btn);
+    // Dock beside the CREATED-BY credit line when present, else fall back to the
+    // body corner. Moving it here frees the bottom corner for the chat launcher.
+    (document.querySelector('.credit-row') ?? document.body).appendChild(btn);
   }
   window.addEventListener('hashchange', onHashChange);
   if (parseHash()) { build(); void show(parseHash()); }

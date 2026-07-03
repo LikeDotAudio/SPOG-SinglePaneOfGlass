@@ -112,7 +112,11 @@ const plugin: EditorPlugin = {
 
       const update = (): void => {
         const c = S.channels[id];
-        if (g) drawSegString(g, W, H, engine.displayString(id), 'seg', 'red');
+        // Blink the 1st colon at ≤10s left, the 2nd at ≤5s left (down count).
+        const rem = engine.secondsRemaining(id);
+        const on = Math.floor(performance.now() / 350) % 2 === 0;
+        const sep: boolean[] = [rem <= 10 ? on : true, rem <= 5 ? on : true];
+        if (g) drawSegString(g, W, H, engine.displayString(id), 'seg', 'red', '#000', sep);
         cvs.style.opacity = String(0.42 + (S.brightness / 14) * 0.58);
         dir.textContent = c.direction === 'up' ? '▲ UP' : '▼ DN';
         run.textContent = c.running ? '▶' : '‖'; run.classList.toggle('hot', c.running);

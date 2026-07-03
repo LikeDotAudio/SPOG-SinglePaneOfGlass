@@ -61,10 +61,14 @@ function advance(ch: string, dw: number, gap: number): number {
   return dw + gap;
 }
 
-/** Render `str` centered in a W×H canvas context, in the chosen font + colour. */
+/**
+ * Render `str` centered in a W×H canvas context, in the chosen font + colour.
+ * `sepVisible` optionally controls each separator (':' or '.') in order — pass
+ * `false` to hide one this frame (used for the countdown blink); omitted = all on.
+ */
 export function drawSegString(
   g: CanvasRenderingContext2D, W: number, H: number, str: string,
-  font: SegFont, color: SegColor, bg = '#000',
+  font: SegFont, color: SegColor, bg = '#000', sepVisible?: boolean[],
 ): void {
   const col = COLORS[color];
   g.clearRect(0, 0, W, H);
@@ -72,11 +76,17 @@ export function drawSegString(
 
   if (font === 'arial') {
     const dh = H * 0.62;
+    // Blink: blank any hidden separator with a space so the layout doesn't shift.
+    let shown = str;
+    if (sepVisible) {
+      let si = 0;
+      shown = [...str].map((ch) => (ch === ':' || ch === '.') ? (sepVisible[si++] === false ? ' ' : ch) : ch).join('');
+    }
     g.font = `800 ${Math.round(dh)}px Arial, Helvetica, sans-serif`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillStyle = col.on;
     g.shadowColor = col.glow; g.shadowBlur = color === 'red' ? H * 0.06 : 0;
-    g.fillText(str, W / 2, H / 2 + H * 0.02);
+    g.fillText(shown, W / 2, H / 2 + H * 0.02);
     g.shadowBlur = 0;
     return;
   }
@@ -89,17 +99,22 @@ export function drawSegString(
   for (const ch of str) total += advance(ch, dw, gap);
   total -= gap;
   let x = (W - total) / 2;
+  let sepIdx = 0;
   for (const ch of str) {
-    if (ch === ':') {
-      const cx = x + (dw * 0.5) / 2, rr = dh * 0.075;
-      g.save(); g.fillStyle = col.on; g.shadowColor = col.glow; g.shadowBlur = dh * 0.09;
-      g.beginPath(); g.arc(cx, y + dh * 0.34, rr, 0, Math.PI * 2); g.fill();
-      g.beginPath(); g.arc(cx, y + dh * 0.66, rr, 0, Math.PI * 2); g.fill();
-      g.restore();
-    } else if (ch === '.') {
-      const cx = x + (dw * 0.5) / 2, rr = dh * 0.075;
-      g.save(); g.fillStyle = col.on; g.shadowColor = col.glow; g.shadowBlur = dh * 0.09;
-      g.beginPath(); g.arc(cx, y + dh - rr, rr, 0, Math.PI * 2); g.fill(); g.restore();
+    if (ch === ':' || ch === '.') {
+      const show = sepVisible ? sepVisible[sepIdx] !== false : true;
+      sepIdx++;
+      if (show) {
+        const cx = x + (dw * 0.5) / 2, rr = dh * 0.075;
+        g.save(); g.fillStyle = col.on; g.shadowColor = col.glow; g.shadowBlur = dh * 0.09;
+        if (ch === ':') {
+          g.beginPath(); g.arc(cx, y + dh * 0.34, rr, 0, Math.PI * 2); g.fill();
+          g.beginPath(); g.arc(cx, y + dh * 0.66, rr, 0, Math.PI * 2); g.fill();
+        } else {
+          g.beginPath(); g.arc(cx, y + dh - rr, rr, 0, Math.PI * 2); g.fill();
+        }
+        g.restore();
+      }
     } else {
       segDigit(g, x, y, dw, dh, ch, col);
     }

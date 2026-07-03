@@ -29,6 +29,7 @@ export interface Channel {
   showInput: boolean;       // INPUT: overlay the reference timecode
   returnToInput: boolean;
   matchFired: boolean;
+  overtime: boolean;        // a down count reached 0 and is now counting UP (over the target)
   // per-keypad interaction state
   entry: string;
   entering: boolean;
@@ -61,7 +62,7 @@ export interface EngineHooks {
 
 const mkChannel = (): Channel => ({
   value: 0, direction: 'down', format: 'hms', running: false, blank: false,
-  followBuffer: [], showInput: false, returnToInput: false, matchFired: false,
+  followBuffer: [], showInput: false, returnToInput: false, matchFired: false, overtime: false,
   entry: '', entering: false, presetArmed: false, presetMode: null, calc: null,
   shift: false, status: 'READY',
 });
@@ -99,12 +100,25 @@ export class TimerEngine {
     return ((h * 3600 + m * 60 + s) * this.state.fps) + Math.floor(ms / 1000 * this.state.fps);
   }
 
-  /** The 6-digit string to show for a channel (dashes / input / count). */
+  /** The 6-digit string to show for a channel (dashes / input / count).
+      A leading "−" marks a DOWN count — the value is travelling from a larger to a
+      smaller number. It drops once the count laps past zero into OVERTIME (which
+      then counts UP, over the target) and whenever the INPUT reference is shown. */
   displayString(id: ChanId): string {
     const c = this.ch(id);
     if (c.blank && !c.entering) return '--:--:--';
     const val = c.showInput ? this.inputFrames() : c.value;
-    return formatValue(val, c.format, this.state.fps, !this.state.leadingZero);
+    const s = formatValue(val, c.format, this.state.fps, !this.state.leadingZero);
+    // Actively counting down (running, down direction, not yet lapped into overtime).
+    const countingDown = c.running && c.direction === 'down' && !c.overtime;
+    return countingDown && !c.showInput ? '-' + s : s;
+  }
+
+  /** Seconds remaining on a live down count (Infinity if not counting down). */
+  secondsRemaining(id: ChanId): number {
+    const c = this.ch(id);
+    if (!c.running || c.direction !== 'down' || c.overtime || c.blank || c.showInput) return Infinity;
+    return c.value / this.state.fps;
   }
 
   // ======================================================================
@@ -122,14 +136,14 @@ export class TimerEngine {
     else { c.calc = null; }
     this.changed(id, 'CLEAR');
   }
-  clearAll(id: ChanId): void { const c = this.ch(id); c.value = 0; c.blank = true; c.running = false; c.entry = ''; c.entering = false; c.calc = null; this.changed(id, 'CLR ALL'); }
+  clearAll(id: ChanId): void { const c = this.ch(id); c.value = 0; c.blank = true; c.running = false; c.overtime = false; c.entry = ''; c.entering = false; c.calc = null; this.changed(id, 'CLR ALL'); }
 
   // ======================================================================
   // Group B — transport
   // ======================================================================
   private commitEntry(id: ChanId): void {
     const c = this.ch(id);
-    if (c.entering) { c.value = parseEntry(c.entry, c.format, this.state.fps); c.blank = false; }
+    if (c.entering) { c.value = parseEntry(c.entry, c.format, this.state.fps); c.blank = false; c.overtime = false; }
     c.entry = ''; c.entering = false;
   }
 
@@ -175,7 +189,7 @@ export class TimerEngine {
     if (c.presetArmed) { const s = c.shift; this.selectPreset(id, n + (s ? 10 : 0)); if (s) c.shift = false; return; }
     if (c.shift) { c.shift = false; return this.specialFn(id, n); }
     c.entry = (c.entry + String(n)).slice(-6);
-    c.entering = true; c.blank = false; c.value = parseEntry(c.entry, c.format, this.state.fps);
+    c.entering = true; c.blank = false; c.overtime = false; c.value = parseEntry(c.entry, c.format, this.state.fps);
     this.changed(id, 'ENTRY ' + this.displayString(id));
   }
 
@@ -195,20 +209,20 @@ export class TimerEngine {
       this.changed(id, `STORED P${slot}`);
     } else {
       const p = this.state.presets[slot];
-      if (p) { c.value = p.frames; c.direction = p.direction; c.blank = false; this.changed(id, `RECALL P${slot}`); }
+      if (p) { c.value = p.frames; c.direction = p.direction; c.blank = false; c.overtime = false; this.changed(id, `RECALL P${slot}`); }
       else this.changed(id, `P${slot} EMPTY`);
     }
     c.presetArmed = false; c.presetMode = null;
   }
   storePreset(id: ChanId, slot: number): void { const c = this.ch(id); this.commitEntry(id); this.state.presets[slot] = { frames: c.value, direction: c.direction }; this.changed(id, `STORED P${slot}`); }
-  recallPreset(id: ChanId, slot: number): void { const p = this.state.presets[slot]; if (p) { const c = this.ch(id); c.value = p.frames; c.direction = p.direction; c.blank = false; this.changed(id, `RECALL P${slot}`); } }
+  recallPreset(id: ChanId, slot: number): void { const p = this.state.presets[slot]; if (p) { const c = this.ch(id); c.value = p.frames; c.direction = p.direction; c.blank = false; c.overtime = false; this.changed(id, `RECALL P${slot}`); } }
 
   /** Countdown-to-end-of-program: value = end − live input TC, auto down-start. */
   countdownToEnd(id: ChanId): void {
     const c = this.ch(id);
     const end = c.entering ? parseEntry(c.entry, c.format, this.state.fps) : c.value;
     c.value = calc(end, '-', this.inputFrames(), this.state.fps);
-    c.direction = 'down'; c.blank = false; c.running = true; c.showInput = false;
+    c.direction = 'down'; c.blank = false; c.running = true; c.showInput = false; c.overtime = false;
     c.entry = ''; c.entering = false;
     this.hooks.onLog(`Timer: BACKTIME to ${formatValue(end, c.format, this.state.fps)} — counting down ${this.displayString(id)} on ${id}`);
     this.changed(id, 'BACKTIME');
@@ -281,7 +295,11 @@ export class TimerEngine {
       const c = this.state.channels[id];
       if (!c.running) continue;
       dirty = true;
-      if (c.direction === 'up') {
+      if (c.overtime) {
+        // Past zero: carry over and count UP (over-time). No "−" here — the minus
+        // marks the DOWN phase; overtime is over-the-target and climbs.
+        c.value = Math.min(c.value + df, maxFrames(this.state.fps) - 1);
+      } else if (c.direction === 'up') {
         c.value = advance(c.value, 'up', df, this.state.fps);
       } else {
         c.value -= df;
@@ -289,7 +307,7 @@ export class TimerEngine {
           for (const g of this.state.gpiOuts) if (g.armed && g.when === 'end' && g.chan === id) this.hooks.onGpi(g.port, id, 'end');
           if (c.followBuffer.length) { c.value = c.followBuffer.shift()!; }
           else if (c.returnToInput) { c.value = 0; c.running = false; c.showInput = true; this.hooks.onLog(`Timer: chan ${id} returned to INPUT`); }
-          else { c.value = 0; c.running = false; this.hooks.onLog(`Timer: chan ${id} reached 00:00:00`); }
+          else { c.value = 0; c.overtime = true; this.hooks.onLog(`Timer: chan ${id} hit 00:00:00 — counting OVER`); }
         }
       }
       for (const g of this.state.gpiOuts) {
