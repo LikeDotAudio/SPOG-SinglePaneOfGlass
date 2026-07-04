@@ -8,7 +8,7 @@
 import type { SceneDef, SwitcherDef } from '../../model/index.js';
 import { applyPreset, capturePreset, type MEState } from './me.js';
 
-export interface SwitcherState { mes: MEState[]; dsks: boolean[]; }
+export interface SwitcherState { mes: MEState[]; dsks: boolean[]; auxes: number[]; }
 
 const LS_KEY = (twist: string): string => `twist.vm.scenes.${twist}`;
 
@@ -28,6 +28,7 @@ export function captureScene(state: SwitcherState, id: string, name: string): Sc
     id, name,
     mes: state.mes.map((me, i) => capturePreset(me, `${id}-me${i + 1}`, `ME${i + 1}`)),
     dsks: [...state.dsks],
+    auxes: [...state.auxes],
   };
 }
 
@@ -36,4 +37,5 @@ export function captureScene(state: SwitcherState, id: string, name: string): Sc
 export function recallScene(state: SwitcherState, scene: SceneDef, def: SwitcherDef): void {
   scene.mes.forEach((p, i) => { if (state.mes[i]) applyPreset(state.mes[i]!, p, def); });
   scene.dsks.forEach((on, i) => { if (i < state.dsks.length) state.dsks[i] = on; });
+  if (scene.auxes) scene.auxes.forEach((src, i) => { if (i < state.auxes.length) state.auxes[i] = src; });
 }

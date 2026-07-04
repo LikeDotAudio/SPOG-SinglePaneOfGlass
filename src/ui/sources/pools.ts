@@ -412,6 +412,7 @@ export function renderStreamsPool(data: SourceLeaf, container: HTMLElement): voi
 export function inferPoolKind(data: SourceLeaf | null | undefined): PoolKind {
   if (!data || typeof data !== 'object') return 'video';
   if (Array.isArray(data.players)) return 'playout';
+  if (data.type === 'wireless-mic' || data.type === 'wireless-controller') return 'audio';
   if ((data.outputs && typeof data.outputs === 'object') || Array.isArray(data.boxes)) return 'productions';
   if (Array.isArray(data.streams)) return 'streams';
   const ec = (data.extraClass || '').toLowerCase();
@@ -430,10 +431,26 @@ export function inferPoolKind(data: SourceLeaf | null | undefined): PoolKind {
 }
 
 export function renderSourceLeaf(data: SourceLeaf, container: HTMLElement, kind: PoolKind, color: Hex): void {
-  if (kind === 'playout') return renderPlayoutPool(data, container);
-  if (kind === 'productions') return renderProductionInputs(data, container);
-  if (kind === 'streams') return renderStreamsPool(data, container);
-  if (kind === 'person') return renderPersonPool(data, container, color);
-  if (kind === 'audio') return renderAudioPool(data, container, color);
-  return renderVideoPool(data, container);
+  const countBefore = container.children.length;
+  if (kind === 'playout') renderPlayoutPool(data, container);
+  else if (kind === 'productions') renderProductionInputs(data, container);
+  else if (kind === 'streams') renderStreamsPool(data, container);
+  else if (kind === 'person') renderPersonPool(data, container, color);
+  else if (kind === 'audio') renderAudioPool(data, container, color);
+  else renderVideoPool(data, container);
+
+  const CAP_MAP: Record<PoolKind, string> = {
+    audio: 'audio comms switch route arrange',
+    video: 'switch route shade gfx arrange',
+    person: 'audio comms switch route shade arrange',
+    playout: 'switch route arrange',
+    productions: 'switch route arrange',
+    streams: 'switch route view arrange',
+  };
+
+  for (let i = countBefore; i < container.children.length; i++) {
+    const el = container.children[i] as HTMLElement;
+    const caps = CAP_MAP[kind];
+    if (caps) el.dataset.cap = caps;
+  }
 }

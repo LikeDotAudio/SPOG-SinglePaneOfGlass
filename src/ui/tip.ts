@@ -72,6 +72,9 @@ function hide(): void {
 const bound = new WeakSet<HTMLElement>();
 const content = new WeakMap<HTMLElement, { html: string; aria: string }>();
 
+let delayTimer: ReturnType<typeof setTimeout> | null = null;
+function clearDelay() { if (delayTimer) { clearTimeout(delayTimer); delayTimer = null; } }
+
 function attach(target: HTMLElement, html: string, aria: string): void {
   content.set(target, { html, aria });
   target.setAttribute('aria-label', aria);
@@ -79,16 +82,51 @@ function attach(target: HTMLElement, html: string, aria: string): void {
   if (bound.has(target)) return;
   bound.add(target);
   const cur = (): { html: string; aria: string } | undefined => content.get(target);
-  target.addEventListener('mouseenter', (e) => { const c = cur(); if (c) { show(c.html); place(e.clientX, e.clientY); } });
+  
+  target.addEventListener('mouseenter', (e) => { 
+    clearDelay();
+    if (target.closest('.tips-disabled')) {
+      delayTimer = setTimeout(() => {
+        const c = cur(); if (c) { show(c.html); place(e.clientX, e.clientY); }
+      }, 5000);
+      return;
+    }
+    const c = cur(); if (c) { show(c.html); place(e.clientX, e.clientY); } 
+  });
+  
   target.addEventListener('mousemove', (e) => { if (panel?.classList.contains('open')) place(e.clientX, e.clientY); });
-  target.addEventListener('mouseleave', hide);
+  
+  target.addEventListener('mouseleave', () => { clearDelay(); hide(); });
+  
   // Keyboard: if the element is focusable, reading its tip on focus is free a11y.
-  target.addEventListener('focus', () => { const c = cur(); if (c) { show(c.html); const r = target.getBoundingClientRect(); place(r.left, r.bottom); } });
-  target.addEventListener('blur', hide);
+  target.addEventListener('focus', () => { 
+    clearDelay();
+    if (target.closest('.tips-disabled')) {
+      delayTimer = setTimeout(() => {
+        const c = cur(); if (c) { show(c.html); const r = target.getBoundingClientRect(); place(r.left, r.bottom); } 
+      }, 5000);
+      return;
+    }
+    const c = cur(); if (c) { show(c.html); const r = target.getBoundingClientRect(); place(r.left, r.bottom); } 
+  });
+  
+  target.addEventListener('blur', () => { clearDelay(); hide(); });
+  
   // Touch console: tap shows the tip near the finger; it clears on the next tap.
   target.addEventListener('touchstart', (e) => {
-    const c = cur(); const t = e.touches[0];
-    if (c && t) { show(c.html); place(t.clientX, t.clientY); }
+    clearDelay();
+    const t = e.touches[0];
+    if (!t) return;
+    const x = t.clientX, y = t.clientY;
+    if (target.closest('.tips-disabled')) {
+      delayTimer = setTimeout(() => {
+        const c = cur();
+        if (c && !panel?.classList.contains('open')) { show(c.html); place(x, y); }
+      }, 5000);
+      return;
+    }
+    const c = cur();
+    if (c && !panel?.classList.contains('open')) { show(c.html); place(x, y); }
   }, { passive: true });
 }
 

@@ -70,7 +70,7 @@ describe('M/E state machine', () => {
 
 describe('scenes', () => {
   it('whole-switcher round-trip: capture → mutate → recall restores', () => {
-    const state = { mes: [newME(def), newME(def), newME(def)], dsks: [true, false] };
+    const state = { mes: [newME(def), newME(def), newME(def)], dsks: [true, false], auxes: [] };
     state.mes[0]!.pgm = 11;
     const snap = captureScene(state, 's', 'S');
     state.mes[0]!.pgm = 2;

@@ -20,7 +20,7 @@ import { openOverlay } from '../../platform/overlay.js';
 
 export type Vision = 'low' | 'normal' | 'high';
 export type Chroma = 'full' | 'grey' | 'mono';
-export interface ColourScheme { vision: Vision; chroma: Chroma; cvd: string; }
+export interface ColourScheme { vision: Vision; chroma: Chroma; cvd: string; monoHue?: number; }
 
 // ── PALETTES ────────────────────────────────────────────────────────────────
 // Six semantic tokens per palette. `video/audio/program` are the three signal
@@ -56,7 +56,7 @@ const PALETTES: readonly Palette[] = [
 const paletteById = (id: string): Palette => PALETTES.find((p) => p.id === id) ?? PALETTES[0]!;
 
 const KEY = 'twist.colour';
-const DEFAULT: ColourScheme = { vision: 'normal', chroma: 'full', cvd: 'classic' };
+const DEFAULT: ColourScheme = { vision: 'normal', chroma: 'full', cvd: 'classic', monoHue: -8 };
 
 const VISIONS: readonly Vision[] = ['low', 'normal', 'high'];
 const CHROMAS: readonly Chroma[] = ['full', 'grey', 'mono'];
@@ -71,10 +71,13 @@ export function getScheme(): ColourScheme {
   const vision = h.getAttribute('data-vision');
   const chroma = h.getAttribute('data-chroma');
   const cvd = h.getAttribute('data-cvd');
+  const monoHueStr = h.style.getPropertyValue('--mono-hue');
+  const monoHue = monoHueStr ? parseInt(monoHueStr.replace('deg', '')) : undefined;
   return {
     vision: isVision(vision) ? vision : DEFAULT.vision,
     chroma: isChroma(chroma) ? chroma : DEFAULT.chroma,
     cvd: isCvd(cvd) ? cvd! : DEFAULT.cvd,
+    monoHue: monoHue !== undefined && !isNaN(monoHue) ? monoHue : DEFAULT.monoHue,
   };
 }
 
@@ -95,6 +98,9 @@ function paint(s: ColourScheme): void {
   h.setAttribute('data-vision', s.vision);
   h.setAttribute('data-chroma', s.chroma);
   h.setAttribute('data-cvd', s.cvd);
+  if (s.monoHue !== undefined) {
+    h.style.setProperty('--mono-hue', `${s.monoHue}deg`);
+  }
   applyPaletteTokens(s.cvd);
 }
 
@@ -109,6 +115,7 @@ export function applyStoredColourScheme(): void {
         vision: isVision(p.vision ?? null) ? p.vision! : DEFAULT.vision,
         chroma: isChroma(p.chroma ?? null) ? p.chroma! : DEFAULT.chroma,
         cvd: isCvd(p.cvd ?? null) ? p.cvd! : DEFAULT.cvd,
+        monoHue: typeof p.monoHue === 'number' ? p.monoHue : DEFAULT.monoHue,
       };
     }
   } catch { /* private mode / disabled / malformed — fall back to default */ }
@@ -123,7 +130,7 @@ export function setScheme(s: ColourScheme): void {
 }
 
 const sameScheme = (a: ColourScheme, b: ColourScheme): boolean =>
-  a.vision === b.vision && a.chroma === b.chroma && a.cvd === b.cvd;
+  a.vision === b.vision && a.chroma === b.chroma && a.cvd === b.cvd && a.monoHue === b.monoHue;
 
 /** The named presets — each a labelled point in the vision×chroma×palette cube. Glyphs
  *  are monochrome (never colour-dependent), so they read in every mode including mono. */
@@ -136,9 +143,9 @@ const PRESETS: readonly Preset[] = [
   { id: 'highvis', glyph: '☀', label: 'High Visibility', hint: 'Max contrast, glow off, CVD-safe palette',
     scheme: { vision: 'high', chroma: 'full', cvd: 'okabe' } },
   { id: 'grey', glyph: '◑', label: 'Grey', hint: 'Hue removed — shape + luminance carry meaning',
-    scheme: { vision: 'high', chroma: 'grey', cvd: 'classic' } },
+    scheme: { vision: 'high', chroma: 'grey', cvd: 'classic', monoHue: -8 } },
   { id: 'mono', glyph: '▮', label: 'Monochrome', hint: 'Single-hue amber phosphor — the universal fallback',
-    scheme: { vision: 'normal', chroma: 'mono', cvd: 'classic' } },
+    scheme: { vision: 'normal', chroma: 'mono', cvd: 'classic', monoHue: -8 } },
 ];
 
 // The two pure-CSS axes render as segmented controls; the palette gets its own gallery.
@@ -204,6 +211,11 @@ const CSS = `
 .cse-fault{color:var(--state-alarm,#ff3b3b);}
 .cse-ok{color:var(--state-ok,#39d98a);}
 .cse-onair{color:var(--state-onair,#ffaa00);}
+.cse-hue-row{display:flex;align-items:center;gap:16px;margin:0 0 12px;opacity:0.3;pointer-events:none;transition:opacity 0.2s;}
+.cse-hue-row.active{opacity:1;pointer-events:auto;}
+.cse-hue-slider{-webkit-appearance:none;appearance:none;width:160px;height:8px;border-radius:4px;background:linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);outline:none;}
+.cse-hue-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid #2b3d5f;cursor:pointer;}
+.cse-hue-slider::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid #2b3d5f;cursor:pointer;}
 `;
 
 /** Build the editor body: presets, the vision/chroma axes, the palette gallery, and a live preview. */
@@ -249,6 +261,20 @@ function buildEditor(body: HTMLElement): void {
       el('span', { class: 'cse-hint' }, [axis.hint]),
     ]));
   });
+
+  const hueInput = el('input', { class: 'cse-hue-slider', type: 'range', min: '-180', max: '180', step: '1', value: String(getScheme().monoHue ?? -8) }) as HTMLInputElement;
+  const hueRow = el('div', { class: 'cse-hue-row' }, [
+    el('span', { class: 'cse-lab' }, ['Mono Hue']),
+    hueInput,
+    el('span', { class: 'cse-hint' }, ['Adjust phosphor tint (only applies in Mono mode)']),
+  ]);
+  hueInput.addEventListener('input', () => {
+    const s = getScheme();
+    s.monoHue = parseInt(hueInput.value);
+    setScheme(s);
+    sync(); // Sync updates the hint state if needed, though mostly we just want live update
+  });
+  axisSec.append(hueRow);
 
   // ── PALETTE GALLERY ────────────────────────────────────────────────────────
   const palRow = el('div', { class: 'cse-pals' });
@@ -308,6 +334,12 @@ function buildEditor(body: HTMLElement): void {
       btn.setAttribute('aria-pressed', String(on));
       (btn.querySelector('.selmark') as HTMLElement).textContent = on ? '✓' : '';
     }
+    if (cur.chroma === 'mono') {
+      hueRow.classList.add('active');
+    } else {
+      hueRow.classList.remove('active');
+    }
+    hueInput.value = String(cur.monoHue ?? -8);
   }
   sync();
 }

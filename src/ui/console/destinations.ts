@@ -10,8 +10,10 @@ import { DEST_TAB_COLORS, DEST_GROUP_COLORS, paletteAt, rgbAt } from '../palette
 import { stripOrder, monoEmoji, faultTag } from '../sources/format.js';
 import { Footer, type GroupHandle } from './footer.js';
 import { initializeTwists, type OpenEditor } from './matrix.js';
+import { pluginFor } from '../../editors/registry.js';
 import { decorateRoom } from './authoring.js';
 import { mountDestFixtures } from './dest-fixtures.js';
+import { applyScope } from './auth-panel.js';
 
 const twistName = (t: string | TwistConfig): string => (typeof t === 'string' ? t : t.name);
 
@@ -31,6 +33,7 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
   let bigHtml = '';
   pgmTwists.forEach((t, ti) => {
     const name = twistName(t);
+    const plugin = pluginFor(name);
     let cfgAttr = '', rowKey: string | null = null;
     let lcars: string = pColor;
     if (typeof t === 'object') {
@@ -49,7 +52,8 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
     // ride to the editor on the twist element and feed ui/tip's expectation tip.
     const prodTipAttr = pgm.tip ? ` data-prod-tip='${JSON.stringify(pgm.tip).replace(/'/g, '&#39;')}'` : '';
     const prodFloorAttr = pgm.parentName ? ` data-prod-floor="${pgm.parentName.replace(/"/g, '&quot;')}"` : '';
-    const prodAttrs = `data-prod-id="${pgm.id}" data-prod-name="${(titleText || '').replace(/"/g, '&quot;')}"${prodTipAttr}${prodFloorAttr}`;
+    const capAttr = plugin && plugin.requiredCaps ? ` data-cap="${plugin.requiredCaps.join(' ')}"` : '';
+    const prodAttrs = `data-prod-id="${pgm.id}" data-prod-name="${(titleText || '').replace(/"/g, '&quot;')}"${prodTipAttr}${prodFloorAttr}${capAttr}`;
     const matrixId = `${pgm.id}-${name.replace(/\s+/g, '-').toLowerCase()}`;
     const twistHtml = `
       <div class="twist-container${isSmall ? ' monitor-twist' : ''}" data-twist-index="${ti}" ${cfgAttr} ${prodAttrs} style="--lcars-color: ${lcars}; ${sizing}">
@@ -63,14 +67,33 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
     else bigHtml += twistHtml;
   });
 
+  const wrapGroup = (name: string, content: string, extraClass: string = '') => {
+    const count = (content.match(/twist-container/g) || []).length;
+    return `
+      <details class="twist-group ${extraClass}" open style="width: 100%; margin-bottom: 6px; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 4px;">
+        <summary style="cursor: pointer; padding: 4px 8px; font-weight: bold; color: ${pColor}; user-select: none; font-size: 0.85em; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
+          <span style="flex:1;">${name.toUpperCase()} <span style="opacity:0.5; font-weight:normal;">(${count})</span></span>
+        </summary>
+        <div class="monitor-row ${extraClass}" style="margin-top: 8px;">${content}</div>
+      </details>`;
+  };
+
   let html = `
     <div class="program-row${faulted ? ' fault' : ''}" style="--prod-color: ${pColor}; position: relative; overflow: hidden; padding: 0; margin-bottom: 10px; flex: 1 1 auto;">
       <div class="program-title" style="background: ${pColor};">${monoEmoji(titleText)}${titleText}${faulted ? ' ' : ''}${faultTag(pgm.status)}</div>
-      <div class="program-body" style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start;">`;
-  if (rows['cameras']) html += `<div class="monitor-row camera-row">${rows['cameras']}</div>`;
-  if (rows['remotes']) html += `<div class="monitor-row remote-row">${rows['remotes']}</div>`;   // conditioned remotes, directly under the cameras
-  if (bigHtml) html += `<div style="display:flex;flex-wrap:wrap;gap:6px;width:100%;align-items:flex-start;">${bigHtml}</div>`;
-  rowOrder.forEach((k) => { if (k !== 'cameras' && k !== 'remotes') html += `<div class="monitor-row">${rows[k]}</div>`; });
+      <div class="program-body" style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start; width: 100%; padding: 8px;">`;
+  if (rows['cameras']) html += wrapGroup('CAMERAS', rows['cameras'], 'camera-row');
+  if (rows['remotes']) html += wrapGroup('REMOTES', rows['remotes'], 'remote-row');
+  if (bigHtml) {
+    html += `
+      <details class="twist-group" open style="width: 100%; margin-bottom: 6px; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 4px;">
+        <summary style="cursor: pointer; padding: 4px 8px; font-weight: bold; color: ${pColor}; user-select: none; font-size: 0.85em; letter-spacing: 1px;">
+          PRIMARY <span style="opacity:0.5; font-weight:normal;">(${(bigHtml.match(/twist-container/g) || []).length})</span>
+        </summary>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;width:100%;align-items:flex-start;margin-top:8px;">${bigHtml}</div>
+      </details>`;
+  }
+  rowOrder.forEach((k) => { if (k !== 'cameras' && k !== 'remotes') html += wrapGroup(k, rows[k]!); });
   html += `</div></div>`;
   pane.innerHTML = html;
   initializeTwists(pane, openEditor);
@@ -85,6 +108,7 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
   // Authoring affordances (hidden unless EDIT LAYOUT is on); rerender re-runs this
   // render with the mutated Production, so edits paint immediately.
   decorateRoom(pane, pgm, srcUrl, () => renderPrograms(pgm, pane, openEditor, srcUrl));
+  applyScope(pane);
 }
 
 /** Populate a destination category folder: subfolders → nested footer groups, *.json → lazy tabs. */

@@ -34,26 +34,51 @@ function drawFlipCard(g: CanvasRenderingContext2D, x: number, y: number, w: numb
 
 function draw(g: CanvasRenderingContext2D, S: number, c: FaceCtx): void {
   const t = zoneTime(c.z);
-  const groups = c.res === 'hm' ? [pad(t.h), pad(t.m)]
+  const parts = c.res === 'hm' ? [pad(t.h), pad(t.m)]
     : c.res === 'hms' ? [pad(t.h), pad(t.m), pad(t.s)]
       : [pad(t.h), pad(t.m), pad(t.s), pad(frames(t.ms))];
-  const N = groups.length;
+  
+  const N = parts.length * 2;
+  const numColons = parts.length - 1;
   const st = (c.state.flip ??= { cards: [], last: c.now }) as FlipState;
   if (st.cards.length !== N) st.cards = [];
   const dt = Math.max(0, Math.min(200, c.now - st.last)); st.last = c.now;
   g.clearRect(0, 0, S, S);
+  
   const bw = S * 0.96, bh = S * 0.5, bx = (S - bw) / 2, by = (S - bh) / 2;
   g.fillStyle = '#161616'; roundRect(g, bx, by, bw, bh, bh * 0.14); g.fill();
   g.fillStyle = '#7d8ba0'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.font = `700 ${Math.round(S * 0.05)}px 'Courier New',monospace`;
   g.fillText(c.z.label.toUpperCase(), S / 2, by - S * 0.05);
-  const gap = bw * 0.03, cw = (bw - gap * (N + 1)) / N, ch = bh * 0.82, cy = by + (bh - ch) / 2;
-  for (let i = 0; i < N; i++) {
-    let card = st.cards[i];
-    if (!card) { card = { shown: groups[i] ?? '00', from: groups[i] ?? '00', t: 1 }; st.cards[i] = card; }
-    if (card.t >= 1 && card.shown !== groups[i]) { card.from = card.shown; card.shown = groups[i] ?? card.shown; card.t = 0; }
-    else if (card.t < 1) card.t = Math.min(1, card.t + dt / FLIP_MS);
-    drawFlipCard(g, bx + gap + i * (cw + gap), cy, cw, ch, card);
+  
+  const gap = bw * 0.015;
+  const pairGap = bw * 0.06;
+  const cw = (bw - gap * (N + 1 - numColons) - pairGap * numColons) / N;
+  const ch = bh * 0.82, cy = by + (bh - ch) / 2;
+  
+  let cx = bx + gap;
+  let cardIdx = 0;
+  for (let p = 0; p < parts.length; p++) {
+    const part = parts[p]!;
+    for (let d = 0; d < 2; d++) {
+      const char = part[d]!;
+      let card = st.cards[cardIdx];
+      if (!card) { card = { shown: char, from: char, t: 1 }; st.cards[cardIdx] = card; }
+      if (card.t >= 1 && card.shown !== char) { card.from = card.shown; card.shown = char; card.t = 0; }
+      else if (card.t < 1) card.t = Math.min(1, card.t + dt / FLIP_MS);
+      drawFlipCard(g, cx, cy, cw, ch, card);
+      cx += cw + gap;
+      cardIdx++;
+    }
+    if (p < parts.length - 1) {
+      g.fillStyle = '#444';
+      g.beginPath();
+      const cr = Math.min(3, cw * 0.1);
+      g.arc(cx - gap + pairGap/2, cy + ch*0.33, cr, 0, Math.PI*2);
+      g.arc(cx - gap + pairGap/2, cy + ch*0.67, cr, 0, Math.PI*2);
+      g.fill();
+      cx += (pairGap - gap);
+    }
   }
 }
 

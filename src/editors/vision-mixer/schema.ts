@@ -9,7 +9,7 @@
 // data, not a code change).
 
 import type {
-  SwitcherDef, SwitcherInput, DVEPreset, DVEKeyframe, MEPreset, SceneDef, KeyerDef,
+  SwitcherDef, SwitcherInput, DVEPreset, DVEKeyframe, MEPreset, SceneDef, KeyerDef, TransitionKind
 } from '../../model/index.js';
 import type { EditorContext } from '../types.js';
 
@@ -38,32 +38,46 @@ export const ME_PRESETS: MEPreset[] = [
   { id: 'lower-third', name: 'LOWER-THIRD', pgm: 0, pvw: 1, trans: 'MIX', rate: 24, keyers: [key({ on: true, type: 'linear', source: 20 })] },
   { id: 'two-box', name: 'TWO-BOX', pgm: 0, pvw: 1, trans: 'MIX', rate: 24, keyers: [key({ on: true, source: 1, dve: 'pip-tl' }), key({ on: true, source: 2, dve: 'pip-tr' })] },
   { id: 'interview', name: 'INTERVIEW', pgm: 0, pvw: 1, trans: 'MIX', rate: 24, keyers: [key({ on: true, source: 1, dve: 'ots-r' }), key({ on: true, type: 'linear', source: 20 })] },
+  { id: 'quad', name: 'QUAD SPLIT', pgm: 0, pvw: 1, trans: 'MIX', rate: 24, keyers: [key({ on: true, source: 0, dve: 'pip-tl' }), key({ on: true, source: 1, dve: 'pip-tr' }), key({ on: true, source: 2, dve: 'pip-bl' }), key({ on: true, source: 3, dve: 'pip-br' })] },
   { id: 'fullscreen-gfx', name: 'FULLSCREEN GFX', pgm: 21, pvw: 0, trans: 'MIX', rate: 24, keyers: [] },
 ];
 
 /** Starter whole-switcher scenes (plan §7): common show beats. */
 export const SCENES: SceneDef[] = [
-  { id: 'open', name: 'OPEN', mes: [], dsks: [false, false] },
-  { id: 'interview', name: 'INTERVIEW', mes: [], dsks: [true, false] },
-  { id: 'highlight', name: 'HIGHLIGHT', mes: [], dsks: [false, true] },
-  { id: 'break', name: 'BREAK', mes: [], dsks: [false, false] },
-  { id: 'close', name: 'CLOSE', mes: [], dsks: [true, true] },
+  { id: 'open', name: 'OPEN', mes: [], dsks: [false, false, false, false, false, false] },
+  { id: 'interview', name: 'INTERVIEW', mes: [], dsks: [true, false, false, false, false, false] },
+  { id: 'highlight', name: 'HIGHLIGHT', mes: [], dsks: [false, true, false, false, false, false] },
+  { id: 'break', name: 'BREAK', mes: [], dsks: [false, false, false, false, false, false] },
+  { id: 'close', name: 'CLOSE', mes: [], dsks: [true, true, false, false, false, false] },
 ];
 
 /** The canonical complete definition (plan §4). Every field present. */
 export const DEFAULT_SWITCHER: SwitcherDef = {
   inputs: Array.from({ length: 24 }, (_, i): SwitcherInput => ({
-    label: `SW IN ${i + 1}`,
+    label: `SW ${i + 1}`,
     // A realistic default spread: 1-12 cameras/video, 13-18 playout, 19-24 graphics.
     category: i < 12 ? 'video' : i < 18 ? 'program' : 'audio',
   })),
   mes: 3,
   keyersPerMe: 4,
   dsks: [
-    { name: 'DSK 1 · LOWER-THIRD', type: 'linear', source: 20 },
-    { name: 'DSK 2 · LOGO', type: 'luma', source: 21 },
+    { name: 'DSK 1 · GRAPHICS 1', type: 'linear', source: 18 },
+    { name: 'DSK 2 · GRAPHICS 2', type: 'linear', source: 19 },
+    { name: 'DSK 3 · GRAPHICS 3', type: 'linear', source: 20 },
+    { name: 'DSK 4 · GRAPHICS 4', type: 'linear', source: 21 },
+    { name: 'DSK 5 · GRAPHICS 5', type: 'linear', source: 22 },
+    { name: 'DSK 6 · GRAPHICS 6', type: 'linear', source: 23 },
   ],
-  transitions: ['CUT', 'MIX', 'WIPE', 'DVE'],
+  stills: 2,
+  clips: 2,
+  auxes: 4,
+  macros: [],
+  transitions: [
+    'CUT', 'MIX', 'FAM', 'NAM', 'DIP', 
+    'L-WIPE', 'BOX', 'IRIS', 'BARN DOORS', 
+    'CURTAINS', 'MATRIX', 'CLOCK', 'ROTARY', 'STAR WIPE',
+    'DVE PUSH', 'STINGER'
+  ] as TransitionKind[],
   wipePatterns: ['L→R', 'R→L', 'T→B', 'BOX', 'CIRCLE', 'DIAG'],
   dvePresets: DVE_PRESETS,
   mePresets: ME_PRESETS,
@@ -85,10 +99,22 @@ export function resolveDef(ctx: EditorContext): SwitcherDef {
     inputs = DEFAULT_SWITCHER.inputs.map((d, i) =>
       cfg.inputs![i] ? { ...d, label: cfg.inputs![i]! } : d);
   }
-  return {
+
+  const out = {
     ...DEFAULT_SWITCHER,
     ...authored,
-    inputs,
+  };
+  
+  // Append internal stills and clips to the input pool
+  const stills = out.stills ?? DEFAULT_SWITCHER.stills ?? 2;
+  const clips = out.clips ?? DEFAULT_SWITCHER.clips ?? 2;
+  const internalInputs: SwitcherInput[] = [];
+  for (let i = 1; i <= stills; i++) internalInputs.push({ label: `STILL ${i}`, category: 'video' });
+  for (let i = 1; i <= clips; i++) internalInputs.push({ label: `CLIP ${i}`, category: 'video' });
+
+  return {
+    ...out,
+    inputs: [...inputs, ...internalInputs],
     // Preset libraries MERGE (authored extend the starters) rather than replace,
     // so a production adds looks without losing the standard kit.
     dvePresets: mergeById(DEFAULT_SWITCHER.dvePresets, authored?.dvePresets),

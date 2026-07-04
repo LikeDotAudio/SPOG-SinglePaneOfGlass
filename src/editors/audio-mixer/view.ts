@@ -127,12 +127,19 @@ export function renderConsole(host: HTMLElement, ctx: EditorContext): void {
       rot.append(aux);
       strip.append(rot);
 
-      // OPEN button into the full Stage Box Input digital twin for this channel
-      // (legacy called window.openStageBox; here it is a typed context service).
-      const ob = el('button', { class: 'am-pre-open', textContent: '⚙ STAGE BOX' });
+      const isWireless = c.type === 'wireless-mic' || c.type === 'wireless-controller';
+      const ob = el('button', { class: 'am-pre-open', textContent: isWireless ? '⚙ WIRELESS MIC' : '⚙ STAGE BOX' });
+      // The button flashes (am-sens-reveal) when clicked, giving access to parameters
       ob.addEventListener('click', (e) => {
         e.stopPropagation();
-        ctx.services.openStageBox(c.label, c.color as Hex, [c.label]);
+        ob.classList.remove('am-sens-reveal');
+        void ob.offsetWidth;
+        ob.classList.add('am-sens-reveal');
+        if (isWireless) {
+          ctx.services.openWirelessMic?.(c.label, c.color as Hex);
+        } else {
+          ctx.services.openStageBox(c.label, c.color as Hex, [c.label]);
+        }
       });
       strip.append(ob);
 

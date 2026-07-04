@@ -11,6 +11,7 @@ import { AUDIO_POOL_COLORS, SOURCE_POOL_COLORS, paletteAt } from '../palette.js'
 import { slugId, stripOrder, monoEmoji, styleSignalNode } from './format.js';
 import { makeMediaGroup } from './media-group.js';
 import { inferPoolKind, renderSourceLeaf, fillVideoCameras } from './pools.js';
+import { applyScope } from '../console/auth-panel.js';
 
 /** Optional hook fired after a subtree renders (Phase 3 wires drag here). */
 export type RenderedHook = () => void;
@@ -64,6 +65,7 @@ function buildGangCell(data: SourceLeaf, suffix: string, color: string, kind: Po
       sub.draggable = true;
       sub.id = `pool-${node.id}-${slugId(l)}`;
       sub.dataset.origin = data.origin || data.name;
+      if (data.type) sub.dataset.type = data.type;
       sub.textContent = l;
       kids.appendChild(sub);
     });
@@ -74,6 +76,23 @@ function buildGangCell(data: SourceLeaf, suffix: string, color: string, kind: Po
     ctrl.dataset.origin = data.origin || data.name;
     ctrl.textContent = '‹ ⌁ PREAMP CTRL ⌁ ›';
     kids.appendChild(ctrl);
+  }
+
+  // If this audio node has NO children (e.g., a wireless mic without a sub-items array),
+  // make the cell itself the draggable signal node.
+  if (kind === 'audio' && kids.children.length === 1) { // 1 because of PREAMP CTRL
+    node.draggable = true;
+    node.classList.add('signal-node', 'audio');
+    if (data.type) node.dataset.type = data.type;
+    node.dataset.origin = data.origin || data.name;
+    // Remove the kids container and preamp ctrl since the node itself is the feed
+    kids.remove();
+    node.textContent = suffix;
+    styleSignalNode(node, cellColor);
+    if (isFaultStatus(data.status)) {
+      node.classList.add('fault');
+    }
+    return node;
   }
 
   const header = document.createElement('div');
@@ -106,17 +125,32 @@ function buildGangCell(data: SourceLeaf, suffix: string, color: string, kind: Po
 
 function renderGang(container: HTMLElement, word: string, leaves: SourceLeaf[], color: string, kind: PoolKind): void {
   addStyles('source-gang-styles', GANG_CSS);
+  const group = document.createElement('div');
+  group.className = 'input-group gang-group';
   const cap = document.createElement('div');
   cap.className = 'gang-cap'; cap.textContent = word; cap.style.color = color;
-  container.appendChild(cap);
+  group.appendChild(cap);
   const grid = document.createElement('div');
   grid.className = 'gang-grid';
-  container.appendChild(grid);
+  group.appendChild(grid);
   const re = new RegExp('^' + escapeRe(word) + '\\s*', 'i');
   leaves.forEach((d) => {
     const suffix = ((d.name || '').replace(re, '').trim()) || d.name;
     grid.appendChild(buildGangCell(d, suffix, color, kind));
   });
+  
+  const CAP_MAP: Record<PoolKind, string> = {
+    audio: 'audio comms switch route arrange',
+    video: 'switch route shade gfx arrange',
+    person: 'audio comms switch route shade arrange',
+    playout: 'switch route arrange',
+    productions: 'switch route arrange',
+    streams: 'switch route view arrange',
+  };
+  const caps = CAP_MAP[kind];
+  if (caps) group.dataset.cap = caps;
+  
+  container.appendChild(group);
 }
 
 // ---- recursive category tree ------------------------------------------------
@@ -167,6 +201,8 @@ export async function renderSourceTree(
     };
     if (header) header.addEventListener('click', () => { void load(); });
   });
+
+  applyScope(container);
 }
 
 // ---- super-pool shell + panel entry point -----------------------------------
@@ -238,4 +274,5 @@ export async function renderSourcesPanel(panel: HTMLElement, onRendered?: Render
     if (ic) ic.style.transform = 'rotate(0deg)';
   }
   await Promise.all(built.map((b) => renderSourceTree(b.url, b.content, 0, null, null, onRendered)));
+  applyScope(panel);
 }

@@ -41,7 +41,8 @@ function routedFeeds(twistEl: HTMLElement): Feed[] {
     const label = (n.textContent ?? '').trim().split('\n')[0]?.trim() ?? '';
     if (!label) return;
     const color = (n.style.color || n.style.borderColor || getComputedStyle(n).color || '#4d94ff');
-    out.push({ id: n.id || `xp-${i}`, label, color });
+    const type = n.dataset.type;
+    out.push({ id: n.id || `xp-${i}`, label, color, type });
   };
   dz.querySelectorAll<HTMLElement>(':scope > .signal-node').forEach((n, i) => {
     if (n.classList.contains('dropped-group')) {

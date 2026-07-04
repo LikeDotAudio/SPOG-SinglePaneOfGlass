@@ -1,17 +1,9 @@
-// src/editors/audio-positioner — the AUDIO POSITIONER (CMDP · Circular Motion
-// Displacement Potentiometer), a surround/spatial companion to the Monitor
-// Console. Port of Anthony Kuzub's CMDP prototype into the A.8 side build.
-//
-// Every channel routed into the twist is placed on a radial field as a fader:
-//   • angle  = azimuth (where the sound sits around the listener)
-//   • radial travel NEAR→FAR = depth   (left-drag)
-//   • cap arc = intensity/level        (right-drag / wheel)
-// Channels are GROUPED by the bundle of audio sent in (shared feed colour), each
-// bundle clustered into its own arc with a visibility / solo / select panel.
+// src/editors/audio-positioner/index.ts — the CMDP 3D AUDIO POSITIONER.
+// Re-integrates the original CMDP circular fader UI into the center,
+// with Left/Right POVs and Height (Z-axis) control via the wheel (potentiometers).
 
-import type { EditorPlugin } from '../types.js';
+import type { EditorPlugin, EditorContext } from '../types.js';
 import { el } from '../../ui/dom.js';
-import type { EditorContext } from '../types.js';
 import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { injectAudioPositionerStyles } from './styles.js';
 
@@ -21,7 +13,6 @@ const FAR_RADIUS = 380;
 interface Group { name: string; color: string; }
 interface Chan { label: string; color: string; group: number; }
 
-/** Longest common label prefix in a bundle → a readable group name. */
 function commonPrefix(labels: string[]): string {
   if (!labels.length) return '';
   let p = labels[0] ?? '';
@@ -29,15 +20,13 @@ function commonPrefix(labels: string[]): string {
   return p.replace(/[\s\-_·:]+$/, '').trim();
 }
 
-/** Routed sources → channels grouped by bundle (feed colour). Falls back to
- *  config.inputs → CH N, mirroring the Monitor Console's derivation. */
 function buildGroups(ctx: EditorContext): { groups: Group[]; chans: Chan[] } {
   const feeds: Array<{ label: string; color: string }> = ctx.sources.length
     ? ctx.sources.map((f) => ({ label: f.label, color: f.color }))
     : (ctx.twist.config?.inputs?.length
         ? ctx.twist.config.inputs.map((l) => ({ label: l, color: '#4d94ff' }))
         : Array.from({ length: 8 }, (_, i) => ({ label: `CH ${i + 1}`, color: '#4d94ff' })));
-  // Bundle = feeds sharing a colour, in first-seen order.
+  
   const order: string[] = [];
   const byColor = new Map<string, Array<{ label: string; color: string }>>();
   for (const f of feeds) { if (!byColor.has(f.color)) { byColor.set(f.color, []); order.push(f.color); } byColor.get(f.color)!.push(f); }
@@ -51,14 +40,13 @@ function buildGroups(ctx: EditorContext): { groups: Group[]; chans: Chan[] } {
   return { groups, chans };
 }
 
-// A single positioner fader (one channel). Mirrors the prototype's Fader class.
 class Fader {
   label: string; angle: number; group: number; color: string;
   visible = true; hovered = false; dragging = false;
-  val: number; rot: number; x = 0; y = 0;
+  val: number; rot: number; height: number; x = 0; y = 0;
   readonly trackLen = FAR_RADIUS - NEAR_RADIUS;
-  constructor(label: string, angleDeg: number, color: string, group: number, val: number, rot: number) {
-    this.label = label; this.angle = angleDeg; this.color = color; this.group = group; this.val = val; this.rot = rot;
+  constructor(label: string, angleDeg: number, color: string, group: number, val: number, rot: number, height: number = 50) {
+    this.label = label; this.angle = angleDeg; this.color = color; this.group = group; this.val = val; this.rot = rot; this.height = height;
   }
   updatePosition(cx: number, cy: number): void {
     const rad = this.angle * Math.PI / 180, dist = NEAR_RADIUS + this.trackLen / 2;
@@ -100,10 +88,9 @@ class Fader {
     const indRad = curDeg * Math.PI / 180;
     c.lineWidth = 3; c.beginPath(); c.moveTo(0, 0); c.lineTo((r - 2) * Math.cos(indRad), (r - 2) * Math.sin(indRad)); c.stroke();
     c.beginPath(); c.arc(0, 0, 3, 0, Math.PI * 2); c.fillStyle = this.color; c.fill();
-    c.font = '10px Arial'; c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(this.val.toFixed(1), 0, -30);
-    c.fillStyle = '#aaa'; c.font = '9px Arial'; c.fillText(this.rot.toFixed(0), 0, 35);
+    c.font = '10px Arial'; c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText('Z:' + this.height.toFixed(0), 0, -30); // Show height on cap
+    c.fillStyle = '#aaa'; c.font = '9px Arial'; c.fillText(this.val.toFixed(0), 0, 35);
     c.restore();
-    // Perimeter label (rotated upright, pushed out per group so bundles don't collide).
     c.save();
     const labRad = this.angle * Math.PI / 180, active = this.dragging || this.hovered;
     const labDist = FAR_RADIUS + 35 + this.group * 30 + (active ? 20 : 0);
@@ -119,7 +106,7 @@ class Fader {
 
 const plugin: EditorPlugin = {
   id: 'audio-positioner',
-  title: 'AUDIO POSITIONER · CMDP',
+  title: 'CMDP · SPATIAL AUDIO PANNER',
   order: 5,
   match: (n) => /audio\s*position|positioner|\bCMDP\b|surround\s*pan/i.test(n),
   requiredCaps: ['audio'],
@@ -128,39 +115,104 @@ const plugin: EditorPlugin = {
     const { groups, chans } = buildGroups(ctx);
 
     const wrap = el('div', { class: 'ap-wrap' });
-    const canvas = el('canvas', {}) as HTMLCanvasElement;
-    wrap.append(canvas);
+
+    // HEADER
+    const header = el('div', { class: 'ap-header' }, [
+      el('div', { class: 'ap-title' }, ['CMDP · SPATIAL AUDIO PANNER']),
+      el('div', { class: 'ap-toolbar' }, [
+        el('select', { class: 'ap-select' }, [
+          el('option', { value: '9.1.4' }, ['Target: 9.1.4']),
+          el('option', { value: '5.1.2' }, ['Target: 5.1.2']),
+          el('option', { value: 'stereo' }, ['Target: Stereo']),
+        ])
+      ])
+    ]);
+    wrap.append(header);
+
+    // MAIN AREA (POVs and CMDP)
+    const main = el('div', { class: 'ap-main' });
+    
+    // POV 1 (Top)
+    const pov1Wrap = el('div', { class: 'ap-pov' }, [el('div', { class: 'ap-pov-title' }, ['POV 1 (TOP)'])]);
+    const cvsTop = el('canvas') as HTMLCanvasElement;
+    pov1Wrap.append(cvsTop);
+    
+    // CMDP Center
+    const centerWrap = el('div', { class: 'ap-center' });
+    const canvas = el('canvas') as HTMLCanvasElement;
+    centerWrap.append(canvas);
+    
+    // POV 2 (Side)
+    const pov2Wrap = el('div', { class: 'ap-pov' }, [el('div', { class: 'ap-pov-title' }, ['POV 2 (SIDE - HEIGHT)'])]);
+    const cvsSide = el('canvas') as HTMLCanvasElement;
+    pov2Wrap.append(cvsSide);
+
+    main.append(pov1Wrap, centerWrap, pov2Wrap);
+    wrap.append(main);
+
+    // BOTTOM METERS
+    const bottom = el('div', { class: 'ap-bottom' });
+    const inputMeters = el('div', { class: 'ap-meters' }, [el('div', { class: 'ap-meters-title' }, ['INPUT (VU)'])]);
+    const inBox = el('div', { class: 'ap-meters-box' });
+    chans.forEach((ch, i) => {
+      if (i > 7) return;
+      inBox.append(el('div', { class: 'ap-meter', title: ch.label }, [
+        el('div', { class: 'ap-meter-fill', style: `height: ${40 + Math.random() * 40}%; background: ${ch.color}` }),
+        el('div', { class: 'ap-meter-label' }, [`CH${i+1}`])
+      ]));
+    });
+    inputMeters.append(inBox);
+    
+    const outputMeters = el('div', { class: 'ap-meters', style: 'flex: 2;' }, [el('div', { class: 'ap-meters-title' }, ['OUTPUT (9.1.4 FOLDDOWN)'])]);
+    const outBox = el('div', { class: 'ap-meters-box' });
+    ['L', 'C', 'R', 'Lw', 'Rw', 'Ls', 'Rs', 'Lrs', 'Rrs', 'LFE', 'Ltf', 'Rtf', 'Ltr', 'Rtr'].forEach(lbl => {
+      outBox.append(el('div', { class: 'ap-meter' }, [
+        el('div', { class: 'ap-meter-fill', style: `height: ${20 + Math.random() * 60}%` }),
+        el('div', { class: 'ap-meter-label' }, [lbl])
+      ]));
+    });
+    outputMeters.append(outBox);
+    bottom.append(inputMeters, outputMeters);
+    wrap.append(bottom);
+
+    // FOOTER (Controls)
+    wrap.append(el('div', { class: 'ap-footer' }, [
+      'Control Mode: ', el('strong', {}, ['POTENTIOMETERS ASSIGNED TO HEIGHT (Z-AXIS)']), ' | CMDP Left-Drag: Depth | Alt-Drag: Azimuth | Wheel: Height'
+    ]));
+
+    if (!ctx.sources.length) {
+      wrap.append(el('div', { class: 'ap-empty' }, ['No audio bundle routed. Test mode active.']));
+    }
+
     host.append(wrap);
+
     const c = canvas.getContext('2d');
     if (!c) return;
 
-    // Build faders, clustering each bundle into its own arc segment of the circle.
+    // Build faders
     const faders: Fader[] = [];
     const total = Math.max(1, chans.length);
-    let a = -90;   // start at the top
+    let a = -90;
     groups.forEach((g, gi) => {
       const items = chans.filter((ch) => ch.group === gi);
       const span = 360 * (items.length / total);
       items.forEach((ch, k) => {
         const ang = a + span * ((k + 0.5) / Math.max(1, items.length));
-        faders.push(new Fader(ch.label, ang, ch.color, gi, 20 + ((k * 37) % 70), 60 + ((k * 23) % 30)));
+        faders.push(new Fader(ch.label, ang, ch.color, gi, 20 + ((k * 37) % 70), 60 + ((k * 23) % 30), 40 + ((k * 15) % 60)));
       });
       a += span;
     });
 
-    // Advertise every fader's position as R/W MQTT params so an external
-    // controller can place channels too (one triplet per channel, indexed 1-based):
-    //   azimuth = where it sits around the listener, level = intensity, depth = NEAR→FAR.
     ctx.services.advertiseParams?.(faders.flatMap((_, i): ParamSpec[] => {
       const n = i + 1;
       return [
         { name: `ch${n}_azimuth`, type: 'number', unit: 'deg', min: 0, max: 360, writable: true },
         { name: `ch${n}_level`, type: 'number', unit: '%', min: 0, max: 100, writable: true },
         { name: `ch${n}_depth`, type: 'number', unit: '%', min: 0, max: 100, writable: true },
+        { name: `ch${n}_height`, type: 'number', unit: '%', min: 0, max: 100, writable: true },
       ];
     }));
-    // Publish a fader's current position (called from every local drag/wheel change).
-    // Throttled by default — safe inside the drag `mousemove` loop.
+
     const pubFader = (f: Fader): void => {
       const p = ctx.services.publishParam; if (!p) return;
       const i = faders.indexOf(f); if (i < 0) return;
@@ -169,101 +221,35 @@ const plugin: EditorPlugin = {
       p(`ch${n}_azimuth`, +az.toFixed(1));
       p(`ch${n}_level`, +f.rot.toFixed(1));
       p(`ch${n}_depth`, +f.val.toFixed(1));
+      p(`ch${n}_height`, +f.height.toFixed(1));
     };
 
-    // ----- Group panel: visibility / solo / select / rename / rotate -----
-    const groupPanel = el('div', { class: 'ap-grouppanel' });
-    let selectedGroup = -1;
-    const selBtns: HTMLElement[] = [];
-    const refreshStatusVis = (): void => {
-      statusItems.forEach((si, i) => {
-        const f = faders[i]; if (!f) return;
-        const show = f.visible && (selectedGroup === -1 || f.group === selectedGroup);
-        si.style.display = show ? 'flex' : 'none';
-      });
-    };
-    groups.forEach((g, gi) => {
-      const row = el('div', { class: 'ap-group-row' });
-      const vis = el('div', { class: 'ap-vis active', title: 'Click: toggle · Dbl-click: solo' }, ['👁']);
-      vis.addEventListener('click', (e) => {
-        e.stopPropagation(); vis.classList.toggle('active');
-        const on = vis.classList.contains('active');
-        faders.forEach((f) => { if (f.group === gi) f.visible = on; });
-        refreshStatusVis();
-      });
-      vis.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
-        groupPanel.querySelectorAll('.ap-vis').forEach((b, idx) => b.classList.toggle('active', idx === gi));
-        faders.forEach((f) => { f.visible = f.group === gi; });
-        refreshStatusVis();
-      });
-      const sel = el('div', { class: 'ap-sel', style: `border-left:4px solid ${g.color}`, title: 'Click: select · Dbl-click: rename · Mid-drag: rotate' }, [g.name]);
-      sel.addEventListener('click', () => {
-        selectedGroup = selectedGroup === gi ? -1 : gi;
-        selBtns.forEach((b, idx) => b.classList.toggle('selected', idx === gi && selectedGroup === gi));
-        refreshStatusVis();
-      });
-      sel.addEventListener('dblclick', (e) => { e.stopPropagation(); const n = prompt('Rename bundle:', g.name); if (n) { g.name = n; sel.textContent = n; } });
-      sel.addEventListener('mousedown', (e) => { if (e.button === 1) { e.preventDefault(); groupDrag = { gi, x: e.clientX }; } });
-      selBtns.push(sel);
-      row.append(vis, sel); groupPanel.append(row);
-    });
-    wrap.append(groupPanel);
-
-    // ----- Status panel: per-channel azimuth / level / depth readout -----
-    const statusPanel = el('div', { class: 'ap-status' });
-    const statusItems: HTMLElement[] = [];
-    const statusVals: Array<{ ang: HTMLElement; vol: HTMLElement; dst: HTMLElement }> = [];
-    faders.forEach((f) => {
-      const ang = el('span', {}, ['0']), vol = el('span', {}, ['0']), dst = el('span', {}, ['0']);
-      const item = el('div', { class: 'ap-status-item', style: `border-left:4px solid ${f.color}` }, [
-        el('span', { class: 'ap-status-id', style: `color:${f.color}` }, [f.label]),
-        el('span', {}, ['Az ', ang, '°']), el('span', {}, ['Lvl ', vol]), el('span', {}, ['Dst ', dst]),
-      ]);
-      statusPanel.append(item); statusItems.push(item); statusVals.push({ ang, vol, dst });
-    });
-    wrap.append(statusPanel);
-
-    const toggle = el('button', { class: 'ap-toggle' }, ['Hide Status']);
-    toggle.addEventListener('click', () => {
-      const hidden = statusPanel.style.opacity === '0';
-      statusPanel.style.opacity = hidden ? '1' : '0';
-      statusPanel.style.pointerEvents = hidden ? 'auto' : 'none';
-      toggle.textContent = hidden ? 'Hide Status' : 'Show Status';
-    });
-    wrap.append(toggle);
-
-    wrap.append(el('div', { class: 'ap-hints' }, [
-      el('b', {}, ['CMDP Positioner']), el('br', {}), 'Left-drag: depth', el('br', {}),
-      'Right-drag / wheel: level', el('br', {}), 'Alt/Mid-drag: azimuth', el('br', {}), 'Ctrl+wheel: rotate widget',
-    ]));
-    if (!ctx.sources.length) wrap.append(el('div', { class: 'ap-empty' }, ['No audio bundle routed yet — route sources into this AUDIO POSITIONER and each channel drops onto the field.']));
-
-    // ----- geometry (relative to the wrap, not the viewport) -----
     let W = 0, H = 0, cx = 0, cy = 0;
     const fit = (): void => {
-      const w = wrap.clientWidth, h = wrap.clientHeight;
+      const w = centerWrap.clientWidth, h = centerWrap.clientHeight;
       if (w === W && h === H) return;
       W = w; H = h; canvas.width = w; canvas.height = h; cx = w / 2; cy = h / 2;
       faders.forEach((f) => f.updatePosition(cx, cy));
+      cvsTop.width = pov1Wrap.clientWidth; cvsTop.height = pov1Wrap.clientHeight;
+      cvsSide.width = pov2Wrap.clientWidth; cvsSide.height = pov2Wrap.clientHeight;
     };
 
-    // ----- interaction -----
     let active: Fader | null = null, hovered: Fader | null = null;
     let startX = 0, startY = 0, startVal = 0, startRot = 0;
-    let groupDrag: { gi: number; x: number } | null = null;
     const clamp = (v: number): number => Math.max(0, Math.min(100, v));
     const at = (e: MouseEvent): [number, number] => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    
     const topAt = (mx: number, my: number): Fader | null => {
       for (let i = faders.length - 1; i >= 0; i--) { const f = faders[i]; if (f && f.visible && f.hitTest(mx, my, cx, cy)) return f; }
       return null;
     };
+
     const onDown = (e: MouseEvent): void => {
       const [mx, my] = at(e); const hit = topAt(mx, my);
       if (hit) { active = hit; startX = mx; startY = my; startVal = hit.val; startRot = hit.rot; hit.dragging = true; }
     };
+    
     const onMove = (e: MouseEvent): void => {
-      if (groupDrag) { const dx = e.clientX - groupDrag.x; faders.forEach((f) => { if (f.group === groupDrag!.gi) { f.angle += dx * 0.5; f.updatePosition(cx, cy); pubFader(f); } }); groupDrag.x = e.clientX; return; }
       const [mx, my] = at(e);
       if (!active) { hovered = topAt(mx, my); faders.forEach((f) => (f.hovered = f === hovered)); canvas.style.cursor = hovered ? 'pointer' : 'default'; return; }
       const f = active, isAlt = e.altKey, isRight = e.buttons === 2, isLeft = e.buttons === 1, isMid = e.buttons === 4;
@@ -272,35 +258,34 @@ const plugin: EditorPlugin = {
       else if (isLeft) { const rad = f.angle * Math.PI / 180; const proj = (mx - startX) * Math.cos(rad) + (my - startY) * Math.sin(rad); f.val = clamp(startVal - proj / f.trackLen * 100); }
       pubFader(f);
     };
-    const onUp = (): void => { if (active) { active.dragging = false; active = null; } groupDrag = null; };
-    const onDbl = (e: MouseEvent): void => {
-      const [mx, my] = at(e); const hit = topAt(mx, my);
-      if (hit) { const n = prompt('Rename channel:', hit.label); if (n) { hit.label = n; const i = faders.indexOf(hit); const idEl = statusItems[i]?.querySelector('.ap-status-id'); if (idEl) idEl.textContent = n; } }
-    };
+    
+    const onUp = (): void => { if (active) { active.dragging = false; active = null; } };
+    
     const onWheel = (e: WheelEvent): void => {
       e.preventDefault(); const d = -Math.sign(e.deltaY);
-      if (hovered) { if (e.altKey || e.ctrlKey) { hovered.angle += d * 3; hovered.updatePosition(cx, cy); } else hovered.rot = clamp(hovered.rot + d * 5); pubFader(hovered); }
+      if (hovered) { 
+        if (e.altKey || e.ctrlKey) { hovered.angle += d * 3; hovered.updatePosition(cx, cy); } 
+        else { hovered.height = clamp(hovered.height + d * 5); } // Wheel maps to HEIGHT
+        pubFader(hovered); 
+      }
     };
+    
     canvas.addEventListener('mousedown', onDown);
-    canvas.addEventListener('dblclick', onDbl);
     canvas.addEventListener('wheel', onWheel, { passive: false });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('window:mouseup', onUp);
     ctx.dispose.add(() => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); });
 
-    // External control: honour position writes from the bus / other consoles. The
-    // draw loop redraws continuously, so we only mutate state (no explicit re-render).
     faders.forEach((f, i) => {
       const n = i + 1;
       ctx.services.onParam?.(`ch${n}_azimuth`, (v) => { if (typeof v === 'number') { f.angle = v; f.updatePosition(cx, cy); } });
       ctx.services.onParam?.(`ch${n}_level`, (v) => { if (typeof v === 'number') f.rot = clamp(v); });
       ctx.services.onParam?.(`ch${n}_depth`, (v) => { if (typeof v === 'number') f.val = clamp(v); });
+      ctx.services.onParam?.(`ch${n}_height`, (v) => { if (typeof v === 'number') f.height = clamp(v); });
     });
-    // Seed the bus with each channel's initial placement (retained).
     faders.forEach(pubFader);
 
-    // ----- draw loop -----
     const drawFace = (): void => {
       const r = 40, orange = '#f4902c'; c.save(); c.translate(cx, cy);
       c.fillStyle = '#333'; c.strokeStyle = orange; c.lineWidth = 2;
@@ -312,6 +297,40 @@ const plugin: EditorPlugin = {
       c.fillStyle = orange; c.beginPath(); c.moveTo(0, -r - 10); c.lineTo(-10, -r + 5); c.lineTo(10, -r + 5); c.closePath(); c.fill(); c.stroke();
       c.restore();
     };
+
+    const ctxTop = cvsTop.getContext('2d')!;
+    const ctxSide = cvsSide.getContext('2d')!;
+
+    const drawPOVs = () => {
+      const w1 = cvsTop.width, h1 = cvsTop.height;
+      ctxTop.clearRect(0,0,w1,h1);
+      ctxTop.strokeStyle = '#333'; ctxTop.beginPath(); ctxTop.arc(w1/2, h1/2, w1*0.35, 0, Math.PI*2); ctxTop.stroke();
+      ctxTop.beginPath(); ctxTop.moveTo(w1/2, 0); ctxTop.lineTo(w1/2, h1); ctxTop.stroke();
+      ctxTop.beginPath(); ctxTop.moveTo(0, h1/2); ctxTop.lineTo(w1, h1/2); ctxTop.stroke();
+      ctxTop.fillStyle = '#888'; ctxTop.beginPath(); ctxTop.arc(w1/2, h1/2, 4, 0, Math.PI*2); ctxTop.fill();
+
+      const w2 = cvsSide.width, h2 = cvsSide.height;
+      ctxSide.clearRect(0,0,w2,h2);
+      ctxSide.strokeStyle = '#333'; ctxSide.beginPath(); ctxSide.moveTo(w2/2, 0); ctxSide.lineTo(w2/2, h2); ctxSide.stroke();
+      ctxSide.setLineDash([5,5]); ctxSide.beginPath(); ctxSide.moveTo(0, h2 - 40); ctxSide.lineTo(w2, h2 - 40); ctxSide.stroke(); ctxSide.setLineDash([]);
+      ctxSide.fillStyle = '#888'; ctxSide.beginPath(); ctxSide.arc(w2/2, h2 - 40, 4, 0, Math.PI*2); ctxSide.fill();
+
+      faders.forEach(f => {
+        if(!f.visible) return;
+        const rad = (f.angle - 90) * Math.PI / 180;
+        const r = (f.val / 100) * (w1 * 0.35);
+        const tx = w1/2 + r * Math.cos(rad);
+        const ty = h1/2 + r * Math.sin(rad);
+        ctxTop.fillStyle = f.color; ctxTop.beginPath(); ctxTop.arc(tx, ty, 6, 0, Math.PI*2); ctxTop.fill();
+        if (f === active || f === hovered) { ctxTop.strokeStyle='#fff'; ctxTop.lineWidth=2; ctxTop.stroke(); }
+
+        const sx = w2/2 + r * Math.cos(rad); // X projection (Left/Right)
+        const sy = h2 - 40 - (f.height / 100) * (h2 - 80); // Y projection (Height)
+        ctxSide.fillStyle = f.color; ctxSide.beginPath(); ctxSide.arc(sx, sy, 6, 0, Math.PI*2); ctxSide.fill();
+        if (f === active || f === hovered) { ctxSide.strokeStyle='#fff'; ctxSide.lineWidth=2; ctxSide.stroke(); }
+      });
+    };
+
     ctx.dispose.raf(() => {
       fit();
       c.fillStyle = '#181818'; c.fillRect(0, 0, W, H);
@@ -322,7 +341,7 @@ const plugin: EditorPlugin = {
       c.fillStyle = '#f4902c'; c.font = 'bold 12px Arial'; c.textAlign = 'center';
       c.fillText('NEAR', cx, cy - NEAR_RADIUS - 10); c.fillText('FAR', cx, cy - FAR_RADIUS - 10);
       faders.forEach((f) => f.render(c, cx, cy));
-      faders.forEach((f, i) => { const v = statusVals[i]; if (!v) return; let ang = f.angle % 360; if (ang < 0) ang += 360; v.ang.textContent = ang.toFixed(0); v.vol.textContent = f.rot.toFixed(0); v.dst.textContent = f.val.toFixed(0); });
+      drawPOVs();
     });
   },
 };

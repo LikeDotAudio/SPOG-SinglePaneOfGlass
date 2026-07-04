@@ -19,6 +19,7 @@ export interface MEState {
   rate: number;                  // auto-transition duration, frames
   tbar: number;                  // 0..100
   keyers: KeyerState[];
+  split?: boolean;
 }
 
 export const newKeyer = (d: KeyerDef = {}): KeyerState => ({
@@ -36,6 +37,7 @@ export function newME(def: SwitcherDef, seedPvw = 1): MEState {
     rate: 24,
     keyers: Array.from({ length: def.keyersPerMe }, () => newKeyer()),
     tbar: 0,
+    split: false,
   };
 }
 
@@ -54,6 +56,7 @@ export function applyPreset(me: MEState, p: MEPreset, def: SwitcherDef): void {
   me.trans = p.trans;
   me.rate = p.rate;
   me.keyers = Array.from({ length: def.keyersPerMe }, (_, k) => newKeyer(p.keyers[k]));
+  me.split = p.split;
 }
 
 /** Capture a bank as a preset (the M/E editor's "save look"). */
@@ -62,6 +65,7 @@ export function capturePreset(me: MEState, id: string, name: string): MEPreset {
     id, name,
     pgm: me.pgm, pvw: me.pvw, trans: me.trans, rate: me.rate,
     keyers: me.keyers.map((k) => ({ ...k })),
+    split: me.split,
   };
 }
 

@@ -78,6 +78,22 @@ const services: EditorServices = {
         `<ul>${channels.map((c) => `<li>${c}</li>`).join('')}</ul>`;
     });
   },
+  openWirelessMic(name, color) {
+    const plugin = pluginFor('wireless');
+    if (!plugin) return;
+    openOverlay({ title: plugin.title, color, prodName: 'System', twistName: name }, (body, dispose) => {
+      const ctx: any = {
+        twist: { name, config: { type: 'wireless-mic' } },
+        sources: [],
+        production: { name: 'System', color },
+        siblings: [],
+        can: () => true,
+        services: twistServices('System', name),
+        dispose
+      };
+      plugin.render(body, ctx);
+    });
+  },
 };
 
 /** Services scoped to one twist: the base services + a MQTT param bridge (audit §4.5)

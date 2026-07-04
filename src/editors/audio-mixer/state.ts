@@ -11,6 +11,7 @@ import type { EditorContext } from '../types.js';
 export interface Channel {
   label: string;
   color: string;
+  type?: string;
 }
 
 /** Channels per layer (legacy LAYER constant). */
@@ -58,7 +59,7 @@ export function buildState(channelCount: number): MixerState {
 /** Derive the console channels from resolved context (no DOM scraping). */
 export function buildChannels(ctx: EditorContext): Channel[] {
   if (ctx.sources.length) {
-    return ctx.sources.map((f) => ({ label: f.label, color: f.color }));
+    return ctx.sources.map((f: any) => ({ label: f.label, color: f.color, type: f.type }));
   }
   const inputs = ctx.twist.config?.inputs;
   if (inputs && inputs.length) {

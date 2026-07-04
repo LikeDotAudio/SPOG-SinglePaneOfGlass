@@ -97,6 +97,7 @@ export interface SourceLeaf {
   name: string;
   color?: Hex;
   status?: Status;
+  type?: string;
   origin?: string;
   /** Person/source-box hover tip — authored in the Routes/People or Sources JSON. */
   tip?: TipSpec;
@@ -155,7 +156,7 @@ export interface TwistConfig {
 // (Routes/**), so they live in the model; the editor owns behaviour + defaults.
 
 export type KeyerType = 'luma' | 'chroma' | 'linear' | 'split' | 'pattern';
-export type TransitionKind = 'CUT' | 'MIX' | 'WIPE' | 'DVE';
+export type TransitionKind = 'CUT' | 'MIX' | 'FAM' | 'NAM' | 'DIP' | 'WIPE' | 'DVE' | 'L-WIPE' | 'BOX' | 'IRIS' | 'BARN DOORS' | 'CURTAINS' | 'MATRIX' | 'CLOCK' | 'ROTARY' | 'STAR WIPE' | 'DVE PUSH' | 'STINGER' | string;
 export type BusLayout = 'shift12' | 'wide24' | 'stack12';
 
 export interface SwitcherInput {
@@ -189,18 +190,25 @@ export interface MEPreset {
   pgm: number; pvw: number;
   trans: TransitionKind; rate: number;
   keyers: KeyerDef[];
+  split?: boolean;
 }
 
 /** A whole-switcher register (audit §8 "scene recall"): every bank + DSKs. */
-export interface SceneDef { id: string; name: string; mes: MEPreset[]; dsks: boolean[]; }
+export interface SceneDef { id: string; name: string; mes: MEPreset[]; dsks: boolean[]; auxes?: number[]; }
 
 export interface DSKDef { name: string; type?: KeyerType; source?: number; }
+
+export interface MacroDef { id: string; name: string; actions: { topic: string; payload: unknown }[]; }
 
 export interface SwitcherDef {
   inputs: SwitcherInput[];       // the source pool (plan: 24)
   mes: number;                   // M/E bank count (plan: 3)
   keyersPerMe: number;           // keyers per bank (plan: 4)
   dsks: DSKDef[];                // downstream keyers, above every M/E
+  stills?: number;               // Internal still store channels (default 2)
+  clips?: number;                // Internal clip store channels (default 2)
+  auxes?: number;                // Aux bus count (default 6)
+  macros?: MacroDef[];           // Recorded MQTT sequences
   transitions: TransitionKind[];
   wipePatterns: string[];
   dvePresets: DVEPreset[];

@@ -55,7 +55,7 @@
         /* CHROMA — grey strips hue (luminance + shape carry meaning); mono = amber
            phosphor. Root filter → reaches every hardcoded hex and canvas surface. */
         html[data-chroma="grey"] { --f-chroma: grayscale(1); }
-        html[data-chroma="mono"] { --f-chroma: grayscale(1) sepia(1) saturate(3.2) hue-rotate(-8deg) brightness(1.06); }
+        html[data-chroma="mono"] { --f-chroma: grayscale(1) sepia(1) saturate(3.2) hue-rotate(var(--mono-hue, -8deg)) brightness(1.06); }
         /* CONTRAST — High boosts + kills glow (glow lowers effective contrast); Low
            dims for dark-adapted / on-air rooms. */
         html[data-vision="high"] { --f-vision: contrast(1.14) brightness(1.1); --glow-cyan: none; --glow-magenta: none; }
@@ -208,11 +208,16 @@
                 padding: 27px 62px 2px 2px;
             }
             html[data-chirality="right"] .ingress-panel .super-pool-container::before {
-                left: auto; right: 0;
-                border-left: 0;
-                border-right: 60px solid var(--lcars-color, #ffaa00);
-                border-top-left-radius: 0; border-bottom-left-radius: 0;
-                border-top-right-radius: 40px; border-bottom-right-radius: 40px;
+                left: auto;
+                right: 0;
+                border: none;
+                background-image: 
+                    linear-gradient(to bottom, var(--lcars-color, #ffaa00) 25px, transparent 25px),
+                    linear-gradient(to left, var(--lcars-color, #ffaa00) 60px, transparent 60px);
+                border-top-left-radius: 0;
+                border-bottom-left-radius: 0;
+                border-top-right-radius: 40px;
+                border-bottom-right-radius: 40px;
             }
             html[data-chirality="right"] .ingress-panel .super-pool-container.folded::before {
                 border-top-right-radius: 15px; border-bottom-right-radius: 15px;
@@ -1200,8 +1205,12 @@
             left: 0;
             width: 95px;
             height: 100%;
-            border-left: 60px solid var(--lcars-color, #ffaa00);
-            border-top: 25px solid var(--lcars-color, #ffaa00);
+            background-color: transparent;
+            background-image: 
+                linear-gradient(to bottom, var(--lcars-color, #ffaa00) 25px, transparent 25px),
+                linear-gradient(to right, var(--lcars-color, #ffaa00) 60px, transparent 60px);
+            background-repeat: no-repeat;
+            border: none;
             border-top-left-radius: 40px;
             border-bottom-left-radius: 40px;
             box-sizing: border-box;

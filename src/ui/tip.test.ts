@@ -8,7 +8,7 @@ import type { Capability } from '../model/index.js';
 /** A minimal EditorContext good enough for the pure HTML builder. */
 function ctx(over: Partial<EditorContext> = {}): EditorContext {
   return {
-    twist: { name: 'VIDEO MIXER', config: { name: 'Video Mixer', accepts: 'video', inputs: ['SW IN 1', 'SW IN 2'] } },
+    twist: { name: 'VIDEO MIXER', config: { name: 'Video Mixer', accepts: 'video', inputs: ['SW 1', 'SW 2'] } },
     sources: [{ id: 'a', label: 'CAM 1', color: '#fff' }, { id: 'b', label: 'CAM 3', color: '#fff' }],
     production: { name: 'PROD 7', color: '#5566EE' },
     siblings: [{ name: 'Video Mixer', config: null, sources: [] }],

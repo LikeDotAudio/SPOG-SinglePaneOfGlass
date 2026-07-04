@@ -39,6 +39,7 @@ export interface EditorContext {
 
 export interface EditorServices {
   openStageBox(name: string, color: Hex, channels: string[]): void;
+  openWirelessMic?(name: string, color: Hex): void;
   // MQTT param bridge (audit §4.5). Optional: the host binds these to THIS twist's
   // topic when a bus exists; absent when MQTT is disabled, so editors call them
   // with `?.`. An editor never learns the topic — it names params, the host scopes.

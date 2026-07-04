@@ -42,7 +42,7 @@ describe('topic builders', () => {
 
 describe('payload builders', () => {
   it('configForTwist maps TwistConfig fields to read-only param specs', () => {
-    const c = configForTwist({ name: 'Video Mixer', accepts: 'video', maxVideo: 1, inputs: ['SW IN 1', 'SW IN 2'] });
+    const c = configForTwist({ name: 'Video Mixer', accepts: 'video', maxVideo: 1, inputs: ['SW 1', 'SW 2'] });
     expect(c.kind).toBe('twist');
     expect(c.name).toBe('Video Mixer');
     expect(c.params?.map((p) => p.name)).toEqual(['accepts', 'maxVideo', 'inputs']);
