@@ -3,9 +3,9 @@
   "name": "PROD 7",
   "color": "#5566EE",
   "tip": {
-    "lead": "Secondary control room — an 8-camera multicam gallery with 4 ISO records and full graphics.",
+    "lead": "Secondary control room \u2014 an 8-camera multicam gallery with 4 ISO records and full graphics.",
     "good": "PGM cut before you roll ISO; talkback open to the floor.",
-    "bad": "Do not switch here while PROD 3 holds the primary bus — check the schedule first."
+    "bad": "Do not switch here while PROD 3 holds the primary bus \u2014 check the schedule first."
   },
   "twists": [
     {
@@ -123,7 +123,7 @@
     {
       "name": "Video Mixer",
       "accepts": "video",
-      "tip": "8-input switcher feeding PGM. SW IN 1–4 are the hard cameras; 5–8 are ISO/remote returns.",
+      "tip": "Production switcher \u2014 3 M/E banks with re-entry, 24 inputs, keyers with DVE flight, M/E looks, scene registers. Drives tally.",
       "inputs": [
         "SW IN 1",
         "SW IN 2",
@@ -132,8 +132,100 @@
         "SW IN 5",
         "SW IN 6",
         "SW IN 7",
-        "SW IN 8"
-      ]
+        "SW IN 8",
+        "SW IN 9",
+        "SW IN 10",
+        "SW IN 11",
+        "SW IN 12",
+        "SW IN 13",
+        "SW IN 14",
+        "SW IN 15",
+        "SW IN 16",
+        "SW IN 17",
+        "SW IN 18",
+        "SW IN 19",
+        "SW IN 20",
+        "SW IN 21",
+        "SW IN 22",
+        "SW IN 23",
+        "SW IN 24"
+      ],
+      "switcher": {
+        "inputs": [
+          {
+            "label": "SW IN 1"
+          },
+          {
+            "label": "SW IN 2"
+          },
+          {
+            "label": "SW IN 3"
+          },
+          {
+            "label": "SW IN 4"
+          },
+          {
+            "label": "SW IN 5"
+          },
+          {
+            "label": "SW IN 6"
+          },
+          {
+            "label": "SW IN 7"
+          },
+          {
+            "label": "SW IN 8"
+          },
+          {
+            "label": "SW IN 9"
+          },
+          {
+            "label": "SW IN 10"
+          },
+          {
+            "label": "SW IN 11"
+          },
+          {
+            "label": "SW IN 12"
+          },
+          {
+            "label": "SW IN 13"
+          },
+          {
+            "label": "SW IN 14"
+          },
+          {
+            "label": "SW IN 15"
+          },
+          {
+            "label": "SW IN 16"
+          },
+          {
+            "label": "SW IN 17"
+          },
+          {
+            "label": "SW IN 18"
+          },
+          {
+            "label": "SW IN 19"
+          },
+          {
+            "label": "SW IN 20"
+          },
+          {
+            "label": "SW IN 21"
+          },
+          {
+            "label": "SW IN 22"
+          },
+          {
+            "label": "SW IN 23"
+          },
+          {
+            "label": "SW IN 24"
+          }
+        ]
+      }
     },
     {
       "name": "Multi Viewer 1",
