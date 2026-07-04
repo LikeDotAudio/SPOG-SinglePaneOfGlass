@@ -59,8 +59,8 @@ const EXPECT: Array<[string, string | null]> = [
   ['Chrono A', 'chronos'],
   ['Timer', 'timer'],             // dual-channel up/down production timer
   ['Countdown', 'timer'],
-  ['Weather', 'weather'],         // WEATHER graphics source → live forecast board / on-air strip
-  ['Forecast', 'weather'],
+  ['Weather', 'graphics-engine'],   // WEATHER is a dataset/template INSIDE the CG engine
+  ['Forecast', 'graphics-engine'],
 ];
 
 describe('editor dispatch', () => {
@@ -70,8 +70,8 @@ describe('editor dispatch', () => {
     }
   });
 
-  it('registers all 23 editors', () => {
-    expect(PLUGINS.length).toBe(23);
+  it('registers all 22 editors', () => {
+    expect(PLUGINS.length).toBe(22);
   });
 
   it('orders plugins by ascending precedence (legacy import order)', () => {

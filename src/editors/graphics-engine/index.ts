@@ -18,7 +18,7 @@ const plugin: EditorPlugin = {
   id: 'graphics-engine',
   title: 'GRAPHICS ENGINE · CG / TITLE',
   order: 6,
-  match: (n) => /graphic|\bgfx\b|\bcg\b|title|lower.?third|name.?super|super|chyron|aston|preset|crawl|credit/i.test(n),
+  match: (n) => /graphic|\bgfx\b|\bcg\b|title|lower.?third|name.?super|super|chyron|aston|preset|crawl|credit|weather|forecast/i.test(n),
   requiredCaps: ['gfx'],
   render(host, ctx) {
     injectGraphicsStyles();

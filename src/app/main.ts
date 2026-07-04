@@ -114,6 +114,10 @@ function openEditorForTwist(twistEl: HTMLElement): void {
   const hasClock = twistEl.querySelector('.signal-node.clock-source');
   const hasChronos = twistEl.querySelector('.signal-node.chronos-source');
   const hasTimer = twistEl.querySelector('.signal-node.timer-source');
+  // A WEATHER feed is just another dataset for the Graphics Engine: routing one
+  // onto any twist opens the CG engine, which selects its WEATHER template from
+  // the routed source label (see graphics-engine/view railEntries).
+  const hasWeather = twistEl.querySelector('.signal-node.weather-source');
   const plugin = hasPrompter
     ? (pluginFor('PROMPTER') ?? pluginFor(name))
     : hasTimer
@@ -122,7 +126,9 @@ function openEditorForTwist(twistEl: HTMLElement): void {
         ? (pluginFor('CHRONOS') ?? pluginFor(name))
         : hasClock
           ? (pluginFor('CLOCK') ?? pluginFor(name))
-          : pluginFor(name);
+          : hasWeather
+            ? (pluginFor('GRAPHIC EDITOR') ?? pluginFor(name))
+            : pluginFor(name);
   if (!plugin) return;
   const prodName = twistEl.dataset.prodName ?? '';
   const color = (twistEl.style.getPropertyValue('--lcars-color').trim() || '#646DCC') as Hex;

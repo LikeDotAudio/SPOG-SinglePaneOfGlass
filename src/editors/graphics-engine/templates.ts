@@ -7,15 +7,18 @@
 // All text sits inside title-safe (90%) — the stage paints the SMPTE guides.
 
 import { el } from '../../ui/dom.js';
+import { weatherBody } from './weather-module.js';
 
 export type TemplateKind =
   | 'lower-third' | 'name-super' | 'up-next' | 'participant'
-  | 'bug' | 'ticker' | 'fullscreen' | 'score' | 'credits';
+  | 'bug' | 'ticker' | 'fullscreen' | 'score' | 'credits' | 'weather';
 
 export interface FieldSpec {
   key: string;
   label: string;
-  type: 'text' | 'textarea';
+  type: 'text' | 'textarea' | 'select';
+  /** For type:'select' — the allowed values (first is the default if none set). */
+  options?: string[];
   placeholder?: string;
   default?: string;
 }
@@ -109,6 +112,16 @@ export const TEMPLATES: GfxTemplate[] = [
       { key: 'away', label: 'Away', type: 'text', default: 'AWAY' },
       { key: 'awayScore', label: 'Away score', type: 'text', default: '1' },
       { key: 'clock', label: 'Clock', type: 'text', default: "12'" },
+    ],
+  },
+  {
+    // WEATHER — a live dataset, not a text card. The city field drives an async
+    // geocode + Open-Meteo forecast; the graphic is the on-air forecast strip.
+    // UPDATE re-fetches in place (a manual refresh); no reveal states.
+    id: 'weather', name: 'WEATHER', kind: 'weather', updatable: true, stateful: false,
+    fields: [
+      { key: 'city', label: 'City / Location', type: 'text', default: 'Toronto' },
+      { key: 'unit', label: 'Units', type: 'select', options: ['C', 'F'], default: 'C' },
     ],
   },
   {
@@ -274,6 +287,10 @@ export function renderGraphic(tpl: GfxTemplate, values: Values, reveal: number):
         el('div', { class: 'gfx-fs-title' }, [values.title || '']),
         el('div', { class: 'gfx-fs-sub' }, [values.subtitle || '']),
       ]));
+      break;
+    }
+    case 'weather': {
+      g.append(weatherBody(values));
       break;
     }
     case 'score': {

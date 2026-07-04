@@ -58,7 +58,11 @@ function railEntries(mode: Mode, ctx: EditorContext): RailEntry[] {
 export function buildEngine(host: HTMLElement, ctx: EditorContext): void {
   const mode = modeFor(ctx.twist.name);
   const entries = railEntries(mode, ctx);
-  let active: RailEntry | null = entries[0] ?? null;
+  // Preselect the template the twist NAME asks for (e.g. a "WEATHER" twist lands
+  // on the WEATHER template), else the first rail entry.
+  const named = templateForLabel(ctx.twist.name);
+  let active: RailEntry | null =
+    (named ? entries.find((e) => e.tpl.id === named.id) : undefined) ?? entries[0] ?? null;
 
   const railHead =
     mode === 'presets' ? 'RUNDOWN' : mode === 'crawl' ? 'CRAWL'
@@ -128,16 +132,25 @@ export function buildEngine(host: HTMLElement, ctx: EditorContext): void {
     if (!active) { fields.append(el('div', { class: 'gfx-empty' }, ['Select an item.'])); return; }
     const { tpl, values } = active;
     tpl.fields.forEach((f) => {
-      const input = f.type === 'textarea'
-        ? el('textarea', { value: values[f.key] ?? '', placeholder: f.placeholder ?? '' })
-        : el('input', { type: 'text', value: values[f.key] ?? '', placeholder: f.placeholder ?? '' });
-      input.oninput = () => {
-        values[f.key] = (input as HTMLInputElement | HTMLTextAreaElement).value;
+      let input: HTMLElement;
+      if (f.type === 'textarea') {
+        input = el('textarea', { value: values[f.key] ?? '', placeholder: f.placeholder ?? '' });
+      } else if (f.type === 'select') {
+        const sel = el('select', {}, (f.options ?? []).map((o) => el('option', { value: o }, [o]))) as HTMLSelectElement;
+        sel.value = values[f.key] ?? f.options?.[0] ?? '';
+        input = sel;
+      } else {
+        input = el('input', { type: 'text', value: values[f.key] ?? '', placeholder: f.placeholder ?? '' });
+      }
+      const commit = (): void => {
+        values[f.key] = (input as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value;
         // Live WYSIWYG: mutate in place if the template supports it, else re-load
         // the definition so the preview reflects edits (a soft re-take when live).
         if (stage.state() === 'live' && tpl.updatable) stage.update(values);
         else stage.load(tpl, values);
       };
+      input.oninput = commit;
+      if (f.type === 'select') input.onchange = commit;   // selects fire change reliably
       fields.append(el('div', { class: 'gfx-field' }, [el('label', {}, [f.label]), input]));
     });
   }
