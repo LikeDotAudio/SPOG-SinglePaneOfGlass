@@ -20,7 +20,11 @@ import { openOverlay } from '../../platform/overlay.js';
 
 export type Vision = 'low' | 'normal' | 'high';
 export type Chroma = 'full' | 'grey' | 'mono';
-export interface ColourScheme { vision: Vision; chroma: Chroma; cvd: string; monoHue?: number; }
+/** FACE — the chrome aesthetic: LCARS bars, or the macOS-style icon tiles
+ *  (Routes/Sources/.icon + Routes/Destinations/.icons). A presentation axis just
+ *  like vision/chroma: `html[data-face]` + CSS overlay; the DOM never changes. */
+export type Face = 'lcars' | 'icons';
+export interface ColourScheme { vision: Vision; chroma: Chroma; cvd: string; face: Face; monoHue?: number; }
 
 // ── PALETTES ────────────────────────────────────────────────────────────────
 // Six semantic tokens per palette. `video/audio/program` are the three signal
@@ -56,13 +60,15 @@ const PALETTES: readonly Palette[] = [
 const paletteById = (id: string): Palette => PALETTES.find((p) => p.id === id) ?? PALETTES[0]!;
 
 const KEY = 'twist.colour';
-const DEFAULT: ColourScheme = { vision: 'normal', chroma: 'full', cvd: 'classic', monoHue: -8 };
+const DEFAULT: ColourScheme = { vision: 'normal', chroma: 'full', cvd: 'classic', face: 'lcars', monoHue: -8 };
 
 const VISIONS: readonly Vision[] = ['low', 'normal', 'high'];
 const CHROMAS: readonly Chroma[] = ['full', 'grey', 'mono'];
+const FACES: readonly Face[] = ['lcars', 'icons'];
 
 const isVision = (v: string | null): v is Vision => (VISIONS as readonly string[]).includes(v ?? '');
 const isChroma = (v: string | null): v is Chroma => (CHROMAS as readonly string[]).includes(v ?? '');
+const isFace = (v: string | null): v is Face => (FACES as readonly string[]).includes(v ?? '');
 const isCvd = (v: string | null): boolean => PALETTES.some((p) => p.id === v);
 
 /** The current scheme, read back from the <html> attributes (default-filled). */
@@ -71,12 +77,14 @@ export function getScheme(): ColourScheme {
   const vision = h.getAttribute('data-vision');
   const chroma = h.getAttribute('data-chroma');
   const cvd = h.getAttribute('data-cvd');
+  const face = h.getAttribute('data-face');
   const monoHueStr = h.style.getPropertyValue('--mono-hue');
   const monoHue = monoHueStr ? parseInt(monoHueStr.replace('deg', '')) : undefined;
   return {
     vision: isVision(vision) ? vision : DEFAULT.vision,
     chroma: isChroma(chroma) ? chroma : DEFAULT.chroma,
     cvd: isCvd(cvd) ? cvd! : DEFAULT.cvd,
+    face: isFace(face) ? face : DEFAULT.face,
     monoHue: monoHue !== undefined && !isNaN(monoHue) ? monoHue : DEFAULT.monoHue,
   };
 }
@@ -98,6 +106,7 @@ function paint(s: ColourScheme): void {
   h.setAttribute('data-vision', s.vision);
   h.setAttribute('data-chroma', s.chroma);
   h.setAttribute('data-cvd', s.cvd);
+  h.setAttribute('data-face', s.face);
   if (s.monoHue !== undefined) {
     h.style.setProperty('--mono-hue', `${s.monoHue}deg`);
   }
@@ -115,6 +124,7 @@ export function applyStoredColourScheme(): void {
         vision: isVision(p.vision ?? null) ? p.vision! : DEFAULT.vision,
         chroma: isChroma(p.chroma ?? null) ? p.chroma! : DEFAULT.chroma,
         cvd: isCvd(p.cvd ?? null) ? p.cvd! : DEFAULT.cvd,
+        face: isFace(p.face ?? null) ? p.face! : DEFAULT.face,
         monoHue: typeof p.monoHue === 'number' ? p.monoHue : DEFAULT.monoHue,
       };
     }
@@ -130,11 +140,13 @@ export function setScheme(s: ColourScheme): void {
 }
 
 const sameScheme = (a: ColourScheme, b: ColourScheme): boolean =>
-  a.vision === b.vision && a.chroma === b.chroma && a.cvd === b.cvd && a.monoHue === b.monoHue;
+  a.vision === b.vision && a.chroma === b.chroma && a.cvd === b.cvd && a.face === b.face && a.monoHue === b.monoHue;
 
 /** The named presets — each a labelled point in the vision×chroma×palette cube. Glyphs
  *  are monochrome (never colour-dependent), so they read in every mode including mono. */
-interface Preset { id: string; glyph: string; label: string; hint: string; scheme: ColourScheme; }
+/** Presets are points in the COLOUR cube only — FACE is orthogonal and preserved,
+ *  so switching palette presets never flips the chrome between LCARS and icons. */
+interface Preset { id: string; glyph: string; label: string; hint: string; scheme: Omit<ColourScheme, 'face'>; }
 const PRESETS: readonly Preset[] = [
   { id: 'default', glyph: '⬡', label: 'Default', hint: 'Classic LCARS, full colour',
     scheme: { vision: 'normal', chroma: 'full', cvd: 'classic' } },
@@ -160,6 +172,9 @@ const AXES: ReadonlyArray<{
   { label: 'Chroma', hint: 'hue → grey → mono', get: (s) => s.chroma,
     opts: [{ v: 'full', label: 'Full' }, { v: 'grey', label: 'Grey' }, { v: 'mono', label: 'Mono' }],
     set: (s, v) => ({ ...s, chroma: v as Chroma }) },
+  { label: 'Face', hint: 'chrome aesthetic — LCARS bars or icon tiles', get: (s) => s.face,
+    opts: [{ v: 'lcars', label: 'LCARS' }, { v: 'icons', label: 'Icons' }],
+    set: (s, v) => ({ ...s, face: v as Face }) },
 ];
 
 const STYLE_ID = 'tr-colour-editor';
@@ -238,7 +253,7 @@ function buildEditor(body: HTMLElement): void {
       el('span', { class: 'h' }, [p.hint]),
       el('span', { class: 'sel' }, ['']),
     ]);
-    btn.addEventListener('click', () => { setScheme(p.scheme); sync(); });
+    btn.addEventListener('click', () => { setScheme({ ...p.scheme, face: getScheme().face }); sync(); });
     return { p, btn };
   });
   presetRow.append(...presetBtns.map((x) => x.btn));
@@ -322,7 +337,7 @@ function buildEditor(body: HTMLElement): void {
   function sync(): void {
     const cur = getScheme();
     for (const { p, btn } of presetBtns) {
-      const on = sameScheme(cur, p.scheme);
+      const on = sameScheme(cur, { ...p.scheme, face: cur.face });
       btn.setAttribute('aria-pressed', String(on));
       (btn.querySelector('.sel') as HTMLElement).textContent = on ? '✓ SELECTED' : '';
     }

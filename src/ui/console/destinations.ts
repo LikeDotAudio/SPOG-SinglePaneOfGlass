@@ -204,6 +204,8 @@ export async function addDestinationTree(
 /** Build the whole destinations footer from Routes/Destinations/**. */
 export async function buildDestinations(openEditor?: OpenEditor): Promise<void> {
   const destDir = await listDirectory('Routes/Destinations/');
+  // `icons/` holds the ICON-face tiles, not a destination category.
+  destDir.dirs = destDir.dirs.filter((d) => !/^\.?icons?\/?$/i.test(stripOrder(d.name)));
   await Promise.all(destDir.dirs.map((cat: Entry, di: number) => {
     const colorRgb = rgbAt(DEST_GROUP_COLORS, di);
     const catGroup = Footer.addGroup(stripOrder(cat.name).toUpperCase(), { color: colorRgb, collapsed: true });

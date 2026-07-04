@@ -6,6 +6,7 @@
 // Named "footer" per the console anatomy: sources column (left) · destination
 // content (centre) · this tab footer (bottom).
 import { addStyles } from '../dom.js';
+import { stampIcon } from '../icon-face.js';
 
 export interface GroupHandle {
   group: HTMLElement;
@@ -129,6 +130,9 @@ export const Footer = {
     labelEl.addEventListener('click', (e) => { e.stopPropagation(); toggleGroup(handle); });
     groups.push(handle);
     (parent ? parent.bodyEl : tabsContainer).appendChild(group);
+    // ICON face: top-level category groups carry their dock tile (inert in LCARS
+    // face; only activates if Routes/Destinations/.icons/<slug>.svg exists).
+    if (!parent) stampIcon(labelEl, 'dest', label);
     return handle;
   },
 

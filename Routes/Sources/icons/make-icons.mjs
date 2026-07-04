@@ -1,4 +1,4 @@
-// Routes/Sources/.icon/make-icons.mjs — generates the macOS-dock-style
+// Routes/Sources/icons/make-icons.mjs — generates the macOS-dock-style
 // squircle icons for the SOURCE categories, written next to this script.
 //
 //   node make-icons.mjs          → writes <id>.svg + <id>.mouseover.svg for every icon
@@ -206,7 +206,9 @@ if (process.argv.includes('--png')) {
     ];
     for (const [name, svg] of variants) {
       await page.goto(`data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`);
-      await page.screenshot({ path: join(HERE, name), omitBackground: true });
+      // settle two frames — a same-page data-URL goto can screenshot mid-paint
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+      await page.screenshot({ path: join(HERE, name), omitBackground: true, clip: { x: 0, y: 0, width: 512, height: 512 } });
       console.log('wrote', name);
     }
   }

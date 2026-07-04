@@ -98,11 +98,17 @@ def collect_app_files(dist_path, entry_name, remote_entry):
 
 
 # ── manifests (routing DATA discovery) ───────────────────────────────────────
+# ICON-face tile folders (Routes/*/icons): UPLOADED like any asset, but hidden
+# from the discovery manifests so the app never renders them as categories.
+# (Legacy dot-named variants kept for back-compat with older checkouts.)
+ICON_ASSET_DIRS = {'icons', '.icons', '.icon'}
+
+
 def write_manifest(dirpath):
     """Write index.json listing this folder's immediate children (dirs end '/')."""
     entries = []
     for name in sorted(os.listdir(dirpath)):
-        if name == 'index.json' or name.startswith('.'):
+        if name == 'index.json' or name.startswith('.') or name in ICON_ASSET_DIRS:
             continue
         full = os.path.join(dirpath, name)
         if os.path.isdir(full):
@@ -115,14 +121,15 @@ def write_manifest(dirpath):
 
 
 def generate_manifests(project_dir):
-    """Create an index.json in every folder under the manifest roots."""
+    """Create an index.json in every folder under the manifest roots (icon asset
+    folders excluded — they carry tiles, not routing data)."""
     count = 0
     for root in MANIFEST_ROOTS:
         root_path = os.path.join(project_dir, root)
         if not os.path.isdir(root_path):
             continue
         for dirpath, dirnames, _ in os.walk(root_path):
-            dirnames[:] = [d for d in dirnames if not d.startswith('.')]
+            dirnames[:] = [d for d in dirnames if not d.startswith('.') and d not in ICON_ASSET_DIRS]
             write_manifest(dirpath)
             count += 1
     print(f"Generated {count} manifest(s).")
@@ -131,7 +138,10 @@ def generate_manifests(project_dir):
 # ── Routes upload set (incremental) ──────────────────────────────────────────
 def _under_roots(rel_path):
     parts = rel_path.split('/')
-    return parts[0] in MANIFEST_ROOTS and not any(p.startswith('.') for p in parts)
+    if parts[0] not in MANIFEST_ROOTS:
+        return False
+    # Dot segments never upload — except the legacy dot-named icon folders.
+    return not any(p.startswith('.') and p not in ICON_ASSET_DIRS for p in parts)
 
 
 def is_tree_clean(project_dir):
@@ -149,7 +159,10 @@ def get_changed_routes(project_dir):
     Handles -z porcelain including renames/copies (two NUL-separated paths).
     """
     result = subprocess.run(
-        ['git', '-C', project_dir, 'status', '--porcelain', '-z'],
+        # -uall: list every untracked FILE — the default collapses an untracked
+        # directory (e.g. a fresh .icons/) into one dir entry, which then fails
+        # the isfile() check and silently uploads nothing from it.
+        ['git', '-C', project_dir, 'status', '--porcelain', '-z', '-uall'],
         capture_output=True, text=True, check=True
     )
     tokens = result.stdout.split('\0')
@@ -186,7 +199,7 @@ def get_all_routes(project_dir):
     for root in MANIFEST_ROOTS:
         root_path = os.path.join(project_dir, root)
         for dirpath, dirs, files in os.walk(root_path):
-            dirs[:] = [d for d in dirs if not d.startswith('.')]
+            dirs[:] = [d for d in dirs if not d.startswith('.') or d in ICON_ASSET_DIRS]
             for name in files:
                 if name.startswith('.'):
                     continue

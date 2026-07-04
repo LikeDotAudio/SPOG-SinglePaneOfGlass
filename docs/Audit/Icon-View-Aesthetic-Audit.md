@@ -236,3 +236,22 @@ Nothing else. `dispatch.test.ts` unaffected; no editor, matrix, or Routes-schema
 *Companion knowledge: the two `make-icons.mjs` generators are the tile style's source
 of truth — any new surface (monograms, badges) should derive from that template, not
 fork the styling.*
+
+
+---
+
+## 9. Addendum — as built (2026-07-04, same day)
+
+P0+P1 shipped and live. Deltas from the plan above:
+- The icon folders were renamed to **plain** `Routes/Destinations/icons/` and
+  `Routes/Sources/icons/` (no dots). The deploy/discovery contract inverted
+  accordingly: `deploy.py ICON_ASSET_DIRS` now *uploads* these folders but
+  *excludes* them from the index.json manifests, and the app defensively filters
+  an `icons/` entry in `renderSourcesPanel` / `buildDestinations`.
+- Second deploy.py fix found while shipping: `git status --porcelain` collapses
+  untracked directories to one entry (uploading nothing inside) — `-uall` fixes.
+- The hover state shipped as pre-rendered `<slug>.mouseover.svg` tiles (lit halo
+  + name scrim), swapped by CSS `:hover` via `--face-icon-hover`; captions hide
+  on hover since the tile carries its own name.
+- Presets preserve the face (Preset.scheme is `Omit<ColourScheme,'face'>`).
+P2 (monogram tiles for leaf tabs, compact density) remains open.

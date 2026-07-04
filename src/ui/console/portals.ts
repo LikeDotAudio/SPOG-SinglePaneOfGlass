@@ -6,6 +6,7 @@
 // special-casing. Exposes createPortal for programmatic use.
 import { addStyles } from '../dom.js';
 import { monoEmoji } from '../sources/format.js';
+import { stampIcon } from '../icon-face.js';
 import { toggleSuperPool } from '../sources/panel.js';
 import { Footer, type GroupHandle } from './footer.js';
 import { initializeTwists } from './matrix.js';
@@ -43,6 +44,7 @@ function ensureSourcePool(): HTMLElement | null {
       <div class="portal-srcs"><div class="portal-empty">no portals yet</div></div>
     </div>`;
   container.addEventListener('click', (e) => toggleSuperPool(e, container));
+  stampIcon(container, 'src', 'portals');   // ICON face tile (inert in LCARS face)
   container.querySelector('.portal-new')?.addEventListener('click', (e) => { e.stopPropagation(); createPortal(); });
   panel.appendChild(container);
   // Keep PORTALS as the last source pool even as other pools stream in.

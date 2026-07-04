@@ -3,10 +3,11 @@
 // renderPrograms mounts these into EVERY room's body, so no matter what twists a
 // destination declares it always has:
 //   • CLOCK        — a live time-of-day read-out; click it to open the CLOCK editor.
-//   • DUAL COUNTER — TWO always-present counters (A + B); click a count to open the
-//                    dual-count TIMER editor. Each count's transport is a mini
-//                    old-time pocket stopwatch at its left: the TOP crown is
-//                    start/stop, the SIDE pusher is reset (chronos stopwatch look).
+//   • DUAL COUNTER — TWO always-present counters (A + B) with ▶/↺ transports, plus
+//                    a THIRD independent count: an old-time pocket stopwatch (its
+//                    TOP crown is start/stop, its SIDE pusher is reset — chronos
+//                    stopwatch look). Click a count to open the dual-count TIMER
+//                    editor.
 //   • CHAT LOG     — a per-destination transcript that rides the retained TwistBus
 //                    chat/dest/# tree and narrates into the Captain's Log.
 // When the room is OFFLINE (a fault status), the clock + counters BLINK.
@@ -37,7 +38,12 @@ const CSS = `
 .dfx-crow{display:flex;align-items:center;gap:6px;}
 .dfx-crow .dfx-cvs{flex:1;min-width:0;}
 .dfx-clab{font:800 11px 'Courier New',monospace;color:#C864C8;width:14px;text-align:center;}
+.dfx-mrow{display:flex;gap:4px;}
+.dfx-mini{border:none;border-radius:6px;padding:5px 7px;cursor:pointer;
+  font:800 10px 'Courier New',monospace;background:#16233d;color:#bcd3ee;}
+.dfx-mini.run{background:#e33;color:#150404;}
 .dfx-watch{flex:0 0 auto;display:block;cursor:pointer;}
+.dfx-wlab{font:700 8px 'Courier New',monospace;letter-spacing:1px;color:#6b7686;text-transform:uppercase;}
 .dfx-chat{display:flex;flex-direction:column;gap:6px;}
 .dfx-log{height:96px;overflow:auto;background:#050506;border:1px solid #201620;border-radius:8px;padding:6px;
   display:flex;flex-direction:column;gap:3px;font:600 10px 'Courier New',monospace;color:#cdd6e6;}
@@ -111,21 +117,22 @@ function clockCard(openEdit: () => void, offline: boolean): HTMLElement {
 
 // ---- DUAL COUNTER: two count-up counters per destination, persistent state ---
 interface CState { running: boolean; base: number; startedAt: number; }
-const counterStore = new Map<string, { A: CState; B: CState }>();
+// A + B are the dual counters; S is the standalone stopwatch's own count.
+const counterStore = new Map<string, { A: CState; B: CState; S: CState }>();
 const mkC = (): CState => ({ running: false, base: 0, startedAt: 0 });
-function countersOf(id: string): { A: CState; B: CState } {
+function countersOf(id: string): { A: CState; B: CState; S: CState } {
   let s = counterStore.get(id);
-  if (!s) { s = { A: mkC(), B: mkC() }; counterStore.set(id, s); }
+  if (!s) { s = { A: mkC(), B: mkC(), S: mkC() }; counterStore.set(id, s); }
   return s;
 }
 const cMs = (s: CState): number => s.base + (s.running ? performance.now() - s.startedAt : 0);
 
-// A mini old-time mechanical stopwatch (the chronos stopwatch display, shrunk to a
-// transport control): chrome bezel, white dial, magenta second sweep. The TOP crown
-// starts/stops the counter; the SIDE pusher resets it.
-function stopwatchCtl(s: CState, offline: boolean): HTMLCanvasElement {
+// An old-time mechanical stopwatch (the chronos stopwatch display, shrunk to a
+// fixture control) driving its OWN count: chrome bezel, white dial, magenta second
+// sweep. The TOP crown starts/stops it; the SIDE pusher resets it. `k` scales it.
+function stopwatchCtl(s: CState, offline: boolean, k = 1): HTMLCanvasElement {
   const TAU = Math.PI * 2;
-  const W = 56, H = 54;
+  const W = Math.round(56 * k), H = Math.round(54 * k);
   const cvs = el('canvas', { class: 'dfx-watch' });
   cvs.width = W * dpr; cvs.height = H * dpr;
   cvs.style.width = `${W}px`; cvs.style.height = `${H}px`;
@@ -136,7 +143,7 @@ function stopwatchCtl(s: CState, offline: boolean): HTMLCanvasElement {
   // Chronos-stopwatch geometry, but size R so BOTH crowns fit: the top crown's
   // overhang bounds the height, the side pusher's (cos18°·(R+2.5·0.17R) ≈ 1.36R)
   // bounds the width.
-  const margin = 2, REACH = 1.35;
+  const margin = 2 * k, REACH = 1.35;
   const R = Math.min((W / 2 - margin) / 1.36, (H - margin * 2) / (1 + REACH));
   const cx = W / 2, cy = margin + REACH * R;
   const angTop = -Math.PI / 2;                        // start/stop crown at 60 (top)
@@ -168,7 +175,7 @@ function stopwatchCtl(s: CState, offline: boolean): HTMLCanvasElement {
     // 12 dial ticks (60 won't read at this size).
     for (let i = 0; i < 12; i++) {
       const a = -Math.PI / 2 + (i / 12) * TAU, major = i % 3 === 0;
-      g.strokeStyle = '#141414'; g.lineWidth = major ? 1.4 : 0.7;
+      g.strokeStyle = '#141414'; g.lineWidth = (major ? 1.4 : 0.7) * k;
       g.beginPath();
       g.moveTo(cx + Math.cos(a) * rF * (major ? 0.72 : 0.82), cy + Math.sin(a) * rF * (major ? 0.72 : 0.82));
       g.lineTo(cx + Math.cos(a) * rF * 0.94, cy + Math.sin(a) * rF * 0.94);
@@ -184,9 +191,9 @@ function stopwatchCtl(s: CState, offline: boolean): HTMLCanvasElement {
       g.lineTo(cx + Math.cos(a) * len, cy + Math.sin(a) * len);
       g.stroke();
     };
-    hand(((totalS / 60) % 60) / 60, rF * 0.5, 1.4, '#3a3d44');
-    hand((totalS % 60) / 60, rF * 0.88, 1.1, '#e0219a', rF * 0.18);
-    g.fillStyle = '#e0219a'; g.beginPath(); g.arc(cx, cy, 1.8, 0, TAU); g.fill();
+    hand(((totalS / 60) % 60) / 60, rF * 0.5, 1.4 * k, '#3a3d44');
+    hand((totalS % 60) / 60, rF * 0.88, 1.1 * k, '#e0219a', rF * 0.18);
+    g.fillStyle = '#e0219a'; g.beginPath(); g.arc(cx, cy, 1.8 * k, 0, TAU); g.fill();
   };
   animate(cvs, drawWatch);
 
@@ -211,15 +218,36 @@ function counterRow(destId: string, id: 'A' | 'B', openEdit: () => void, offline
   if (offline) cvs.classList.add('dfx-blink');
   cvs.title = 'Open dual count editor';
   cvs.addEventListener('click', openEdit);
+  const run = el('button', { class: 'dfx-mini' }, ['▶']);
+  const rst = el('button', { class: 'dfx-mini' }, ['↺']);
+  const sync = (): void => { run.textContent = s.running ? '‖' : '▶'; run.classList.toggle('run', s.running); };
+  run.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (s.running) { s.base = cMs(s); s.running = false; } else { s.startedAt = performance.now(); s.running = true; }
+    sync();
+  });
+  rst.addEventListener('click', (e) => { e.stopPropagation(); s.base = 0; s.startedAt = performance.now(); });
   let last = '';
   animate(cvs, () => { const str = hms(cMs(s)); if (str !== last) { last = str; draw(str); } });
-  return el('div', { class: 'dfx-crow' }, [el('span', { class: 'dfx-clab' }, [id]), stopwatchCtl(s, offline), cvs]);
+  sync();
+  return el('div', { class: 'dfx-crow' }, [el('span', { class: 'dfx-clab' }, [id]), cvs, el('div', { class: 'dfx-mrow' }, [run, rst])]);
+}
+
+// The stopwatch is the card's THIRD count — its own state, read off its own hands.
+function stopwatchRow(destId: string, offline: boolean): HTMLElement {
+  const s = countersOf(destId).S;
+  return el('div', { class: 'dfx-crow' }, [
+    el('span', { class: 'dfx-clab' }, ['⏱']),
+    stopwatchCtl(s, offline, 1.6),
+    el('span', { class: 'dfx-wlab' }, ['stopwatch — top crown start/stop · side pusher reset']),
+  ]);
 }
 
 function counterCard(pgm: Production, openEdit: () => void, offline: boolean): HTMLElement {
   const body = el('div', { class: 'dfx-chrono' }, [
     counterRow(pgm.id, 'A', openEdit, offline),
     counterRow(pgm.id, 'B', openEdit, offline),
+    stopwatchRow(pgm.id, offline),
   ]);
   return card('DUAL COUNTER', body, 'tap a count to edit');
 }

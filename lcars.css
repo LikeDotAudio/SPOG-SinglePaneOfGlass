@@ -1508,3 +1508,77 @@
             border-bottom-left-radius: 0;
             border-bottom-right-radius: 16px;
         }
+
+        /* ── ICON FACE ───────────────────────────────────────────────────────
+           The colour engine's FACE axis (html[data-face]="lcars"|"icons") — the
+           chrome re-skins as the macOS-style dock tiles generated in
+           Routes/Sources/.icon + Routes/Destinations/.icons. Overlay only: the
+           DOM is identical in both faces; `.has-face-icon` is stamped by
+           src/ui/icon-face.ts ONLY once the tile is proven loadable, so labels
+           without artwork keep their LCARS pill even in icon face. Hover swaps
+           to the <slug>.mouseover tile (lit halo + name on its own scrim). */
+
+        /* Footer category groups: pill → tile + caption. */
+        html[data-face="icons"] .lcars-group-label.has-face-icon {
+            background: transparent;
+            border-radius: 14px;
+            flex-direction: column;
+            gap: 5px;
+            padding: 4px 6px 3px;
+            font-size: 9px;
+            letter-spacing: 1px;
+            color: #cfe0ff;
+        }
+        html[data-face="icons"] .lcars-group-label.has-face-icon::before {
+            content: '';
+            width: 54px;
+            height: 54px;
+            background: var(--face-icon) center/contain no-repeat;
+        }
+        html[data-face="icons"] .lcars-group-label.has-face-icon:hover::before {
+            background-image: var(--face-icon-hover, var(--face-icon));
+        }
+        /* The mouseover tile carries the name on its own scrim — drop the caption. */
+        html[data-face="icons"] .lcars-group-label.has-face-icon:hover > span:first-child { opacity: 0; }
+        html[data-face="icons"] .lcars-group-label.has-face-icon .lcars-group-caret { display: none; }
+
+        /* Sources sidebar pools: bar + glyph cap → tile + caption. */
+        html[data-face="icons"] .super-pool-container.has-face-icon {
+            padding: 60px 2px 2px 8px;
+            margin-bottom: 10px;
+        }
+        html[data-face="icons"] .super-pool-container.has-face-icon::before,
+        html[data-face="icons"] .super-pool-container.has-face-icon::after { display: none; }
+        html[data-face="icons"] .super-pool-container.has-face-icon .super-pool-emoji {
+            top: 0;
+            left: 2px;
+            width: 56px;
+            height: 56px;
+            font-size: 0;                       /* mutes the glyph — the tile IS the mark */
+            background: var(--face-icon) center/contain no-repeat;
+        }
+        html[data-face="icons"] .super-pool-container.has-face-icon:hover .super-pool-emoji {
+            background-image: var(--face-icon-hover, var(--face-icon));
+        }
+        html[data-face="icons"] .super-pool-container.has-face-icon .super-pool-title {
+            top: 20px;
+            left: 66px;
+            right: auto;
+            color: #cfe0ff;
+        }
+        html[data-face="icons"] .super-pool-container.has-face-icon:hover .super-pool-title > span:first-child { opacity: 0; }
+
+        /* Right-handed mirror: tile hugs the OUTER (right) edge, caption inboard. */
+        @media (min-width: 769px) {
+            html[data-chirality="right"][data-face="icons"] .ingress-panel .super-pool-container.has-face-icon {
+                padding: 60px 8px 2px 2px;
+            }
+            html[data-chirality="right"][data-face="icons"] .ingress-panel .super-pool-container.has-face-icon .super-pool-emoji {
+                left: auto;
+                right: 2px;
+            }
+            html[data-chirality="right"][data-face="icons"] .ingress-panel .super-pool-container.has-face-icon .super-pool-title {
+                left: auto;
+                right: 66px;
+            }
+        }

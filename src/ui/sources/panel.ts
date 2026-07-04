@@ -12,6 +12,7 @@ import { slugId, stripOrder, monoEmoji, styleSignalNode } from './format.js';
 import { makeMediaGroup } from './media-group.js';
 import { inferPoolKind, renderSourceLeaf, fillVideoCameras } from './pools.js';
 import { applyScope } from '../console/auth-panel.js';
+import { stampIcon } from '../icon-face.js';
 
 /** Optional hook fired after a subtree renders (Phase 3 wires drag here). */
 export type RenderedHook = () => void;
@@ -252,6 +253,9 @@ export function buildSuperPool(panel: HTMLElement, name: string, color: Hex): HT
     </div>
     <div class="super-pool-content" style="display:none;"></div>`;
   container.addEventListener('click', (e) => toggleSuperPool(e, container));
+  // ICON face: the pool renders as its source tile (inert in LCARS face; only
+  // activates if Routes/Sources/.icon/<slug>.svg exists).
+  stampIcon(container, 'src', stripOrder(name));
   panel.appendChild(container);
   return container.querySelector<HTMLElement>(':scope > .super-pool-content') as HTMLElement;
 }
@@ -259,7 +263,10 @@ export function buildSuperPool(panel: HTMLElement, name: string, color: Hex): HT
 /** Read Routes/Sources/index.json and build a super-pool per category, in order. */
 export async function renderSourcesPanel(panel: HTMLElement, onRendered?: RenderedHook): Promise<void> {
   if (!panel) return;
-  const { dirs } = await listDirectory('Routes/Sources/');
+  const { dirs: allDirs } = await listDirectory('Routes/Sources/');
+  // `icons/` holds the ICON-face tiles, not a source category (deploy.py keeps it
+  // out of the manifests too — this guard covers a stale/hand-built index.json).
+  const dirs = allDirs.filter((d) => !/^\.?icons?\/?$/i.test(stripOrder(d.name)));
   const built = dirs.map((cat, i) => {
     const color = paletteAt(SOURCE_POOL_COLORS, i);
     const content = buildSuperPool(panel, cat.name, color);
