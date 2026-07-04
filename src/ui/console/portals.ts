@@ -32,7 +32,9 @@ function ensureSourcePool(): HTMLElement | null {
   const panel = document.querySelector<HTMLElement>('.ingress-panel');
   if (!panel) return null;
   const container = document.createElement('div');
-  container.className = 'super-pool-container portals-pool';
+  // 'folded' matches the closed content below — without it this pool's cap keeps
+  // the tall unfolded ::before geometry and renders as the odd one out.
+  container.className = 'super-pool-container portals-pool folded';
   container.innerHTML = `
     <div class="super-pool-emoji">${monoEmoji('portal').trim()}</div>
     <div class="super-pool-title foldable-header"><span>PORTALS</span><span class="fold-icon" style="transform:rotate(-90deg);display:inline-block;transition:transform .2s;">▼</span></div>

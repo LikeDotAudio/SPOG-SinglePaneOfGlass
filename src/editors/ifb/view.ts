@@ -10,7 +10,7 @@ import type { Sibling, EditorServices } from '../types.js';
 import type { Feed, RouteGraph } from '../../domain/routing-core/index.js';
 import { mixMinus } from '../../domain/routing-core/index.js';
 import { qs } from '../../ui/dom.js';
-import { PRIO, dB, initialState, DIAL_PARAM, TALK_VALUES, stripPrefix, type DialKey } from './state.js';
+import { PRIO, dB, initialState, DIAL_PARAM, TALK_VALUES, ROUTE_VALUES, stripPrefix, type DialKey, type IfbRoute } from './state.js';
 
 /** Resolve the feeds for this IFB — sources, then config.inputs, then a default. */
 function resolveFeeds(sib: Sibling): Feed[] {
@@ -127,6 +127,19 @@ export function buildOne(
         <div class="ifb-right">
           <div class="ifb-card"><h4>IFB Encoders</h4><div class="ifb-knobs"></div></div>
           <div class="ifb-card"><h4>Interrupt Hierarchy · Hold to Talk</h4><div class="ifb-talks"></div></div>
+          <div class="ifb-card"><h4>Delivery · Feed Split</h4>
+            <div class="ifb-routes">
+              <button class="ifb-route" data-route="wired">WIRED</button>
+              <button class="ifb-route" data-route="wireless">RF</button>
+              <button class="ifb-route" data-route="split">SPLIT</button>
+            </div>
+            <div class="ifb-leg" data-leg="wired"><span class="led"></span>
+              <div class="nm">STAGE BOX RETURN<small>wired earpiece feed</small></div>
+              <button class="open">⚙ OPEN</button></div>
+            <div class="ifb-leg" data-leg="wireless"><span class="led"></span>
+              <div class="nm">WIRELESS IFB<small>RF beltpack / IEM</small></div>
+              <button class="open">📶 OPEN</button></div>
+          </div>
         </div>
       </div>`;
 
@@ -190,6 +203,34 @@ export function buildOne(
       }
     });
   }
+
+  // ── Delivery split: one mix-minus+interrupt feed, fanned to the wired stage-
+  // box return and/or the wireless (RF) IFB leg — the routing decision (§image
+  // feedback: "split and fed to both"). Legs light per route; ⚙/📶 open the real
+  // stage-box / wireless editors for the physical end of each leg.
+  const applyRoute = (publishIt: boolean): void => {
+    body.querySelectorAll<HTMLElement>('.ifb-route').forEach((b) =>
+      b.classList.toggle('sel', b.dataset.route === s.route));
+    body.querySelectorAll<HTMLElement>('.ifb-leg').forEach((l) => {
+      const on = s.route === 'split' || s.route === l.dataset.leg;
+      l.classList.toggle('on', on);
+    });
+    if (publishIt) services.publishParam?.(`${pfx}route`, s.route, { throttle: false });
+  };
+  body.querySelectorAll<HTMLElement>('.ifb-route').forEach((b) => {
+    b.addEventListener('click', () => { s.route = b.dataset.route as IfbRoute; applyRoute(true); });
+  });
+  const legOpen = (leg: string): void => {
+    if (leg === 'wireless') services.openWirelessMic?.(`${sib.name} · IFB RF`, '#3FC1C9');
+    else services.openStageBox(`${sib.name} · IFB RETURN`, '#F2B74B', [`${sib.name} IFB`]);
+  };
+  body.querySelectorAll<HTMLElement>('.ifb-leg').forEach((l) => {
+    l.querySelector('.open')?.addEventListener('click', (e) => { e.stopPropagation(); legOpen(l.dataset.leg || 'wired'); });
+  });
+  subscribe(`${pfx}route`, (v) => {
+    if (typeof v === 'string' && (ROUTE_VALUES as readonly string[]).includes(v)) { s.route = v as IfbRoute; applyRoute(false); }
+  });
+  applyRoute(false);
 
   const talks = qs(body, '.ifb-talks');
   const refresh = (): void => {

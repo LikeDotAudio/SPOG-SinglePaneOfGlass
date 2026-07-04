@@ -99,6 +99,17 @@ export function resolveDef(ctx: EditorContext): SwitcherDef {
     inputs = DEFAULT_SWITCHER.inputs.map((d, i) =>
       cfg.inputs![i] ? { ...d, label: cfg.inputs![i]! } : d);
   }
+  // ROUTED sources outrank all authored defaults: a camera pushed into this
+  // mixer stamps its device name (📷, or 📡 for a remote path) on its bus button.
+  if (ctx.sources.length) {
+    inputs = inputs.map((d, i) => {
+      const f = ctx.sources[i];
+      if (!f) return d;
+      const device = f.label.replace(/\s*-?V$/i, '').trim().toUpperCase();
+      const glyph = /remote|sat(ellite)?|uplink|truck|cond/i.test(f.origin || f.label) ? '📡' : '📷';
+      return { ...d, label: `${glyph} ${device}` };
+    });
+  }
 
   const out = {
     ...DEFAULT_SWITCHER,

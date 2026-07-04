@@ -180,7 +180,7 @@
         .container {
             display: grid;
             grid-template-columns: var(--sidebar-width, 250px) 6px 1fr;
-            gap: 12px;
+            gap: 0; /* the sash is the only divider — no dead gutter beside it */
             flex: 1;
             padding: 0; /* elbows run flush to the top and both edges — no wasted gutter */
             min-height: 0;
@@ -257,7 +257,7 @@
             /* Title text hugs the INNER edge (toward the sources rail) — right in
                right-handed mode, so ENCODER 1 sits close to the sources. */
             html[data-chirality="right"] .program-title { border-radius: 30px 14px 14px 0; text-align: right; }
-            html[data-chirality="right"] .program-body { padding-right: 0; padding-left: 60px; }
+            html[data-chirality="right"] .program-body { padding: 8px 8px 8px 60px; }
 
             html[data-chirality="right"] .twist-container { padding: 24px 55px 6px 10px; }
             html[data-chirality="right"] .twist-container::before {
@@ -275,20 +275,33 @@
                 border-top-right-radius: 0; border-bottom-right-radius: 0;
                 border-top-left-radius: 10px; border-bottom-left-radius: 10px;
             }
-            html[data-chirality="right"] .twist-title { left: auto; right: 120px; }
+            /* Reading order in right-handed mode: the DESTINATION NAME leads the
+               bar (right after the fold lip), the source details follow after. */
+            html[data-chirality="right"] .twist-title { left: 40px; right: auto; }
 
-            html[data-chirality="right"] .twist-container.monitor-twist { padding: 18px 34px 6px 6px; }
-            html[data-chirality="right"] .twist-container.monitor-twist::before { border-right-width: 26px; }
+            /* Content must clear the elbow's whole sweep (26px column + 16px inner
+               curve + a black seam), and sit a seam below the 14px top bar — never
+               on top of the LCARS. */
+            html[data-chirality="right"] .twist-container.monitor-twist { padding: 22px 48px 10px 6px; }
+            /* Slim tiles also re-tighten the corner radii: the generic RTL rule's
+               25px on a 26px bar rendered as a half-circle blob (Corner Law: the
+               small tile uses the 16px step, same as the left-handed variant). */
+            html[data-chirality="right"] .twist-container.monitor-twist::before {
+                border-right-width: 26px;
+                border-top-right-radius: 16px;
+                border-bottom-right-radius: 16px;
+            }
             /* Keep the left anchor (from the general ::after rule) so the rail has
                width — `left:auto` collapsed the empty pseudo-element to nothing,
                dropping the whole top rail on the small kit-row twists. */
             html[data-chirality="right"] .twist-container.monitor-twist::after { right: 64px; }
-            html[data-chirality="right"] .twist-container.monitor-twist .twist-title { left: auto; right: 70px; }
+            html[data-chirality="right"] .twist-container.monitor-twist .twist-title { left: 28px; right: auto; }
 
-            /* Top-rail furniture flips too: the SOURCES stats label to the LEFT end
-               (fixes the title/stats overlap), the fold lip's rounded cap + chevron
-               to the left, and the fold-bar to the right over the mirrored spine. */
-            html[data-chirality="right"] .twist-stats { right: auto; left: 40px; }
+            /* Top-rail furniture: NAME leads, so the SOURCES stats move to the
+               trailing end of the bar (clear of the elbow arm); fold lip's rounded
+               cap + chevron to the left, fold-bar to the right over the spine. */
+            html[data-chirality="right"] .twist-stats { left: auto; right: 90px; }
+            html[data-chirality="right"] .twist-container.monitor-twist .twist-stats { right: 60px; }
             html[data-chirality="right"] .twist-lip {
                 right: auto; left: 0;
                 border-top-right-radius: 0; border-bottom-right-radius: 0;
@@ -307,7 +320,9 @@
            runs off the right edge. Reverse each group's label↔body and its tab row,
            and mirror the label's rounded cap to face the other way. */
         html[data-chirality="right"] .lcars-group      { flex-direction: row-reverse; }
-        html[data-chirality="right"] .lcars-group-tabs { flex-direction: row-reverse; }
+        /* Leaf tabs stack vertically in BOTH hands (footer.ts column-reverse) —
+           row-reverse here would flatten the stack back into a horizontal sprawl. */
+        html[data-chirality="right"] .lcars-group-tabs { flex-direction: column-reverse; }
         html[data-chirality="right"] .lcars-group-body { align-items: flex-end; }
         html[data-chirality="right"] .lcars-group-label { border-radius: 4px 16px 16px 4px; }
 
@@ -403,10 +418,18 @@
             padding: 0;
         }
 
-        /* Destination content fills the panel — no LCARS elbow frame. */
+        /* Destination content fills the panel — no LCARS elbow frame. The 20px side
+           padding survives ONLY on the pulse-strip edge (it clears the strip); the
+           sash-facing side runs flush — no dead gutter between sash and content. */
         .dest-frame {
             position: relative;
+            padding-left: 0;
+            padding-right: 0;
         }
+        /* Right-handed: frame sits LEFT of the sash, pulse strip on its left edge. */
+        html[data-chirality="right"] .dest-frame { padding-left: 20px; }
+        /* Left-handed: frame sits RIGHT of the sash, pulse strip on its right edge. */
+        html[data-chirality="left"] .dest-frame { padding-right: 20px; }
         .dest-frame > #production-content { position: relative; z-index: 1; }
 
         .productions-super-pool {
@@ -458,8 +481,10 @@
         }
 
         /* Production twist content — padded clear of the LCARS spine (right by
-           default; flips to the left with the spine in right-handed mode). */
-        .program-body { padding-right: 60px; }
+           default; flips to the left with the spine in right-handed mode). The
+           padding lives HERE, not inline, so the chirality flip can re-aim it —
+           an inline padding let opaque fixture cards ride over the spine. */
+        .program-body { padding: 8px 60px 8px 8px; }
 
         /* Credit pill pinned to the bottom-right corner. */
         /* The credit line + the relocated 1990s-VIEW button share this fixed row,
@@ -534,6 +559,14 @@
             grid-template-columns: repeat(3, 1fr);
             gap: 5px;
         }
+
+        /* In the narrow SOURCES rail, dense multi-column cells are unreadable —
+           each feed is one WIDE, SKINNY row instead (full width, low height).
+           Editors and drop zones keep the multi-column grids above. */
+        .ingress-panel .input-grid-video { grid-template-columns: 1fr; gap: 4px; }
+        .ingress-panel .input-grid-audio { grid-template-columns: 1fr; gap: 3px; }
+        .ingress-panel .input-grid-video > .signal-node,
+        .ingress-panel .input-grid-audio > .signal-node { padding-top: 5px; padding-bottom: 5px; }
 
         .signal-node {
             background: rgba(0, 0, 0, 0.6);
@@ -1193,7 +1226,7 @@
             border: none;
             border-radius: 0;
             padding: 27px 2px 2px 62px; /* Very tight padding: 2px gap from 60px spine */
-            margin-bottom: 25px;
+            margin-bottom: 16px;
             box-shadow: none;
             cursor: pointer; /* Suggests the spine is clickable */
         }
@@ -1219,10 +1252,18 @@
 
         /* Folded (collapsed) super-pool: the spine block is short, so the 40px
            end-cap over-rounds into a blob. Match the folder header's tighter 15px
-           radius instead so a folded pool reads as a tidy pill, not a bubble. */
+           radius instead so a folded pool reads as a tidy pill, not a bubble.
+           height:25px pins the cap to the SAME height as the title bar (::after),
+           so the folded row reads as one smooth bar end to end — no step. */
         .super-pool-container.folded::before {
+            height: 25px;
             border-top-left-radius: 15px;
             border-bottom-left-radius: 15px;
+        }
+        /* A folded pool is just its 25px bar — don't keep the expanded pool's tall
+           bottom margin around it (that read as huge dead bands down the panel). */
+        .super-pool-container.folded {
+            margin-bottom: 5px;
         }
 
         .super-pool-container::after {
@@ -1274,9 +1315,9 @@
            just before the black notch (not at the far left, not by the title). */
         .super-pool-emoji {
             position: absolute;
-            top: 4px;
+            top: 2px;              /* the 21px glyph centres in the fixed 25px bar */
             left: 40px;
-            font-size: 15px;
+            font-size: 21px;       /* 40% larger icon — the bar itself must not grow */
             font-weight: bold;
             line-height: 1;
             color: #000;
@@ -1381,4 +1422,89 @@
             .input-grid-video, .input-grid-audio {
                 grid-template-columns: 1fr;
             }
+        }
+
+        /* ── GANG groups ─────────────────────────────────────────────────────
+           A numbered series (CAM 1-8, REMOTE 1-8, MULTI VIEWER 1-3, IFB 1-4…)
+           presents as ONE LCARS elbow around the whole row, with each twist
+           reduced to a plain landing zone. The <summary> IS the elbow's top bar
+           — group title inside the LCARS, no separate header row, no caret; the
+           bar (and the elbow's arm) folds the group. Colour = the members' own
+           signal colour (--zone-color, stamped by destinations.ts). */
+        .twist-group.gang > summary.gang-bar {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+            background: var(--zone-color, var(--prod-color, #ffaa00));
+            color: #000;
+            font: 900 11px/1 Arial, sans-serif;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 6px 18px 5px 20px;
+            /* Outer top-left carries the elbow cap; right end is the terminating
+               pill; bottom-left stays square to butt-join the arm below. */
+            border-radius: 16px 999px 999px 0;
+        }
+        .twist-group.gang > summary.gang-bar::-webkit-details-marker { display: none; }
+        .twist-group.gang > summary.gang-bar::marker { content: ''; }
+        /* Folded: no arm below → the bar becomes a free-standing pill. */
+        .twist-group.gang:not([open]) > summary.gang-bar { border-radius: 16px 999px 999px 16px; }
+        /* The zone row keeps ONLY the arm — the summary bar replaces ::after. */
+        .twist-group.gang .zone-row {
+            position: relative;
+            padding: 10px 12px 12px 44px;
+        }
+        .twist-group.gang .zone-row::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 26px; height: 100%;
+            background: var(--zone-color, var(--prod-color, #ffaa00));
+            border-bottom-left-radius: 16px;
+            z-index: 0;
+        }
+        .twist-group.gang .zone-row::after { display: none; }
+        /* Members lose their own elbow chrome and become landing zones. */
+        .twist-group.gang .twist-container,
+        .twist-group.gang .twist-container.monitor-twist,
+        html[data-chirality="right"] .twist-group.gang .twist-container,
+        html[data-chirality="right"] .twist-group.gang .twist-container.monitor-twist {
+            padding: 18px 4px 4px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 8px;
+        }
+        .twist-group.gang .twist-container::before,
+        .twist-group.gang .twist-container::after,
+        html[data-chirality="right"] .twist-group.gang .twist-container::before,
+        html[data-chirality="right"] .twist-group.gang .twist-container::after {
+            display: none;
+        }
+        .twist-group.gang .twist-title,
+        .twist-group.gang .twist-container.monitor-twist .twist-title,
+        html[data-chirality="right"] .twist-group.gang .twist-title,
+        html[data-chirality="right"] .twist-group.gang .twist-container.monitor-twist .twist-title {
+            left: 10px; right: auto; top: 3px;
+            font-size: 10px; letter-spacing: 1px;
+            color: var(--zone-color, #9fb6cc) !important;
+        }
+        .twist-group.gang .twist-lip,
+        .twist-group.gang .twist-foldbar { display: none; }
+        /* Right-handed mirror: cap and arm curl on the RIGHT. */
+        html[data-chirality="right"] .twist-group.gang > summary.gang-bar {
+            border-radius: 999px 16px 0 999px;
+            padding: 6px 20px 5px 18px;
+        }
+        html[data-chirality="right"] .twist-group.gang:not([open]) > summary.gang-bar {
+            border-radius: 999px 16px 16px 999px;
+        }
+        html[data-chirality="right"] .twist-group.gang .zone-row {
+            padding: 10px 44px 12px 12px;
+        }
+        html[data-chirality="right"] .twist-group.gang .zone-row::before {
+            left: auto; right: 0;
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 16px;
         }

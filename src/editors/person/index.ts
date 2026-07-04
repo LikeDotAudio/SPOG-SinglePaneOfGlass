@@ -9,6 +9,7 @@
 
 import type { EditorPlugin } from '../types.js';
 import { el, ctx2d } from '../../ui/dom.js';
+import { knob as rotary } from '../../ui/widgets.js';
 import { injectPersonStyles } from './styles.js';
 
 interface Strip {
@@ -88,18 +89,24 @@ const plugin: EditorPlugin = {
 
     // ── VIRTUAL CHANNEL STRIP ──────────────────────────────────────────────
     const eqCanvas = el('canvas', { class: 'pr-canvas' }) as HTMLCanvasElement;
-    const compCanvas = el('canvas', { class: 'pr-canvas', style: 'height:150px' }) as HTMLCanvasElement;
+    const compCanvas = el('canvas', { class: 'pr-canvas', style: 'height:300px' }) as HTMLCanvasElement;
     const grBar = el('span', { class: 'pr-gr-bar' });
 
-    // knob factory
+    // Knob factory — a real rotary (shared ui/widgets knob, drag up/down), scaled
+    // to this parameter's range with a live value readout beneath the label.
     const knobs: Array<() => void> = [];
     function knob(label: string, key: keyof Strip, min: number, max: number, step: number, unit: string): HTMLElement {
-      const input = el('input', { type: 'range', min: String(min), max: String(max), step: String(step) }) as HTMLInputElement;
+      const dec = (String(step).split('.')[1] || '').length;
       const valEl = el('span', { class: 'k-val' });
-      const upd = (): void => { input.value = String(s[key] as number); valEl.textContent = `${s[key]}${unit}`; };
-      input.addEventListener('input', () => { (s[key] as number) = +input.value; syncFromKnob(); });
+      const toNorm = (v: number): number => (v - min) / (max - min);
+      const ctrl = rotary(label, toNorm(s[key] as number), '#F2B74B', (n) => {
+        const raw = min + n * (max - min);
+        (s[key] as number) = +((Math.round(raw / step) * step).toFixed(dec));
+        syncFromKnob();
+      });
+      const upd = (): void => { ctrl.setValue(toNorm(s[key] as number)); valEl.textContent = `${s[key]}${unit}`; };
       knobs.push(upd);
-      return el('div', { class: 'pr-knob' }, [el('span', { class: 'k-lbl' }, [label]), input, valEl]);
+      return el('div', { class: 'pr-knob' }, [ctrl, valEl]);
     }
 
     const eqToggle = el('button', { class: 'pr-toggle' }, ['ON']);
@@ -219,12 +226,17 @@ const plugin: EditorPlugin = {
     compToggle.addEventListener('click', () => { s.compOn = !s.compOn; syncFromKnob(); });
 
     // Live gain-reduction meter driven by a synthetic speech-like envelope.
+    // Also repaint the curves whenever the canvas gains/changes real layout width
+    // (first paint happens before the overlay lays out, so the mount-time draw
+    // hits a 0×0 canvas and the graphs stayed blank until an interaction).
     let t = 0;
+    let lastW = 0;
     ctx.dispose.raf(() => {
       t += 0.05;
       const inDb = -30 + 24 * (0.5 + 0.5 * Math.sin(t) * Math.abs(Math.sin(t * 0.37)));   // fake voice level
       const gr = s.compOn && !s.bypass && inDb > s.threshold ? (inDb - s.threshold) * (1 - 1 / s.ratio) : 0;
       grBar.style.width = `${clamp(gr / 18 * 100, 0, 100)}%`;
+      if (eqCanvas.clientWidth !== lastW) { lastW = eqCanvas.clientWidth; drawEq(); drawComp(); }
     });
 
     applyPreset('Voice');

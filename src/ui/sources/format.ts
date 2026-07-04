@@ -65,3 +65,9 @@ export function monoEmoji(label: string | null | undefined): string {
   for (const [re, glyph] of RULES) if (re.test(s)) return glyph + VS_TEXT + ' ';
   return '▸' + VS_TEXT + ' ';
 }
+
+/** Emoji for an INHERITED device label (assigned camera / remote feed):
+ *  satellite dish for remote paths, camera for everything else. */
+export function deviceEmoji(text: string | null | undefined): string {
+  return /remote|sat(ellite)?|uplink|truck|cond/i.test(String(text || '')) ? '📡 ' : '📷 ';
+}

@@ -48,6 +48,22 @@ export function injectIfbStyles(): void {
 .ifb-talk .nm{flex:1;font:bold 13px sans-serif;color:#cfe6ff;letter-spacing:1px;} .ifb-talk .nm small{display:block;color:#7e93b5;font-weight:normal;letter-spacing:0;}
 .ifb-talk.on{background:#ff3b3b;border-color:#ff3b3b;} .ifb-talk.on .pr{background:#000;color:#ff9a9a;} .ifb-talk.on .nm{color:#fff;}
 .ifb-talk.p1.on{box-shadow:0 0 14px rgba(255,59,59,.7);}
+
+/* delivery split: wired stage-box leg + wireless RF leg, fed by one routing decision */
+.ifb-routes{display:flex;gap:6px;margin-bottom:10px;}
+.ifb-route{flex:1;font:800 10px 'Courier New',monospace;letter-spacing:1px;padding:8px 4px;border:1px solid #2c3e5e;
+    border-radius:8px;background:#0c1730;color:#9fb6cc;cursor:pointer;}
+.ifb-route.sel{background:#3FC1C9;border-color:#3FC1C9;color:#04222a;box-shadow:0 0 10px rgba(63,193,201,.45);}
+.ifb-leg{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid #22314e;
+    background:#0a1326;margin-bottom:8px;opacity:.45;}
+.ifb-leg.on{opacity:1;border-color:#3FC1C9;}
+.ifb-leg .led{width:10px;height:10px;border-radius:50%;background:#33486a;flex:0 0 auto;}
+.ifb-leg.on .led{background:#39d353;box-shadow:0 0 8px #39d353;}
+.ifb-leg .nm{flex:1;font:bold 11px sans-serif;color:#cfe6ff;letter-spacing:1px;}
+.ifb-leg .nm small{display:block;color:#7e93b5;font-weight:normal;letter-spacing:0;font-size:9px;}
+.ifb-leg .open{font:800 9px 'Courier New',monospace;letter-spacing:1px;border:1px solid #2b8a91;border-radius:6px;
+    background:#0e2b31;color:#3FC1C9;padding:6px 8px;cursor:pointer;}
+.ifb-leg .open:hover{background:#10444d;}
 `,
   );
 }

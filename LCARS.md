@@ -6,6 +6,11 @@ implementation is [`lcars.css`](./lcars.css) (shared, never forked, by both the
 `js/` build and the TypeScript `src/` build); the canonical palette data lives in
 [`archive/lcars-styleguide.json`](./archive/lcars-styleguide.json).
 
+The **component-part vocabulary** — elbow, elbow pit, arm, armpit, wrist, hand,
+finger, spine, foot, seam — is defined with annotated diagrams in
+[`LCARS-RULES.html`](./LCARS-RULES.html) (open it in a browser). Use those names in
+comments, audits and commit messages.
+
 ---
 
 ## 1. The Corner Law

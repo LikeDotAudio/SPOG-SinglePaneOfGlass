@@ -38,7 +38,10 @@ const FOOTER_CSS = `
 .lcars-group.collapsed > .lcars-group-body{display:none;}
 .lcars-group-body{display:flex;flex-direction:column;gap:6px;align-items:flex-start;}
 .lcars-group:not(.collapsed) > .lcars-group-body{border-top:6px solid rgb(var(--group-lcars));border-radius:6px 6px 0 0;padding-top:5px;margin-top:2px;}
-.lcars-group-tabs{display:flex;flex-wrap:wrap;gap:6px;}
+/* Leaf tabs — the END of the tree — stack VERTICALLY (column-reverse puts tab 1
+   on the footer baseline, siblings climbing upward), not a horizontal sprawl. */
+.lcars-group-tabs{display:flex;flex-direction:column-reverse;gap:4px;align-items:stretch;}
+.lcars-group-tabs .lcars-tab{text-align:left;}
 .lcars-tab{--lcars:0,0,0;font-weight:900;letter-spacing:2px;text-transform:uppercase;font-size:13px;line-height:1;color:#000;background:rgb(var(--lcars));opacity:0.45;padding:9px 26px;border:none;border-radius:0 999px 999px 0;cursor:pointer;user-select:none;white-space:nowrap;transition:opacity .2s,box-shadow .2s,transform .08s;}
 .lcars-tab:hover:not(.active){opacity:0.8;}
 .lcars-tab.active{opacity:1;box-shadow:0 0 12px rgba(var(--lcars),0.75);}

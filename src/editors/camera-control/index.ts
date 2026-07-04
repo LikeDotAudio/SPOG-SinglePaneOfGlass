@@ -48,12 +48,27 @@ const plugin: EditorPlugin = {
     // Lineage of the routed camera (parent › child › grandchild) for the badge —
     // resolved from ctx.sources rather than scraped from a .signal-node origin.
     const routed = ctx.sources[0];
-    const origin = routed ? routed.label : '';
+    const origin = routed ? (routed.origin || routed.label) : '';
     const parts = origin
       .split(' — ')
       .map((s) => s.trim())
       .filter(Boolean);
     const lineage = (parts.length ? parts : [titleTxt]).join('  ›  ').toUpperCase();
+
+    // Camera bank inheritance: an ASSIGNED camera's tally shows the routed
+    // device's name (parent — child lineage in the hover), not a generic CAM n.
+    // Siblings carry each CAM twist's own routed feeds.
+    const camNames: string[] = Array.from({ length: 8 }, (_, i) => `CAM ${i + 1}`);
+    const camTitles: string[] = Array.from({ length: 8 }, (_, i) => `CAM ${i + 1} — unassigned`);
+    for (const sib of ctx.siblings) {
+      const m = sib.name.match(/\d+/);
+      const idx = m ? parseInt(m[0], 10) - 1 : -1;
+      const f = sib.sources[0];
+      if (idx < 0 || idx > 7 || !f) continue;
+      const device = f.label.replace(/\s*-?V$/i, '').trim().toUpperCase();
+      camNames[idx] = device || camNames[idx]!;
+      camTitles[idx] = (f.origin || f.label).toUpperCase();
+    }
 
     const cams = Array.from({ length: 8 }, mkState);
     const ui: UiState = {
@@ -294,7 +309,7 @@ const plugin: EditorPlugin = {
       });
     });
 
-    const syncTally = buildTally(cc, () => {
+    const syncTally = buildTally(cc, camNames, camTitles, () => {
       syncKnobs();
       syncAxes();
       syncPresets();

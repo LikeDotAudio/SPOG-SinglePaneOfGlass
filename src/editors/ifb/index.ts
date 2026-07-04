@@ -12,7 +12,7 @@ import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { gridCells } from '../../ui/grid.js';
 import { injectIfbStyles } from './styles.js';
 import { buildOne } from './view.js';
-import { stripPrefix, TALK_VALUES } from './state.js';
+import { stripPrefix, TALK_VALUES, ROUTE_VALUES } from './state.js';
 
 const plugin: EditorPlugin = {
   id: 'ifb',
@@ -22,21 +22,27 @@ const plugin: EditorPlugin = {
   requiredCaps: ['comms'],
   render(host, ctx) {
     injectIfbStyles();
-    const cells = gridCells(host, ctx.siblings.length);
+    // ctx.siblings includes self; fall back to this twist if the host left it
+    // empty (same guard as audio-monitor) so the editor never renders blank.
+    const panels = ctx.siblings.length
+      ? [...ctx.siblings]
+      : [{ name: ctx.twist.name, config: ctx.twist.config, sources: ctx.sources }];
+    const cells = gridCells(host, panels.length);
     // Advertise EVERY strip's driveable controls in ONE call — the twist's
     // `…/config` is retained and replaced, so per-strip advertises would clobber
     // each other. Each talent strip exposes the three encoders + the interrupt
     // (talk) state, flat-indexed `t<N>_…` (audit §4.5).
-    ctx.services.advertiseParams?.(ctx.siblings.flatMap((_, i): ParamSpec[] => {
+    ctx.services.advertiseParams?.(panels.flatMap((_, i): ParamSpec[] => {
       const pfx = stripPrefix(i);
       return [
         { name: `${pfx}prog_gain`, type: 'number', unit: '%', min: 0, max: 1, writable: true },
         { name: `${pfx}int_gain`, type: 'number', unit: '%', min: 0, max: 1, writable: true },
         { name: `${pfx}threshold`, type: 'number', unit: '%', min: 0, max: 1, writable: true },
         { name: `${pfx}talk`, type: 'enum', values: [...TALK_VALUES], writable: true },
+        { name: `${pfx}route`, type: 'enum', values: [...ROUTE_VALUES], writable: true },
       ];
     }));
-    ctx.siblings.forEach((sib, i) => {
+    panels.forEach((sib, i) => {
       const cell = cells[i];
       if (cell) buildOne(cell, sib, ctx.dispose, ctx.services, i);
     });

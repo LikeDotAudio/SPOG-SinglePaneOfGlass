@@ -6,6 +6,7 @@
 import { clamp } from './state.js';
 import type { CamState, CameraConsole, PtzPose } from './state.js';
 import { el, qs } from '../../ui/dom.js';
+import { deviceEmoji } from '../../ui/sources/format.js';
 
 /** Every numeric (non-`presets`) key of CamState — the set a dial can drive. */
 type NumKey = Exclude<keyof CamState, 'presets'>;
@@ -188,13 +189,16 @@ export function buildJoystick(cc: CameraConsole): { placePuck: () => void; syncA
   return { placePuck, syncAxes };
 }
 
-export function buildTally(cc: CameraConsole, onSelect: () => void): () => void {
+export function buildTally(cc: CameraConsole, names: string[], titles: string[], onSelect: () => void): () => void {
   const t = cc.$('.cc-tallies');
   for (let i = 0; i < 8; i++) {
+    const name = names[i] || `CAM ${i + 1}`;
+    const assigned = name !== `CAM ${i + 1}`;
     const b = el('div', {
-      class: 'cc-tally' + (i === cc.ui.active ? ' sel' : '') + (i === 0 ? ' live' : i === 1 ? ' pvw' : ''),
+      class: 'cc-tally' + (assigned ? ' named' : '') + (i === cc.ui.active ? ' sel' : '') + (i === 0 ? ' live' : i === 1 ? ' pvw' : ''),
+      title: titles[i] || name,
     });
-    b.innerHTML = `CAM ${i + 1}<span class="st"></span>`;
+    b.innerHTML = `${assigned ? deviceEmoji(titles[i] || name) : ''}${name}<span class="st"></span>`;
     b.addEventListener('click', () => {
       cc.ui.active = i;
       sync();

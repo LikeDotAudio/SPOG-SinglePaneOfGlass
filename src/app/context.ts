@@ -42,7 +42,7 @@ function routedFeeds(twistEl: HTMLElement): Feed[] {
     if (!label) return;
     const color = (n.style.color || n.style.borderColor || getComputedStyle(n).color || '#4d94ff');
     const type = n.dataset.type;
-    out.push({ id: n.id || `xp-${i}`, label, color, type });
+    out.push({ id: n.id || `xp-${i}`, label, color, type, origin: n.dataset.origin });
   };
   dz.querySelectorAll<HTMLElement>(':scope > .signal-node').forEach((n, i) => {
     if (n.classList.contains('dropped-group')) {
@@ -66,6 +66,30 @@ function resolveSiblings(prod: Production, selfName: string, color: Hex): Siblin
   return out;
 }
 
+/** Same-kind siblings read from the rendered program row. The click path rebuilds
+ *  the Production from the twist element's data attributes, which do NOT carry the
+ *  room's twist list — so `resolveSiblings` comes up empty and every grid-of-
+ *  siblings editor (IFB, intercom, audio monitor…) rendered nothing/one panel.
+ *  The row's `.twist-container`s ARE the twist list; each carries its config and
+ *  its live routed feeds. */
+function domSiblings(twistEl: HTMLElement, selfName: string): Sibling[] {
+  const selfPlugin = pluginFor(selfName);
+  const row = twistEl.closest('.program-row');
+  if (!selfPlugin || !row) return [];
+  const out: Sibling[] = [];
+  row.querySelectorAll<HTMLElement>('.twist-container').forEach((el) => {
+    let name = (el.querySelector('.twist-title')?.textContent ?? '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+    let config: TwistConfig | null = null;
+    if (el.dataset.config) {
+      try { config = JSON.parse(el.dataset.config) as TwistConfig; } catch { /* title-derived name */ }
+    }
+    if (config?.name) name = config.name;
+    if (pluginFor(name)?.id !== selfPlugin.id) return;
+    out.push({ name, config, sources: routedFeeds(el) });
+  });
+  return out;
+}
+
 export function buildContext(
   prod: Production,
   twist: string | TwistConfig,
@@ -78,13 +102,16 @@ export function buildContext(
   const color = (prod.color ?? '#646DCC') as Hex;
   // Prefer live routed crosspoints (the cascade); fall back to configured inputs.
   const routed = twistEl ? routedFeeds(twistEl) : [];
+  // Declared twists first; else read same-kind siblings out of the rendered row.
+  const declared = resolveSiblings(prod, name, color);
+  const siblings = declared.length ? declared : twistEl ? domSiblings(twistEl, name) : [];
   return {
     twist: { name, config },
     sources: routed.length ? routed : resolveSources(config, color),
     // `tip`/`floor` are the JSON-authored hover tips (room/person-level tip and the
     // floor/category this room sits under) — resolved by the host, surfaced by ui/tip.
     production: { name: prod.name, color, tip: prod.tip, floor: prod.parentName },
-    siblings: resolveSiblings(prod, name, color),
+    siblings,
     can,
     services,
     dispose,

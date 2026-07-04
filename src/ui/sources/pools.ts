@@ -118,7 +118,7 @@ export function renderVideoPool(data: SourceLeaf, container: HTMLElement): void 
   const group = document.createElement('div');
   group.className = 'input-group';
   group.innerHTML = `
-    <div class="foldable-header${faulted ? ' fault' : ''}" title="${data.status || 'OK'}" style="--lcars-color: ${data.color || 'var(--lcars-color)'}; font-size: 11px; margin-bottom: 8px;">
+    <div class="foldable-header${faulted ? ' fault' : ''}" title="${data.status || 'OK'}" style="--lcars-color: ${data.color || 'var(--lcars-color)'}; font-size: 11px; margin-bottom: 4px;">
       <span>${monoEmoji(data.name)}${data.name}${faultTag(data.status)}</span>
       <span class="fold-icon" style="transform: rotate(-90deg); display: inline-block; transition: transform 0.2s;">▼</span>
     </div>
@@ -161,7 +161,7 @@ export function renderAudioPool(data: SourceLeaf, container: HTMLElement, color?
   const group = document.createElement('div');
   group.className = 'input-group';
   group.innerHTML = `
-    <div class="foldable-header${faulted ? ' fault' : ''}" title="${data.status || 'OK'}" style="--lcars-color: ${poolColor}; background-color: ${poolColor}; font-size: 11px; margin-bottom: 8px;">
+    <div class="foldable-header${faulted ? ' fault' : ''}" title="${data.status || 'OK'}" style="--lcars-color: ${poolColor}; background-color: ${poolColor}; font-size: 11px; margin-bottom: 4px;">
       <span>${monoEmoji(data.name)}${data.name}${faultTag(data.status)}</span>
       <span class="fold-icon" style="transform: rotate(-90deg); display: inline-block; transition: transform 0.2s;">▼</span>
     </div>
@@ -178,16 +178,20 @@ export function renderAudioPool(data: SourceLeaf, container: HTMLElement, color?
     node.draggable = true;
     styleSignalNode(node, poolColor);
     node.dataset.status = data.status || 'OK';
+    if (data.type) node.dataset.type = data.type;
     if (faulted) node.classList.add('fault');
     grid.appendChild(node);
   };
   if (data.items && data.items.length > 0) {
     data.items.forEach((item) => mk(item, `pool-${data.id}-${slugId(item)}`));
-  } else {
-    for (let i = 1; i <= (data.count ?? 0); i++) {
+  } else if (data.count) {
+    for (let i = 1; i <= data.count; i++) {
       const num = i.toString().padStart(2, '0');
       mk(`${data.prefix ?? ''}${num}`, `pool-${data.prefix ?? ''}${num}`);
     }
+  } else if (data.type) {
+    // A typed leaf with no sub-items (wireless controller / single mic) IS the feed.
+    mk(data.name, `pool-${data.id || slugId(data.name)}`);
   }
   tagOrigin(grid, data.origin || data.name);
 }
@@ -205,7 +209,7 @@ export function renderPersonPool(data: SourceLeaf, container: HTMLElement, color
   const group = document.createElement('div');
   group.className = 'input-group';
   group.innerHTML = `
-    <div class="foldable-header${faulted ? ' fault' : ''}" title="${data.status || 'OK'}" style="--lcars-color: ${poolColor}; background-color: ${poolColor}; font-size: 11px; margin-bottom: 8px;">
+    <div class="foldable-header${faulted ? ' fault' : ''}" title="${data.status || 'OK'}" style="--lcars-color: ${poolColor}; background-color: ${poolColor}; font-size: 11px; margin-bottom: 4px;">
       <span>${monoEmoji(data.name)}${data.name}${faultTag(data.status)}</span>
       <span class="fold-icon" style="transform: rotate(-90deg); display: inline-block; transition: transform 0.2s;">▼</span>
     </div>
@@ -266,7 +270,7 @@ export function renderPlayoutPool(data: SourceLeaf, container: HTMLElement): voi
   const group = document.createElement('div');
   group.className = 'input-group';
   group.innerHTML = `
-    <div class="foldable-header" style="--lcars-color: ${color}; background-color: ${color}; font-size: 11px; margin-bottom: 8px;">
+    <div class="foldable-header" style="--lcars-color: ${color}; background-color: ${color}; font-size: 11px; margin-bottom: 4px;">
       <span>${monoEmoji(data.name)}${data.name}</span>
       <span class="fold-icon" style="transform: rotate(-90deg); display: inline-block; transition: transform 0.2s;">▼</span>
     </div>
@@ -334,7 +338,7 @@ export function renderProductionInputs(data: SourceLeaf, container: HTMLElement)
     nodes.length ? `<div class="prod-src-cat" style="color:${color}">${label}</div><div class="${gridClass}">${nodes.join('')}</div>` : '';
 
   group.innerHTML = `
-    <div class="foldable-header" style="--lcars-color: ${color}; background-color: ${color}; font-size: 11px; margin-bottom: 8px;">
+    <div class="foldable-header" style="--lcars-color: ${color}; background-color: ${color}; font-size: 11px; margin-bottom: 4px;">
       <span>${data.name}</span>
       <span class="fold-icon" style="transform: rotate(-90deg); display: inline-block; transition: transform 0.2s;">▼</span>
     </div>
@@ -392,7 +396,7 @@ export function renderStreamsPool(data: SourceLeaf, container: HTMLElement): voi
   const group = document.createElement('div');
   group.className = 'input-group';
   group.innerHTML = `
-    <div class="foldable-header" style="--lcars-color: ${color}; background-color: ${color}; font-size: 11px; margin-bottom: 8px;">
+    <div class="foldable-header" style="--lcars-color: ${color}; background-color: ${color}; font-size: 11px; margin-bottom: 4px;">
       <span>${monoEmoji(data.name)}${data.name}</span>
       <span class="fold-icon" style="transform: rotate(-90deg); display: inline-block; transition: transform 0.2s;">▼</span>
     </div>

@@ -83,6 +83,10 @@ function buildGangCell(data: SourceLeaf, suffix: string, color: string, kind: Po
   if (kind === 'audio' && kids.children.length === 1) { // 1 because of PREAMP CTRL
     node.draggable = true;
     node.classList.add('signal-node', 'audio');
+    // No sub-streams → this cell IS the feed. Drop the multiplex class, or the
+    // destination drop handler expands it looking for .sub-stream children,
+    // finds none, and the drop routes nothing.
+    node.classList.remove('multiplex');
     if (data.type) node.dataset.type = data.type;
     node.dataset.origin = data.origin || data.name;
     // Remove the kids container and preamp ctrl since the node itself is the feed

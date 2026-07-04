@@ -72,10 +72,21 @@ const BLURBS: Record<string, string> = {
 /** Cross-editor services (M1): replaces the legacy window.openStageBox global. */
 const services: EditorServices = {
   openStageBox(name, color, channels) {
-    openOverlay({ title: name, color, prodName: name, twistName: name }, (body) => {
-      body.innerHTML =
-        `<div class="ed-h">STAGE BOX · ${name}</div>` +
-        `<ul>${channels.map((c) => `<li>${c}</li>`).join('')}</ul>`;
+    // The real stagebox-input editor (preamp bench), not a bare channel list —
+    // same pattern as openWirelessMic below. Channels ride in via config.inputs.
+    const plugin = pluginFor('Stage Box');
+    if (!plugin) return;
+    openOverlay({ title: plugin.title, color, prodName: 'System', twistName: name }, (body, dispose) => {
+      const ctx: any = {
+        twist: { name, config: { name, inputs: channels } },
+        sources: [],
+        production: { name: 'System', color },
+        siblings: [],
+        can: () => true,
+        services: twistServices('System', name),
+        dispose,
+      };
+      plugin.render(body, ctx);
     });
   },
   openWirelessMic(name, color) {

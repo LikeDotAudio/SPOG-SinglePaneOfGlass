@@ -4,6 +4,11 @@
 /** The three encoder targets — also the keys the dials drive on the state. */
 export type DialKey = 'progGain' | 'intGain' | 'threshold';
 
+/** Where this talent's IFB feed is delivered: the wired stage-box return, the
+ *  wireless (RF beltpack/IEM) leg, or split to both. */
+export type IfbRoute = 'wired' | 'wireless' | 'split';
+export const ROUTE_VALUES = ['wired', 'wireless', 'split'] as const;
+
 /** Live IFB ballistics state (mirrors the legacy `s` object verbatim). */
 export interface IfbState {
   progGain: number;
@@ -14,6 +19,8 @@ export interface IfbState {
   intLvl: number;
   /** Active talk priority (0 = clear, 1..3 = held key). */
   talk: number;
+  /** Delivery routing decision — wired stage box, wireless IFB, or both. */
+  route: IfbRoute;
 }
 
 export const initialState = (): IfbState => ({
@@ -24,6 +31,7 @@ export const initialState = (): IfbState => ({
   progTarget: 0.45,
   intLvl: 0,
   talk: 0,
+  route: 'split',
 });
 
 /** One interrupt-hierarchy talk key. */

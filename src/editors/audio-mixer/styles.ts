@@ -29,6 +29,10 @@ export function injectAudioMixerStyles(): void {
             border-radius:12px;padding:12px 10px;display:flex;flex-direction:column;align-items:center;gap:12px;}
         .am-strip.master{background:#1a1430;border-color:#4a3a6e;}
         .am-strip.group{border-width:2px;border-style:solid;}
+        /* Three-line channel identity: parent / child small, the SOURCE leads. */
+        .am-name .am-ln{display:block;line-height:1.2;}
+        .am-name .am-ln.ctx{font-size:8px;font-weight:600;letter-spacing:.5px;opacity:.75;}
+        .am-name .am-ln.src{font-size:12px;}
         .am-name{font-size:12px;font-weight:bold;letter-spacing:.5px;text-align:center;width:100%;
             white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#cfe0ff;}
         .am-spill{font-size:11px;font-weight:900;letter-spacing:1px;border:none;border-radius:8px;
@@ -51,6 +55,15 @@ export function injectAudioMixerStyles(): void {
         .am-pregain .am-knob::after{height:12px;top:4px;transform-origin:50% 16px;}
         .am-pre-open{width:100%;background:#13233c;color:#F2B74B;border:1px solid #8a6a26;border-radius:5px;font:bold 8px sans-serif;letter-spacing:.5px;padding:5px 4px;cursor:pointer;}
         .am-pre-open:hover{background:#1b2f4f;}
+        /* Wireless mic channel: the strip carries an RF accent so the operator can
+           spot radio channels (battery/RF risk) at a glance; button opens telemetry. */
+        .am-strip.wireless{border:1px solid rgba(63,193,201,.55);border-radius:8px;
+            background:linear-gradient(180deg,rgba(63,193,201,.12),rgba(63,193,201,.03) 40%);
+            box-shadow:0 0 10px rgba(63,193,201,.18) inset;}
+        .am-strip.wireless .am-name::after{content:'RF';font:bold 7px sans-serif;letter-spacing:1px;color:#0d1a26;
+            background:#3FC1C9;border-radius:3px;padding:1px 3px;margin-left:4px;vertical-align:middle;}
+        .am-pre-open.wireless{background:#0e2b31;color:#3FC1C9;border-color:#2b8a91;}
+        .am-pre-open.wireless:hover{background:#10444d;}
         .am-sens-reveal{animation:amSens .85s cubic-bezier(.2,1.4,.4,1) both;}
         @keyframes amSens{0%{transform:scale(.15);opacity:0;filter:brightness(3)}55%{transform:scale(1.14)}100%{transform:scale(1);opacity:1;filter:none}}
         .am-sens-reveal::before{content:'';position:absolute;inset:-5px;border-radius:12px;border:2px solid #F2B74B;

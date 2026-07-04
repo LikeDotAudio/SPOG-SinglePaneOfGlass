@@ -133,6 +133,8 @@ export const CSS = `
 .cc-tallies{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;}
 .cc-tally{flex:1;min-width:64px;height:58px;border-radius:9px;border:2px solid #33415f;background:#0a1326;color:#9fb6cc;font-weight:900;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;}
 .cc-tally .st{position:absolute;top:5px;right:6px;width:10px;height:10px;border-radius:50%;background:#33415f;}
+/* Inherited device name (assigned camera) — smaller type so lineage names fit. */
+.cc-tally.named{font-size:10px;letter-spacing:.4px;padding:0 6px;text-align:center;line-height:1.2;}
 .cc-tally.sel{outline:2px solid #6FC8F0;color:#fff;}
 .cc-tally.live{border-color:#ff3b3b;color:#ff6a6a;} .cc-tally.live .st{background:#ff3b3b;box-shadow:0 0 8px #ff3b3b;}
 .cc-tally.pvw{border-color:#39d353;color:#7ef29a;} .cc-tally.pvw .st{background:#39d353;}

@@ -28,14 +28,14 @@ export function injectPersonStyles(): void {
 .pr-sec-h{display:flex;align-items:center;gap:10px;font:800 11px 'Courier New',monospace;letter-spacing:2px;
   text-transform:uppercase;color:#F2B74B;margin-bottom:8px;}
 .pr-sec-h .en{margin-left:auto;}
-.pr-canvas{width:100%;height:120px;background:#03060f;border:1px solid #1d2942;border-radius:8px;display:block;}
-.pr-knobs{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;}
-.pr-knob{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:66px;}
-.pr-knob input[type=range]{-webkit-appearance:none;appearance:none;width:80px;height:6px;border-radius:3px;background:#12203a;outline:none;}
-.pr-knob input::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#F2B74B;cursor:pointer;}
-.pr-knob input::-moz-range-thumb{width:18px;height:18px;border:none;border-radius:50%;background:#F2B74B;cursor:pointer;}
-.pr-knob .k-lbl{font:9px 'Courier New',monospace;letter-spacing:1px;color:#7e93b5;text-transform:uppercase;}
-.pr-knob .k-val{font:bold 11px 'Courier New',monospace;color:#cfe6ff;}
+.pr-canvas{width:100%;height:240px;background:#03060f;border:1px solid #1d2942;border-radius:8px;display:block;}
+.pr-knobs{display:flex;flex-wrap:wrap;gap:22px 34px;margin-top:16px;padding:0 4px 4px;}
+.pr-knob{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:78px;}
+/* Big rotaries: the shared ui/widgets knob, scaled up for the channel strip. */
+.pr-knob .tr-knob{width:64px;height:64px;}
+.pr-knob .tr-knob::after{width:3px;height:20px;top:7px;transform-origin:50% 25px;}
+.pr-knob .tr-klabel{font-size:10px;letter-spacing:1.5px;color:#9fb6cc;}
+.pr-knob .k-val{font:bold 12px 'Courier New',monospace;color:#F2B74B;}
 .pr-gr{display:flex;align-items:center;gap:8px;margin-top:10px;}
 .pr-gr-track{flex:1;height:12px;border-radius:6px;background:#0c1730;overflow:hidden;box-shadow:inset 0 0 4px #000;}
 .pr-gr-bar{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd400,#ff5a5a);transition:width .08s;}

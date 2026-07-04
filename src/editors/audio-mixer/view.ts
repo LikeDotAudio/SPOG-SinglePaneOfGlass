@@ -89,14 +89,35 @@ export function renderConsole(host: HTMLElement, ctx: EditorContext): void {
 
   function stripEl(c: Channel, idx: number, opts: StripOpts): HTMLElement {
     const master = !!opts.master;
-    const strip = el('div', { class: 'am-strip' + (master ? ' master' : '') });
+    const wireless = !master && (c.type === 'wireless-mic' || c.type === 'wireless-controller');
+    const strip = el('div', { class: 'am-strip' + (master ? ' master' : '') + (wireless ? ' wireless' : '') });
     const n = idx + 1; // 1-based channel number for param names (ch<N>_*)
 
     const name = el('div', {
       class: 'am-name',
-      textContent: master ? 'MASTER' : c.label,
       style: `color:${master ? '#d8c8ff' : c.color}`,
     });
+    if (master) {
+      name.textContent = 'MASTER';
+    } else {
+      // Three-line identity: parent / child / source. Lineage comes from the
+      // routed feed's origin ("Floor — Room — Device"); a structured label like
+      // V104-06-A1 splits on its dashes as the fallback.
+      const parts = (c.origin || '').split(' — ').map((s) => s.trim()).filter(Boolean);
+      let lines: string[];
+      if (parts.length >= 2) {
+        lines = [parts[parts.length - 2]!, parts[parts.length - 1]!, c.label];
+      } else {
+        const segs = c.label.split('-').map((s) => s.trim()).filter(Boolean);
+        lines = segs.length >= 3
+          ? [segs.slice(0, segs.length - 2).join('-'), segs[segs.length - 2]!, segs[segs.length - 1]!]
+          : segs.length === 2 ? [segs[0]!, segs[1]!] : [c.label];
+      }
+      const src = lines.pop()!;
+      lines.forEach((l) => name.append(el('span', { class: 'am-ln ctx', textContent: l })));
+      name.append(el('span', { class: 'am-ln src', textContent: `${wireless ? '📶 ' : ''}${src}` }));
+      name.title = c.origin || c.label;
+    }
     strip.append(name);
 
     if (!master) {
@@ -127,8 +148,8 @@ export function renderConsole(host: HTMLElement, ctx: EditorContext): void {
       rot.append(aux);
       strip.append(rot);
 
-      const isWireless = c.type === 'wireless-mic' || c.type === 'wireless-controller';
-      const ob = el('button', { class: 'am-pre-open', textContent: isWireless ? '⚙ WIRELESS MIC' : '⚙ STAGE BOX' });
+      const isWireless = wireless;
+      const ob = el('button', { class: 'am-pre-open' + (isWireless ? ' wireless' : ''), textContent: isWireless ? '📶 WIRELESS MIC' : '⚙ STAGE BOX' });
       // The button flashes (am-sens-reveal) when clicked, giving access to parameters
       ob.addEventListener('click', (e) => {
         e.stopPropagation();

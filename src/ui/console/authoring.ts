@@ -67,19 +67,31 @@ body.authoring .auth-only{display:flex !important;}
    corner and mirrors to the opposite edge on a chirality flip, tracking the elbow
    (spine is RIGHT in left-handed mode, LEFT in right-handed mode). */
 .dest-frame{position:relative;}
-/* top:46px drops the dock just clear of the chirality-mirrored role badge (.au-badge,
-   ~43px tall) that shares this outer-top corner, so it seats on the elbow beneath it. */
-.auth-dock{position:absolute;top:46px;right:0;left:auto;z-index:30;display:flex;align-items:center;gap:6px;
-  flex-wrap:wrap;flex-direction:row-reverse;padding:5px 8px 6px;}
-.authoring-toggle{display:inline-flex;align-items:center;gap:8px;
-  font:900 12px/1 Arial;letter-spacing:2px;text-transform:uppercase;color:#000;background:#C678C6;
-  border:none;border-radius:6px 18px 18px 6px;padding:9px 14px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.5);}
-.authoring-toggle .cnt{background:#03060f;color:#C678C6;border-radius:8px;padding:2px 6px;font-size:10px;min-width:8px;text-align:center;}
-body.authoring .authoring-toggle{background:#39D353;box-shadow:0 0 14px rgba(57,211,83,.7);}
-.auth-tools{display:flex;gap:5px;}
-/* Right-handed console: the elbow spine (and this dock) sit on the LEFT edge. */
-html[data-chirality="right"] .auth-dock{right:auto;left:0;flex-direction:row;}
-html[data-chirality="right"] .authoring-toggle{border-radius:18px 6px 6px 18px;}
+/* The dock IS a segment of the production rail's elbow corner — not a pill floating
+   over it. It seats exactly on the title rail band (frame padding 20px + content
+   padding-top 24px → top:44px; rail height 35px), butt-joins the bar through a 4px
+   black notch on the joining side, and its outer top corner carries the rail's 30px
+   cap radius (Corner Law: round the terminating end, square the joining edges). */
+.auth-dock{position:absolute;top:44px;right:26px;left:auto;height:35px;z-index:30;
+  display:flex;align-items:stretch;gap:5px;flex-direction:row-reverse;padding:0;}
+/* No destination loaded → no rail to seat on → the dock hides entirely. */
+.dest-frame:not(:has(.program-row)) .auth-dock{display:none;}
+.authoring-toggle{display:inline-flex;align-items:center;gap:8px;box-sizing:border-box;
+  font:900 12px/1 Arial;letter-spacing:2px;text-transform:uppercase;color:#000;background:transparent;
+  border:none;border-left:4px solid var(--bg-color,#050a15);
+  padding:0 20px 0 14px;cursor:pointer;box-shadow:none;}
+.authoring-toggle:hover{background:rgba(0,0,0,.16);}
+.authoring-toggle .cnt{background:#03060f;color:#e0f0ff;border-radius:8px;padding:2px 6px;font-size:10px;min-width:8px;text-align:center;}
+/* Authoring ON: the segment inverts — black fill, green text — so state is
+   unmistakable while still reading as part of the bar. */
+body.authoring .authoring-toggle{background:#03060f;color:#39D353;box-shadow:none;}
+body.authoring .authoring-toggle .cnt{color:#39D353;}
+.auth-tools{display:flex;gap:5px;align-items:center;}
+/* Right-handed console: the elbow spine (and this dock) sit on the LEFT edge; the
+   frame keeps 20px padding there to clear the pulse strip, so the rail starts x=20. */
+html[data-chirality="right"] .auth-dock{right:auto;left:20px;flex-direction:row;}
+html[data-chirality="right"] .authoring-toggle{padding:0 14px 0 20px;
+  border-left:none;border-right:4px solid var(--bg-color,#050a15);}
 .auth-tools button{font:900 10px/1 Arial;letter-spacing:1px;text-transform:uppercase;color:#000;
   border:none;border-radius:4px;padding:8px 12px;cursor:pointer;background:#C2B74B;}
 .auth-tools .revert{background:#B46757;color:#fff;}

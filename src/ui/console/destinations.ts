@@ -29,8 +29,12 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
   const pColor = pgm.color ?? '#ffaa00';
 
   const rows: Record<string, string> = {};
+  const rowNames: Record<string, string[]> = {};
   const rowOrder: string[] = [];
   let bigHtml = '';
+  let mixerHtml = '';   // vision mixer + signaling — the switching heart of the room
+  let mvHtml = '';      // all multiviewers together
+  const bigNames: string[] = [], mixerNames: string[] = [], mvNames: string[] = [];
   pgmTwists.forEach((t, ti) => {
     const name = twistName(t);
     const plugin = pluginFor(name);
@@ -42,6 +46,13 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
       rowKey = t.row || (t.monitor ? 'monitors' : null);
       if (rowKey === 'remotes') lcars = '#64C8A0';   // signal-conditioner green, distinct from camera blue
       if (rowKey === 'graphics') lcars = '#39D353';   // graphics engines — green, horizontal small row
+    }
+    // The audio trio (monitor console / positioner / intercom) group under SOUND —
+    // derived from the twist name, so it works for string twists and needs no
+    // per-room JSON edits.
+    if (!rowKey && /audio\s*mix|monitor\s*console|audio\s*position|positioner|intercom/i.test(name)) {
+      rowKey = 'sound';
+      lcars = acceptColor['audio'] as string;
     }
     const isSmall = !!rowKey;
     // Big (function) twists flow ~3-across (≈⅓ width) and wrap horizontally;
@@ -63,39 +74,84 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
         <div class="matrix-container" id="${matrixId}"></div>
         <svg class="dna-helix" viewBox="0 0 100 100" preserveAspectRatio="none" style="width: 100%; height: 0; display: block; margin-top: 0;"></svg>
       </div>`;
-    if (isSmall && rowKey) { if (!(rowKey in rows)) { rows[rowKey] = ''; rowOrder.push(rowKey); } rows[rowKey] += twistHtml; }
-    else bigHtml += twistHtml;
+    if (isSmall && rowKey) {
+      if (!(rowKey in rows)) { rows[rowKey] = ''; rowNames[rowKey] = []; rowOrder.push(rowKey); }
+      rows[rowKey] += twistHtml; rowNames[rowKey]!.push(name);
+    }
+    else if (plugin?.id === 'multi-viewer') { mvHtml += twistHtml; mvNames.push(name); }
+    else if (plugin?.id === 'vision-mixer' || plugin?.id === 'signaling') { mixerHtml += twistHtml; mixerNames.push(name); }
+    else { bigHtml += twistHtml; bigNames.push(name); }
   });
 
-  const wrapGroup = (name: string, content: string, extraClass: string = '') => {
-    const count = (content.match(/twist-container/g) || []).length;
-    return `
-      <details class="twist-group ${extraClass}" open style="width: 100%; margin-bottom: 6px; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 4px;">
-        <summary style="cursor: pointer; padding: 4px 8px; font-weight: bold; color: ${pColor}; user-select: none; font-size: 0.85em; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
+  // A numbered series (CAM 1-8, MULTI VIEWER 1-3, IFB 1-4…) is a GANG: it renders
+  // as ONE LCARS elbow with N landing zones, not an elbow per twist (see the
+  // .twist-group.gang rules in lcars.css).
+  const isGang = (names: string[]): boolean => {
+    if (names.length < 2) return false;
+    const bases = names.map((n) => n.replace(/\s*\d+$/, '').trim().toUpperCase());
+    return bases.every((b) => b.length > 0 && b !== names[0]?.toUpperCase() && b === bases[0]);
+  };
+
+  // Big banks (8 cameras, 8 remotes…) tuck up so the room scans; small groups
+  // (a person's single kit twist, the 2-strong mixer pair) start unfolded.
+  const openByDefault = (count: number): string => (count <= 3 ? ' open' : '');
+  // The gang elbow paints in the members' own LCARS colour (first twist's).
+  const zoneStyle = (content: string): string => {
+    const c = (content.match(/--lcars-color:\s*([^;"']+)/) || [])[1];
+    return c ? ` --zone-color:${c.trim()};` : '';
+  };
+  // A gang's summary IS the elbow's top bar (title inside the LCARS, no separate
+  // header row, no redundant caret — the bar itself folds the group).
+  const summaryFor = (name: string, count: number, gang: boolean): string => gang
+    ? `<summary class="gang-bar"><span style="flex:1;">${name.toUpperCase()} <span style="opacity:0.55; font-weight:normal;">(${count})</span></span></summary>`
+    : `<summary style="cursor: pointer; padding: 4px 8px; font-weight: bold; color: ${pColor}; user-select: none; font-size: 0.85em; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
           <span style="flex:1;">${name.toUpperCase()} <span style="opacity:0.5; font-weight:normal;">(${count})</span></span>
-        </summary>
-        <div class="monitor-row ${extraClass}" style="margin-top: 8px;">${content}</div>
+        </summary>`;
+  const wrapGroup = (name: string, content: string, extraClass: string = '', names: string[] = []) => {
+    const count = (content.match(/twist-container/g) || []).length;
+    const gang = isGang(names);
+    return `
+      <details class="twist-group ${extraClass}${gang ? ' gang' : ''}"${openByDefault(count)} style="width: 100%; margin-bottom: 6px; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 4px;${zoneStyle(content)}">
+        ${summaryFor(name, count, gang)}
+        <div class="monitor-row zone-row ${extraClass}" style="margin-top: ${gang ? 0 : 8}px;">${content}</div>
       </details>`;
   };
 
   let html = `
     <div class="program-row${faulted ? ' fault' : ''}" style="--prod-color: ${pColor}; position: relative; overflow: hidden; padding: 0; margin-bottom: 10px; flex: 1 1 auto;">
       <div class="program-title" style="background: ${pColor};">${monoEmoji(titleText)}${titleText}${faulted ? ' ' : ''}${faultTag(pgm.status)}</div>
-      <div class="program-body" style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start; width: 100%; padding: 8px;">`;
-  if (rows['cameras']) html += wrapGroup('CAMERAS', rows['cameras'], 'camera-row');
-  if (rows['remotes']) html += wrapGroup('REMOTES', rows['remotes'], 'remote-row');
-  if (bigHtml) {
-    html += `
-      <details class="twist-group" open style="width: 100%; margin-bottom: 6px; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 4px;">
-        <summary style="cursor: pointer; padding: 4px 8px; font-weight: bold; color: ${pColor}; user-select: none; font-size: 0.85em; letter-spacing: 1px;">
-          PRIMARY <span style="opacity:0.5; font-weight:normal;">(${(bigHtml.match(/twist-container/g) || []).length})</span>
-        </summary>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;width:100%;align-items:flex-start;margin-top:8px;">${bigHtml}</div>
+      <div class="program-body" style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start; width: 100%;">`;
+  // Big (function) twists group like the small rows do — but keep their wrapping
+  // ~3-across flow instead of the equal-share monitor row.
+  const wrapBig = (name: string, content: string, names: string[] = []) => {
+    const count = (content.match(/twist-container/g) || []).length;
+    const gang = isGang(names);
+    return `
+      <details class="twist-group${gang ? ' gang' : ''}"${openByDefault(count)} style="width: 100%; margin-bottom: 6px; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 4px;${zoneStyle(content)}">
+        ${summaryFor(name, count, gang)}
+        <div class="zone-row" style="display:flex;flex-wrap:wrap;gap:6px;width:100%;align-items:flex-start;margin-top:${gang ? 0 : 8}px;">${content}</div>
       </details>`;
-  }
-  rowOrder.forEach((k) => { if (k !== 'cameras' && k !== 'remotes') html += wrapGroup(k, rows[k]!); });
+  };
+  if (rows['cameras']) html += wrapGroup('CAMERAS', rows['cameras'], 'camera-row', rowNames['cameras']);
+  if (rows['remotes']) html += wrapGroup('REMOTES', rows['remotes'], 'remote-row', rowNames['remotes']);
+  if (mixerHtml) html += wrapBig('VISION MIXER / SIGNALING', mixerHtml, mixerNames);
+  if (mvHtml) html += wrapBig('MULTIVIEWER', mvHtml, mvNames);
+  if (bigHtml) html += wrapBig('PRIMARY', bigHtml, bigNames);
+  rowOrder.forEach((k) => { if (k !== 'cameras' && k !== 'remotes') html += wrapGroup(k, rows[k]!, '', rowNames[k]); });
   html += `</div></div>`;
   pane.innerHTML = html;
+  // Clicking the gang elbow's ARM (the vertical column beside the zones) tucks
+  // the group up — same as clicking its title bar. The arm is the zone-row's own
+  // padding gutter, so a click there targets the row element itself.
+  pane.querySelectorAll<HTMLElement>('details.twist-group.gang > .zone-row').forEach((row) => {
+    row.addEventListener('click', (e) => {
+      if (e.target !== row) return;
+      const rtl = document.documentElement.getAttribute('data-chirality') === 'right';
+      const r = row.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      if (rtl ? x > r.width - 48 : x < 48) (row.closest('details') as HTMLDetailsElement).open = false;
+    });
+  });
   initializeTwists(pane, openEditor);
   // Every destination carries the standing fixtures (clock, chrono landing spot,
   // per-destination chat log), regardless of its authored twists. Guarded so a
