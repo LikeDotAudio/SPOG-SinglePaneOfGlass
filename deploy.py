@@ -108,7 +108,7 @@ def main():
 
     # 3) Connect + deploy.
     env = load_env()
-    FTP_HOST = env.get('FTP_HOST', '') or "twist.like.audio"
+    FTP_HOST = env.get('FTP_HOST', '') or "spog.like.audio"
     FTP_USER = env.get('FTP_USER', '')
     FTP_PASS = env.get('FTP_PASS', '')
 

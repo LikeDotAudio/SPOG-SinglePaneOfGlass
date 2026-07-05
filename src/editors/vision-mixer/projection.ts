@@ -9,7 +9,7 @@
 
 import { el } from '../../ui/dom.js';
 import { srcLabel, tallySet } from './me.js';
-import { poseAt, poseToCss } from './dve.js';
+import { poseAt, applyPose } from './dve.js';
 import { emulateTransition } from './transitions/index.js';
 import type { TransitionKind } from '../../model/index.js';
 import type { Surface } from './surface.js';
@@ -85,7 +85,7 @@ export function createProjection(s: Surface, refs: ProjectionRefs): { sync: () =
       for (const chipHost of [stage.pgmPips, stage.pvwPips]) {
         for (const chip of chipHost.children) {
           const f = s.flights.get((chip as HTMLElement).dataset.fk ?? '');
-          if (f) (chip as HTMLElement).style.transform = poseToCss(poseAt(f.preset, f.t0, now));
+          if (f) applyPose(chip as HTMLElement, poseAt(f.preset, f.t0, now));
         }
       }
       if (auto.current) {

@@ -130,6 +130,17 @@ export function injectVisionMixerStyles(): void {
         .vm-range{flex:1;accent-color:var(--cyan,#00ffff);}
         .vm-rangeval{width:40px;text-align:right;font:800 11px 'Courier New',monospace;color:#cfe0ff;}
 
+        /* DVE Stage */
+        .vm-dve-stage{position:relative;width:100%;aspect-ratio:16/9;background:#04070e;overflow:hidden;border:2px solid #394a63;border-radius:12px;margin:10px 0;}
+        .vm-dve-frame{position:absolute;inset:22%;pointer-events:none;}
+        .vm-dve-frame .vm-pip{pointer-events:auto;}
+        .vm-dve-frame .vm-pip.ghost{opacity:.4;border:2px dashed #8fb0d0;background:transparent;z-index:1;}
+        .vm-dve-frame .vm-pip.solid{border:2px solid var(--state-ok,#39d98a);background:rgba(57,217,138,0.2);z-index:2;}
+        .vm-handle.corner{position:absolute;width:12px;height:12px;background:#fff;border:2px solid #000;border-radius:50%;cursor:crosshair;z-index:10;}
+        .vm-handle.tl{top:-6px;left:-6px;} .vm-handle.tr{top:-6px;right:-6px;}
+        .vm-handle.bl{bottom:-6px;left:-6px;} .vm-handle.br{bottom:-6px;right:-6px;}
+        .vm-move-body{position:absolute;inset:10px;cursor:move;display:flex;align-items:center;justify-content:center;font:900 12px Arial;color:#fff;text-shadow:0 1px 2px #000;user-select:none;}
+
         /* CHIRALITY — mirror the control surface in left-hand mode; the stage
            (PGM|T-bar|PVW) opts out via .chir-exempt (operator pref can opt in). */
         html[data-chirality="left"] .vm-root{direction:rtl;}

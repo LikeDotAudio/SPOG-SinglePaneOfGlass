@@ -269,7 +269,7 @@ this entry references `src/**`, not the retired `js/**` shell.
 ### Deployment
 - Shipped to production via `npm run deploy:all` (full Routes upload — the incremental
   git-diff path skips untracked trees, so new data would 404). Live-verified on
-  `twist.like.audio`; retired `007_People` trees removed from the server.
+  `spog.like.audio`; retired `007_People` trees removed from the server.
 
 ## [v95] — 2026-06-29
 

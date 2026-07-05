@@ -1,6 +1,6 @@
 # LOCAL CACHE & PREFERENCES — what the console should remember
 ### Audit & deployment plan: the preferences worth keeping, the state we lose on every reload, and how the site itself should be cached
-*Audit date: 2026-07-04 · Repo state: TS build (post-cutover), served from `twist.like.audio` via `deploy.py` (FTPS), no service worker (kill-switch era), animated icon tiles shipped.*
+*Audit date: 2026-07-04 · Repo state: TS build (post-cutover), served from `spog.like.audio` via `deploy.py` (FTPS), no service worker (kill-switch era), animated icon tiles shipped.*
 
 ---
 
@@ -95,7 +95,7 @@ That is the pattern to note: *URL for location, storage for preference.*
   (CHANGELOG version + UTC + git hash) is injected (`vite.config.ts:42`) but used only
   as a byline label — **it is exactly the cache-version key a service worker needs, and
   it already exists.**
-- **Deploy** (`deploy.py`, FTPS to `twist.like.audio`): bare deploy wipes `/assets`,
+- **Deploy** (`deploy.py`, FTPS to `spog.like.audio`): bare deploy wipes `/assets`,
   uploads hashed bundle, uploads the entry **last**, remaps `index.next.html →
   /index.htm`. Routes JSON is uploaded incrementally from `git status` (the
   `deploy:all` gotcha) and `index.json` manifests are generated per folder — icon dirs

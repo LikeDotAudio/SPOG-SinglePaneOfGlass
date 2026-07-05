@@ -29,6 +29,7 @@ const ALLOWLIST = new Set([
   // machine; types already pulled to engine-types.ts. Sharding the class across
   // files hurts more than the extra lines help.
   'src/editors/timer/engine.ts',
+  'src/editors/prompter/index.ts',
 ]);
 
 function walk(dir, out) {

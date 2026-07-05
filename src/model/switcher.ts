@@ -14,12 +14,15 @@ export interface SwitcherInput {
   color?: Hex;
 }
 
+export interface DVECrop { l: number; r: number; t: number; b: number; } // 0..100 % trimmed per edge
+
 /** One DVE keyframe — a 3D pose for the flown picture (audit §6). */
 export interface DVEKeyframe {
   x: number; y: number;          // -100..100 (% of frame off-centre)
   z: number;                     // 0..100 push-back (0 = front)
   scale: number;                 // 5..200 %
   rotX: number; rotY: number; rotZ: number;   // degrees
+  crop?: DVECrop;                // optional source-crop rectangle
 }
 
 /** A named A→B transform move; recall tweens A→B over `ms`. */
