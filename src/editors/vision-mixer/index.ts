@@ -20,10 +20,9 @@ import { tip } from '../../ui/tip.js';
 import { injectVisionMixerStyles } from './styles.js';
 import { resolveDef } from './schema.js';
 import { effective, getPrefs, setPrefs, type VmPrefs } from './prefs.js';
-import { newME, srcLabel, tallySet, applyPreset, capturePreset, type MEState } from './me.js';
-import { emulateTransition } from './transitions/index.js';
-import { captureScene, recallScene, loadUserScenes, saveUserScenes, type SwitcherState } from './scenes.js';
-import { buildDveEditor, poseAt, poseToCss } from './dve.js';
+import { newME, srcLabel, type MEState } from './me.js';
+import { loadUserScenes, type SwitcherState } from './scenes.js';
+import { buildDveEditor } from './dve.js';
 import { publisher } from './mqtt.js';
 import { TIPS } from './tips.js';
 import { MacroRecorder } from './macros.js';
@@ -37,6 +36,8 @@ import { buildAuxRow, buildMacroRow } from './panels.js';
 import { buildStage } from './stage.js';
 import { wireKeyboard } from './keyboard.js';
 import { buildTransition, type AutoToken } from './transition.js';
+import { buildLooks } from './looks-scenes.js';
+import { createProjection } from './projection.js';
 import type { Flight, Surface } from './surface.js';
 
 function render(host: HTMLElement, ctx: EditorContext): void {
@@ -84,6 +85,10 @@ function render(host: HTMLElement, ctx: EditorContext): void {
   let rebuildSceneEditorSel: () => void = () => {};
   // Assigned once the transition controls are built (below); triggers a bus take.
   let doTake: (bank: number) => void = () => {};
+  // Assigned once projection.ts / looks-scenes.ts are built (below); surface + local
+  // handlers call these by reference, so the late binding is transparent.
+  let sync: () => void = () => {};
+  let rebuildScenes: () => void = () => {};
 
   // ---- shared surface --------------------------------------------------------
   // One context object handed to every extracted builder. Reassignable scalars
@@ -128,21 +133,23 @@ function render(host: HTMLElement, ctx: EditorContext): void {
   document.addEventListener('vm-prefs-change', onPrefs);
 
   // ---- stage: PGM | T-bar | PVW ---------------------------------------------
+  // `stage` (whole object) is handed to projection.ts; the closure also pulls out
+  // the refs it wires directly (bus containers, monitors, T-bar).
+  const stage = buildStage();
   const {
-    pgmFeed, pgmSrc, pgmPips, pgmBusContainer,
-    pvwFeed, pvwSrc, pvwPips, pvwMon, pvwBusContainer, busesMod,
-    dskRow, pgmFeedNext, pgmMon, tbar, pct, tbarWrap,
-  } = buildStage();
+    pgmBusContainer, pvwBusContainer, pvwMon, busesMod, pgmMon, tbar, pct, tbarWrap,
+  } = stage;
 
   // ---- buses (rebuilt on delegate / shift / layout change) --------------------
   const rebuildBuses = createBuses(surface, { pgm: pgmBusContainer, pvw: pvwBusContainer });
 
   // ---- transition section (transition.ts) -------------------------------------
-  // `auto` is owned here — the RAF loop below drives and clears it; transition.ts
-  // only arms it via setAuto. doTake is built there and threaded back to the slot.
-  let auto: AutoToken | null = null;
+  // `auto` is owned here (a holder so projection.ts can read/clear the same slot);
+  // the RAF loop in projection drives it, transition.ts only arms it via setAuto.
+  // doTake is built there and threaded back to the slot.
+  const auto: { current: AutoToken | null } = { current: null };
   const { transBtns, rate, cutBtn, autoBtn, doTake: transDoTake } =
-    buildTransition(surface, { tbar, pct, setAuto: (v) => { auto = v; } });
+    buildTransition(surface, { tbar, pct, setAuto: (v) => { auto.current = v; } });
   doTake = transDoTake;
 
   // ---- keyers + DSKs -----------------------------------------------------------
@@ -161,73 +168,9 @@ function render(host: HTMLElement, ctx: EditorContext): void {
     return b;
   });
 
-  // ---- M/E presets + scenes ------------------------------------------------------
-  const meRow = el('div', { class: 'vm-transrow' });
-
-  function rebuildMeRow(): void {
-    meRow.replaceChildren(
-      ...mePresets.map((p) => {
-        const b = el('div', { class: 'vm-btn' }, [p.name]);
-        b.addEventListener('click', () => {
-          applyPreset(me(), p, def);
-          for (const [ki, k] of me().keyers.entries()) {
-            if (k.on && k.dve) flights.set(`${delegate}:${ki}`, { preset: dvePresets.find((x) => x.id === k.dve) ?? dvePresets[0]!, t0: performance.now() });
-          }
-          rebuildKeyers(); sync();
-        });
-        tip(b, `Apply M/E preset: ${p.name}`);
-        return b;
-      }),
-      meSave
-    );
-  }
-
-  const meSave = el('div', { class: 'vm-btn', style: 'color: #ff9c63;' }, ['SAVE LOOK']);
-  meSave.addEventListener('click', () => {
-    const name = (prompt('Save this M/E composite as:', `LOOK ${mePresets.length + 1}`) || '').trim();
-    if (!name) return;
-    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const p = capturePreset(me(), id, name);
-    const i = mePresets.findIndex((x) => x.id === id);
-    if (i >= 0) mePresets[i] = p; else mePresets.push(p);
-    rebuildMeRow();
-  });
-  tip(meSave, TIPS.meEditor!);
-  rebuildMeRow();
-
-  const sceneRow = el('div', { class: 'vm-transrow', style: 'position: relative;' });
-  function rebuildScenes(): void {
-    sceneRow.replaceChildren(
-      ...scenes.map((s) => {
-        const b = el('button', { class: 'vm-scenebtn', type: 'button' }, [s.name]);
-        b.addEventListener('click', () => {
-          recallScene(state, s, def);
-          publish('scene.recall', s.name);
-          rebuildKeyers(); sync();
-        });
-        tip(b, TIPS.scene!);
-        return b;
-      }),
-    );
-    const store = el('button', { class: 'vm-scenebtn', type: 'button' }, ['＋ STORE…']);
-    store.addEventListener('click', () => {
-      const name = (prompt('Store the whole switcher as scene:', `SCENE ${scenes.length + 1}`) || '').trim();
-      if (!name) return;
-      const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const s = captureScene(state, id, name);
-      const i = scenes.findIndex((x) => x.id === id);
-      if (i >= 0) scenes[i] = s; else scenes.push(s);
-      saveUserScenes(ctx.twist.name, scenes.filter((x) => !def.scenes.some((d) => d.id === x.id)));
-      publish('scene.store', name);
-      rebuildScenes();
-      rebuildSceneEditorSel();
-    });
-    const editToggle = el('button', { class: 'vm-scenebtn', type: 'button' }, ['⚙']);
-    editToggle.addEventListener('click', () => { sceneEditorDrawer.style.display = sceneEditorDrawer.style.display === 'none' ? 'flex' : 'none'; });
-    tip(store, TIPS.sceneStore!);
-    sceneRow.appendChild(store);
-  }
-  rebuildScenes();
+  // ---- M/E looks + scene registers (looks-scenes.ts) ----------------------------
+  const { meRow, sceneRow, rebuildScenes: rebuildScenesFn } = buildLooks(surface);
+  rebuildScenes = rebuildScenesFn;
 
   // ---- aux + macro panels (panels.ts) -------------------------------------------
   const { auxRow, auxSelects } = buildAuxRow(surface);
@@ -308,86 +251,10 @@ function render(host: HTMLElement, ctx: EditorContext): void {
     ]),
   );
 
-  // ---- sync (state → DOM) ---------------------------------------------------------
-  let lastTally = '';
-
-  const getZigZagStyle = (idx: number): string => {
-    const hue = (idx * 37) % 360;
-    return `background-color: hsl(${hue}, 40%, 30%); background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, hsl(${hue}, 40%, 20%) 10px, hsl(${hue}, 40%, 20%) 20px);`;
-  };
-
-  function sync(): void {
-    const m = me();
-    meTabs.forEach((t, i) => t.classList.toggle('sel', i === delegate));
-    pgmFeed.textContent = srcLabel(m.pgm, def);
-    pgmFeed.style.cssText = getZigZagStyle(m.pgm);
-    pgmFeedNext.textContent = srcLabel(m.pvw, def);
-    pgmFeedNext.style.cssText = getZigZagStyle(m.pvw) + ' position:absolute; inset:0; opacity:0; pointer-events:none; z-index:1;';
-    pvwFeed.textContent = srcLabel(m.pvw, def);
-    pvwFeed.style.cssText = getZigZagStyle(m.pvw);
-    pgmSrc.textContent = `M/E ${delegate + 1}`;
-    pvwSrc.textContent = `NEXT · ${m.trans} ${m.rate}f`;
-    busBtns.pgm.forEach((b, i) => b?.classList.toggle('sel', i === m.pgm));
-    busBtns.pvw.forEach((b, i) => b?.classList.toggle('sel', i === m.pvw));
-    transBtns.forEach(({ t, b }) => b.classList.toggle('sel', t === m.trans));
-    rate.value = String(m.rate);
-    tbar.value = String(m.tbar);
-    pct.textContent = `${Math.round(m.tbar)}%`;
-    dskRow.replaceChildren(...state.dsks.flatMap((on, i) => on ? [el('span', {}, [def.dsks[i]!.name.split('·')[0]!.trim()])] : []));
-    dskBtns.forEach((b, i) => b.classList.toggle('on', !!state.dsks[i]));
-    rebuildPips();
-    // Tally (read-only telemetry): the LAST bank is the programme output.
-    const pgmTally = [...tallySet(state.mes, def.mes - 1, def)].map((i) => srcLabel(i, def)).sort();
-    const key = pgmTally.join('|');
-    if (key !== lastTally) { lastTally = key; publish('tally.program', pgmTally); }
-    auxSelects.forEach((sel, i) => { if (!sel.value) sel.value = String(state.auxes[i]); });
-    persist();
-  }
-
-  /** The PIP chips over the monitors — one per active keyer of the delegated bank. */
-  function rebuildPips(): void {
-    const mk = (armedOnly: boolean): HTMLElement[] => me().keyers.flatMap((k, ki) => {
-      if (!k.on) return [];
-      const chip = el('div', { class: `vm-pip${armedOnly ? ' armed' : ''}`, dataset: { fk: `${delegate}:${ki}` } },
-        [srcLabel(k.source, def)]);
-      return [chip];
-    });
-    pgmPips.replaceChildren(...mk(false));
-    pvwPips.replaceChildren(...mk(true));
-  }
-
-  // ---- animation loop: DVE flights + auto-transition -------------------------------
-  ctx.dispose.raf(() => {
-    const now = performance.now();
-    for (const chipHost of [pgmPips, pvwPips]) {
-      for (const chip of chipHost.children) {
-        const f = flights.get((chip as HTMLElement).dataset.fk ?? '');
-        if (f) (chip as HTMLElement).style.transform = poseToCss(poseAt(f.preset, f.t0, now));
-      }
-    }
-    if (auto) {
-      const t = Math.min(1, (now - auto.t0) / auto.ms);
-      const m = state.mes[auto.bank]!;
-      m.tbar = t * 100;
-      if (auto.bank === delegate) { tbar.value = String(m.tbar); pct.textContent = `${Math.round(m.tbar)}%`; }
-      if (t >= 1) { const bank = auto.bank; auto = null; doTake(bank); }
-    }
-
-    // Render transition emulation
-    const m = me();
-    if (m.tbar > 0 && m.tbar < 100) {
-      const pct = m.tbar / 100;
-      const style = emulateTransition(m.trans, pct);
-
-      pgmFeedNext.style.opacity = String(style.opacity);
-      pgmFeedNext.style.clipPath = style.clipPath;
-      pgmFeedNext.style.transform = style.transform;
-    } else {
-      pgmFeedNext.style.opacity = '0';
-      pgmFeedNext.style.clipPath = 'none';
-      pgmFeedNext.style.transform = 'none';
-    }
-  });
+  // ---- projection: state → DOM + animation frame (projection.ts) ------------------
+  const proj = createProjection(surface, { stage, meTabs, transBtns, rate, dskBtns, auxSelects, auto, persist });
+  sync = proj.sync;
+  proj.startAnimation();
 
   // ---- MQTT surface (definition-derived registry, plan §6) ---------------------------
   buildRegistry(surface, { tbar, pct });
