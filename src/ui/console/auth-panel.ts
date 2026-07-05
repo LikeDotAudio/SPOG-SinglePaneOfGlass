@@ -42,9 +42,9 @@ const AUTH_CSS = `
 .au-corner .um-btn{flex:0 1 auto;min-width:0;margin-bottom:0;overflow:hidden;text-overflow:ellipsis;}
 .au-corner button{flex:1 1 auto;min-width:0;border:none;cursor:pointer;font:900 10px sans-serif;letter-spacing:1px;
   text-transform:uppercase;padding:8px 10px;border-radius:6px 14px 14px 6px;white-space:nowrap;}
-.au-c-rights{display:none;background:#13233c;color:#F2B74B;}
+.au-c-rights{display:none;background:#13233c;color:#FFD97A;border:1px solid rgba(255,255,255,.22) !important;}
 .au-corner.admin .au-c-rights{display:block;}
-.au-c-out{background:#0c1730;color:#bcd3ee;}
+.au-c-out{background:#0c1730;color:#EAF2FF;border:1px solid rgba(255,255,255,.22) !important;}
 .au-corner button:hover{filter:brightness(1.25);}
 /* ICON face: the corner pair render as tiles (icon-face stamps the artwork). */
 html[data-face="icons"] .au-corner button.has-face-icon{

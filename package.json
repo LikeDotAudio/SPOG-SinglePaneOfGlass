@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "sizecheck": "node scripts/check-file-size.mjs",
+    "prebuild": "node scripts/check-file-size.mjs",
     "build": "vite build",
     "deploy": "python3 deploy.py",
     "deploy:all": "python3 deploy.py --all",

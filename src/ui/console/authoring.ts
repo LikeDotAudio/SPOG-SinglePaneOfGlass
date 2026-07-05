@@ -559,6 +559,14 @@ export function initAuthoring(): void {
   const dock = el('div', { class: 'auth-dock' }, [toggle, tools]);
   const frame = document.querySelector('.dest-frame');
   (frame ?? document.getElementById('production-content') ?? document.body).append(dock);
+  // The dock is seated on the title rail, but the rail lives inside the
+  // #production-content SCROLLER while the dock sits on the frame — ride the
+  // scroll so the segment stays butted to the elbow instead of floating over
+  // whatever scrolls underneath (the frame's overflow:hidden clips it away).
+  const scroller = document.getElementById('production-content');
+  scroller?.addEventListener('scroll', () => {
+    dock.style.transform = `translateY(${-scroller.scrollTop}px)`;
+  }, { passive: true });
   onDraftsChange(() => { cnt.textContent = String(draftCount()); });
 
   // Rights gate: the dock only shows if the operator can build OR arrange. On a

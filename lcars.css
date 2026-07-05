@@ -628,6 +628,17 @@
             border-radius: 2px 16px 16px 2px;
         }
 
+        /* The SHAPE + outline carry the category; the LABEL must stay readable.
+           `color` keeps the category colour (currentColor drives the clipped
+           silhouette drop-shadows + glows above) while text-fill overrides only
+           the painted glyphs to a high-contrast near-white. */
+        .signal-node.video:not(.multiplex):not(.dropped-group),
+        .signal-node.audio:not(.multiplex):not(.dropped-group) {
+            -webkit-text-fill-color: #EAF2FF;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+        }
+
         /* Camera Control signal — a horizontal hexagon (flat top/bottom, pointed
            left/right). Light blue to set it apart from video (trapezoid) + audio. */
         .signal-node.camera-control {

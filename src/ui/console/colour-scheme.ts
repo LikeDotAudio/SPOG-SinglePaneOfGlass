@@ -220,6 +220,25 @@ const CSS = `
 .cse-fault{color:var(--state-alarm,#ff3b3b);}
 .cse-ok{color:var(--state-ok,#39d98a);}
 .cse-onair{color:var(--state-onair,#ffaa00);}
+/* Sample LCARS windows — mini elbow frames painted by the live palette tokens,
+   so a palette pick shows real chrome, not just pills. Corner Law: outer 16,
+   inner elbow radius 8 (= ½ outer), tops/bottoms square where edges join. */
+.cse-wins{display:flex;flex-wrap:wrap;gap:14px;width:100%;margin-top:14px;}
+.cse-win{--wc:#CC99CC;position:relative;flex:0 0 176px;height:104px;background:#060d1c;
+  border-radius:16px 8px 8px 8px;overflow:hidden;border:1px solid rgba(255,255,255,.07);}
+.cse-win-rail{position:absolute;top:0;left:0;right:0;height:22px;background:var(--wc);
+  border-radius:16px 8px 0 0;color:#04101e;font:800 9px Arial,sans-serif;letter-spacing:2px;
+  text-transform:uppercase;display:flex;align-items:center;justify-content:flex-end;padding:0 10px;}
+.cse-win-spine{position:absolute;top:22px;left:0;bottom:0;width:16px;background:var(--wc);}
+.cse-win-elbow{position:absolute;top:22px;left:16px;width:8px;height:8px;
+  background:radial-gradient(circle at 100% 100%,transparent 8px,var(--wc) 8px);}
+.cse-win-body{position:absolute;top:30px;left:26px;right:10px;bottom:9px;display:flex;flex-direction:column;gap:6px;}
+.cse-win-body i{display:block;height:10px;border-radius:4px;background:color-mix(in srgb,var(--wc) 32%,#0a1626);}
+.cse-win-states{display:flex;gap:7px;margin-top:auto;}
+.cse-win-states b{width:12px;height:12px;border-radius:50%;}
+.cse-win-states .d-alarm{background:var(--state-alarm,#ff3b3b);}
+.cse-win-states .d-ok{background:var(--state-ok,#39d98a);}
+.cse-win-states .d-onair{background:var(--state-onair,#ffaa00);}
 .cse-hue-row{display:flex;align-items:center;gap:16px;margin:0 0 12px;opacity:0.3;pointer-events:none;transition:opacity 0.2s;}
 .cse-hue-row.active{opacity:1;pointer-events:auto;}
 .cse-hue-slider{-webkit-appearance:none;appearance:none;width:160px;height:8px;border-radius:4px;background:linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);outline:none;}
@@ -313,6 +332,22 @@ function buildEditor(body: HTMLElement): void {
   ]);
 
   // ── LIVE PREVIEW ─────────────────────────────────────────────────────────
+  // Sample LCARS windows: a mini elbow frame per signal colour, painted via the
+  // live tokens — picking a palette repaints them instantly.
+  const sampleWin = (label: string, token: string, fallback: string, states = false): HTMLElement =>
+    el('div', { class: 'cse-win', style: `--wc:var(${token},${fallback})` }, [
+      el('div', { class: 'cse-win-rail' }, [label]),
+      el('div', { class: 'cse-win-spine' }),
+      el('div', { class: 'cse-win-elbow' }),
+      el('div', { class: 'cse-win-body' }, [
+        el('i', { style: 'width:86%' }),
+        el('i', { style: 'width:58%' }),
+        states
+          ? el('span', { class: 'cse-win-states' }, [
+              el('b', { class: 'd-alarm' }), el('b', { class: 'd-ok' }), el('b', { class: 'd-onair' })])
+          : el('i', { style: 'width:72%' }),
+      ]),
+    ]);
   const prevSec = el('div', { class: 'cse-sec' }, [
     el('h3', { class: 'ed-h' }, ['Live preview']),
     el('div', { class: 'cse-prev' }, [
@@ -322,6 +357,11 @@ function buildEditor(body: HTMLElement): void {
       el('div', { class: 'cse-chip cse-fault' }, [el('span', { class: 'g' }, ['⚠']), 'FAULT']),
       el('div', { class: 'cse-chip cse-ok' }, [el('span', { class: 'g' }, ['✓']), 'OK']),
       el('div', { class: 'cse-chip cse-onair' }, [el('span', { class: 'g' }, ['●']), 'ON-AIR']),
+      el('div', { class: 'cse-wins' }, [
+        sampleWin('VIDEO', '--sig-video', '#CC99CC'),
+        sampleWin('AUDIO', '--sig-audio', '#FF9C63'),
+        sampleWin('PROGRAM', '--sig-program', '#646DCC', true),
+      ]),
     ]),
   ]);
 
