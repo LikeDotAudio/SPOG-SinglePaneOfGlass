@@ -33,6 +33,11 @@ Run:
                                  #   cutover, or after committing files never deployed)
     python3 deploy.py --no-build # deploy the existing dist/ without rebuilding
     python3 deploy.py --no-clean # skip removing the legacy js/ shell from the server
+    python3 deploy.py --fresh    # MIRROR: full upload (implies --all), then walk the
+                                 #   whole server and delete every file this deploy
+                                 #   didn't produce (dead bundles, retired icons/PNGs,
+                                 #   moved Routes folders…). Dot-entries (.htaccess,
+                                 #   .well-known) are never touched.
 
 Uses .env for FTP_HOST / FTP_USER / FTP_PASS (Explicit FTPS).
 """
@@ -232,6 +237,71 @@ def upload_file(ftp, local, remote_rel):
         ftp.storbinary(f'STOR {filename}', f)
 
 
+def remote_list(ftp, path):
+    """[(name, is_dir)] children of /<path>. Dot-entries are skipped — server
+    config (.htaccess, .well-known/) is never ours to manage. Prefers MLSD;
+    falls back to NLST + a cwd probe on servers without it."""
+    try:
+        return [(name, facts.get('type') == 'dir')
+                for name, facts in ftp.mlsd(path or '')
+                if not name.startswith('.') and facts.get('type') not in ('cdir', 'pdir')]
+    except (ftplib.error_perm, AttributeError):
+        pass
+    try:
+        ftp.cwd('/')
+        if path:
+            ftp.cwd(path)
+        names = ftp.nlst()
+    except ftplib.error_perm:
+        return []
+    out = []
+    for n in names:
+        base = n.rsplit('/', 1)[-1]
+        if base in ('', '.', '..') or base.startswith('.'):
+            continue
+        child = f"{path}/{base}" if path else base
+        try:
+            ftp.cwd('/')
+            ftp.cwd(child)
+            out.append((base, True))
+        except ftplib.error_perm:
+            out.append((base, False))
+    return out
+
+
+def fresh_sweep(ftp, expected):
+    """Delete every remote file not in `expected` (remote-relative paths), then
+    prune directories left empty. The upload runs FIRST, so everything current
+    is already on the server — whatever this removes is dead by definition."""
+    removed = 0
+
+    def walk(path):
+        nonlocal removed
+        for name, is_dir in remote_list(ftp, path):
+            rel = f"{path}/{name}" if path else name
+            if is_dir:
+                walk(rel)
+                if not remote_list(ftp, rel):        # emptied → prune
+                    try:
+                        ftp.cwd('/')
+                        ftp.rmd(rel)
+                        print(f"  ✗ {rel}/")
+                        removed += 1
+                    except ftplib.error_perm as e:
+                        print(f"  could not remove {rel}/: {e}")
+            elif rel not in expected:
+                try:
+                    ftp.cwd('/')
+                    ftp.delete(rel)
+                    print(f"  ✗ {rel}")
+                    removed += 1
+                except ftplib.error_perm as e:
+                    print(f"  could not delete {rel}: {e}")
+
+    walk('')
+    print(f"Fresh sweep: {removed} dead entr{'y' if removed == 1 else 'ies'} removed.")
+
+
 def remote_rmtree(ftp, path):
     """Delete a remote file or directory tree at /<path>. Silent if absent."""
     # Directory? (can we cwd into it?)
@@ -322,7 +392,8 @@ def publish_build_stamp(project_dir):
 def main():
     project_dir = os.path.dirname(os.path.abspath(__file__))
     args = sys.argv[1:]
-    force_all = any(a in ('--all', '-a', 'full') for a in args)
+    fresh = '--fresh' in args
+    force_all = fresh or any(a in ('--all', '-a', 'full') for a in args)
     no_build = '--no-build' in args
     no_clean = '--no-clean' in args
     # Side-by-side: publish to /index.next.html and leave the live /index.htm + js/
@@ -407,6 +478,13 @@ def main():
             print("Removing retired legacy app (js/, dev entry — sw.js kept as kill-switch):")
             for path in LEGACY_REMOTE:
                 remote_rmtree(ftp, path)
+
+        # Fresh mirror: everything current is uploaded above — anything left on
+        # the server that this deploy didn't produce is dead. Sweep it.
+        if fresh and not side_by_side:
+            print("Fresh sweep — deleting server files this deploy didn't produce:")
+            expected = {remote for _, remote in app_files} | set(routes_upload)
+            fresh_sweep(ftp, expected)
 
         ftp.quit()
 

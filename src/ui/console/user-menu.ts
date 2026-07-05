@@ -161,9 +161,12 @@ export function initUserMenu(): void {
     panel.style.left = `${Math.round(Math.max(8, Math.min(window.innerWidth - w - 8, r.left)))}px`;
   });
   document.addEventListener('click', (e) => { if (!panel.contains(e.target as Node) && e.target !== btn) close(); });
-  // Rows that swap the whole face (1990s view) leave the menu stranded on top
-  // of the new view — close on the way out.
-  panel.addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('.rv-btn')) close(); });
+  // Any row that opens ANOTHER window (Academy, 1990s view, Colour & Vision,
+  // chirality relayout, credits) leaves the menu stranded on top of it — close
+  // on the way out. The seat row (EXPORT/IMPORT) keeps the menu open.
+  panel.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('.tut-help,.rv-btn,.palette-toggle,.chir-toggle,.credit-button')) close();
+  });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 
   // Beside the Captain's Log: same host row, right after the log button.
