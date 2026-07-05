@@ -36,19 +36,25 @@ const plugin: EditorPlugin = {
   render(host, ctx) {
     addStyles('twist-editor-prompter', CSS);
     const script = el('textarea', { class: 'tp-script', spellcheck: false }) as HTMLTextAreaElement;
-    script.value = [
+    // The talent's script is seat memory (audit §8 W2): per-twist key, restored on
+    // open; a retained bus copy (onParam 'script' below) still wins if it arrives.
+    const scriptKey = `spog.prompter.${ctx.twist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    let savedScript: string | null = null;
+    try { savedScript = localStorage.getItem(scriptKey); } catch { /* private mode */ }
+    script.value = savedScript ?? [
       'GOOD EVENING, AND WELCOME TO THE BROADCAST.',
       'OUR TOP STORY TONIGHT — THE ROUTING MATRIX IS FULLY ONLINE.',
       'COMING UP: WEATHER, SPORTS, AND A LOOK AT THE WEEK AHEAD.',
       'BUT FIRST, LET US GO LIVE TO THE FIELD.',
       'STAND BY... AND WE ARE ON AIR.',
     ].join('\n\n');
+    const saveScript = (): void => { try { localStorage.setItem(scriptKey, script.value); } catch { /* ignore */ } };
 
     const scroll = el('div', { class: 'tp-scroll' });
     const stage = el('div', { class: 'tp-stage' }, [scroll, el('div', { class: 'tp-mid' })]);
     const rebuild = (): void => { scroll.replaceChildren(...script.value.split(/\n\s*\n/).map((p) => el('p', {}, [p.trim()]))); };
     // Re-flow on edit + publish the script text (throttled — safe for keystroke bursts).
-    script.addEventListener('input', () => { rebuild(); ctx.services.publishParam?.('script', script.value); }); rebuild();
+    script.addEventListener('input', () => { rebuild(); saveScript(); ctx.services.publishParam?.('script', script.value); }); rebuild();
 
     const playBtn = el('button', { class: 'tp-btn on' }, ['▶ Run']);
     const mirrorBtn = el('button', { class: 'tp-btn' }, ['Mirror']);
@@ -94,7 +100,7 @@ const plugin: EditorPlugin = {
     ctx.services.onParam?.('position', (v) => { if (typeof v === 'number') { y = v; applyTransform(); } });
     ctx.services.onParam?.('play', (v) => { running = !!v; reflectPlay(); });
     ctx.services.onParam?.('mirror', (v) => { mirrored = !!v; reflectMirror(); });
-    ctx.services.onParam?.('script', (v) => { if (typeof v === 'string') { script.value = v; rebuild(); } });
+    ctx.services.onParam?.('script', (v) => { if (typeof v === 'string') { script.value = v; rebuild(); saveScript(); } });
     // Seed retained values so a late-joining consumer sees current state.
     ctx.services.publishParam?.('speed', speed);
     ctx.services.publishParam?.('size', size);

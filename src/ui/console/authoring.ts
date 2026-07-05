@@ -19,6 +19,7 @@ import { addStyles, el } from '../dom.js';
 import { draftCount, putDraft, hasDraft, clearDraft, clearAllDrafts, exportDrafts, onDraftsChange } from '../../platform/routes-store.js';
 import { logAction } from './captains-log.js';
 import { can, onRoleChange } from '../../platform/auth.js';
+import { getPrefs, patchPrefs } from '../../platform/prefs.js';
 import type { Production, TwistConfig, Accepts } from '../../model/index.js';
 
 // The two authoring rights (audit §5/§6, split per the User-Rights matrix):
@@ -30,7 +31,6 @@ const canArrange = (): boolean => can('arrange');
 const canEditLayout = (): boolean => canBuild() || canArrange();
 
 const STYLE_ID = 'tr-authoring';
-const ON_KEY = 'twist:authoring:on';
 
 // ---- Captain's Log for layout edits -----------------------------------------
 // Every Edit-Layout change is snapshotted, applied, then narrated to the Captain's
@@ -146,12 +146,12 @@ body.authoring .twist-container.twist-drop-after{box-shadow:4px 0 0 0 #C678C6, 0
 
 // ---- edit-mode state --------------------------------------------------------
 function persistedOn(): boolean {
-  try { return localStorage.getItem(ON_KEY) === '1'; } catch { return false; }
+  return getPrefs().authoring === true;
 }
 export function isEditing(): boolean { return document.body.classList.contains('authoring'); }
 export function setEditing(on: boolean): void {
   document.body.classList.toggle('authoring', on);
-  try { localStorage.setItem(ON_KEY, on ? '1' : '0'); } catch { /* ignore */ }
+  patchPrefs({ authoring: on });
   // Toggling doesn't re-render, so flip draggability on already-rendered containers
   // (only when the operator holds the `arrange` right).
   const drag = on && canArrange();

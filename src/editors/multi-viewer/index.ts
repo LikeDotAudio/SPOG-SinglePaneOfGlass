@@ -16,17 +16,61 @@ interface Win {
   label: string;
   color: string;
   tally: Tally;
+  /** An AUDIO GROUP pane: one multiviewer window carrying n channel VU meters
+   *  (a routed stagebox/audio bundle occupies ONE pane, never one per channel). */
+  channels?: string[];
 }
 
 const next = (t: Tally): Tally => (t === 'off' ? 'pgm' : t === 'pgm' ? 'pvw' : 'off');
 
 // Channels for the wall: real routed sources, else the twist's input slots,
 // else a sensible default count (mirrors the legacy channelsFor(twist,cfg,'MV',9)).
-function channelsFor(ctx: EditorContext): Array<{ label: string; color: string }> {
-  if (ctx.sources.length) return ctx.sources.map((f) => ({ label: f.label, color: f.color }));
+// Routed AUDIO feeds collapse by origin into a single VU-bank pane each.
+function channelsFor(ctx: EditorContext): Array<{ label: string; color: string; channels?: string[] }> {
+  if (ctx.sources.length) {
+    const out: Array<{ label: string; color: string; channels?: string[] }> = [];
+    const groups = new Map<string, { label: string; color: string; channels: string[] }>();
+    for (const f of ctx.sources) {
+      if (f.media === 'audio') {
+        const key = f.origin || 'AUDIO';
+        let g = groups.get(key);
+        if (!g) {
+          const parts = key.split(' — ').map((s) => s.trim()).filter(Boolean);
+          g = { label: parts[parts.length - 1] || key, color: f.color, channels: [] };
+          groups.set(key, g);
+          out.push(g);
+        }
+        g.channels.push(f.label);
+      } else {
+        out.push({ label: f.label, color: f.color });
+      }
+    }
+    return out;
+  }
   const inputs = ctx.twist.config?.inputs;
   if (inputs && inputs.length) return inputs.map((i) => ({ label: i, color: '#4d94ff' }));
   return Array.from({ length: 9 }, (_, i) => ({ label: `MV ${i + 1}`, color: '#4d94ff' }));
+}
+
+// A bank of n vertical VU meters — the SCREEN of an audio-group pane. Each
+// channel gets its own bar + number, all animated on the shared disposer.
+function vuBank(channels: string[], dispose: Disposer): HTMLElement {
+  const bank = el('div', { class: 'mv-vubank' });
+  const fills: Array<{ fill: HTMLElement; lvl: number }> = [];
+  channels.forEach((ch, i) => {
+    const fill = el('i');
+    const bar = el('div', { class: 'bar' }, [fill]);
+    const cell = el('div', { class: 'mv-vu', title: ch }, [bar, el('span', { textContent: String(i + 1).padStart(2, '0') })]);
+    bank.append(cell);
+    fills.push({ fill, lvl: 0.2 + Math.random() * 0.4 });
+  });
+  dispose.interval(() => {
+    for (const f of fills) {
+      f.lvl = Math.max(0.04, Math.min(1, f.lvl + (Math.random() - 0.48) * 0.3));
+      f.fill.style.height = `${f.lvl * 100}%`;
+    }
+  }, 120);
+  return bank;
 }
 
 // Port of core.js meterBar('mv-meter'): a thin VU strip animated via the disposer.
@@ -55,6 +99,7 @@ const plugin: EditorPlugin = {
       label: s.label,
       color: s.color,
       tally: i === 0 ? 'pgm' : i === 1 ? 'pvw' : 'off',
+      channels: s.channels,
     }));
 
     // PIP=0 (special). NxN presets render a full cols×cols wall; cells beyond
@@ -132,10 +177,19 @@ const plugin: EditorPlugin = {
         class: 'mv-tally',
         textContent: w.tally === 'pgm' ? 'PGM' : w.tally === 'pvw' ? 'PVW' : 'IN ' + (i + 1),
       });
-      const screen = el('div', { class: 'mv-screen', textContent: `▣ ${w.label}` });
-      const umd = el('div', { class: 'mv-umd', style: `--umd:${w.color}`, textContent: w.label });
+      // An audio group renders as ONE pane holding n channel VU meters; video
+      // (and unknown) feeds keep the mock picture + single side meter.
+      const screen = w.channels
+        ? vuBank(w.channels, ctx.dispose)
+        : el('div', { class: 'mv-screen', textContent: `▣ ${w.label}` });
+      const umd = el('div', {
+        class: 'mv-umd',
+        style: `--umd:${w.color}`,
+        textContent: w.channels ? `♪ ${w.label} ×${w.channels.length}` : w.label,
+      });
       umd.contentEditable = 'true';
-      winEl.append(tally, screen, umd, meterBar(ctx.dispose));
+      if (w.channels) winEl.append(tally, screen, umd);
+      else winEl.append(tally, screen, umd, meterBar(ctx.dispose));
       screen.addEventListener('click', () => {
         w.tally = next(w.tally);
         publishTally(i);
@@ -170,7 +224,7 @@ const plugin: EditorPlugin = {
         class:
           'mv-win' + (w ? (w.tally === 'pgm' ? ' pgm' : w.tally === 'pvw' ? ' pvw' : '') : ' empty'),
       });
-      winEl.append(el('div', { class: 'mv-tile', textContent: w ? w.label : '—' }));
+      winEl.append(el('div', { class: 'mv-tile', textContent: w ? (w.channels ? `♪ ${w.label} ×${w.channels.length}` : w.label) : '—' }));
       if (w) {
         const idx = wins.indexOf(w);
         winEl.addEventListener('click', () => {

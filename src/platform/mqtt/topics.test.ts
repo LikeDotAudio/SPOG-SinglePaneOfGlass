@@ -28,12 +28,13 @@ describe('topic builders', () => {
   it('rooms/twists key on the display name so advertise + editor align', () => {
     const display = roomDisplayName('PROD 7', 'Secondary');
     expect(display).toBe('SECONDARY — PROD 7');
-    expect(roomTopic(display)).toBe('rooms/secondary-prod-7');
-    expect(twistTopic(display, 'Video Mixer')).toBe('rooms/secondary-prod-7/twists/video-mixer');
+    // Each " — " lineage segment is its own level: destinations/<type>/<room>.
+    expect(roomTopic(display)).toBe('destinations/secondary/prod-7');
+    expect(twistTopic(display, 'Video Mixer')).toBe('destinations/secondary/prod-7/twists/video-mixer');
   });
   it('room display name with no parent is just the name', () => {
     expect(roomDisplayName('ENCODER 4')).toBe('ENCODER 4');
-    expect(roomTopic('ENCODER 4')).toBe('rooms/encoder-4');
+    expect(roomTopic('ENCODER 4')).toBe('destinations/encoder-4');
   });
   it('source topics mirror the folder path', () => {
     expect(sourceTopic(['001_Sound', '002_Stage'], 'Mic 1')).toBe('routes/sources/sound/stage/mic-1');

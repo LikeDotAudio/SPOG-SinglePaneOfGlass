@@ -1,0 +1,13 @@
+{
+  "name": "SPOG — Single Pane of Glass",
+  "short_name": "SPOG",
+  "description": "SPOG · Single Pane of Glass — the LCARS production routing console",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#06070f",
+  "theme_color": "#06070f",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

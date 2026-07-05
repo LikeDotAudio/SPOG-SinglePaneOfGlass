@@ -5,30 +5,84 @@
 // grouped into NARRATIVES ("voyages"). Reverse Course restores the exact nodes.
 import { addStyles } from '../dom.js';
 import { updateTwistVisuals } from './helix.js';
+import { idbPut, idbGetAll } from '../../platform/store-idb.js';
+import { role, onRoleChange, operator } from '../../platform/auth.js';
 
 interface Removed { node: HTMLElement; parent: Node; next: Node | null }
 // `undo` is set on SEMANTIC entries (e.g. a layout edit via logAction): reversing
 // them runs the callback instead of restoring drop-zone nodes. Routing entries
 // carry a real `twist` + added/removed nodes; action entries carry `twist: null`.
-interface Entry { id: number; ts: number; twist: HTMLElement | null; dest: string; prod: string; added: HTMLElement[]; removed: Removed[]; text: string; reversed: boolean; undo?: () => void }
+// `restored` marks entries hydrated from IndexedDB — read-only history: the DOM
+// nodes / undo callbacks they narrated died with the previous session, so they
+// can't be selected for Reverse Course (audit §7.3 gap 3).
+interface Entry { id: number; ts: number; twist: HTMLElement | null; dest: string; prod: string; added: HTMLElement[]; removed: Removed[]; text: string; reversed: boolean; undo?: () => void; restored?: boolean }
 interface Narrative { id: number; title: string; entries: Entry[] }
+
+// ---- IndexedDB persistence (audit §8 W2): the log is the audit trail ---------
+interface StoredEntry { k: string; voyage: number; voyTitle: string; entry: number; ts: number; dest: string; prod: string; text: string; reversed: boolean }
+let hydrating = false;
+function persistEntry(e: LogEntryEvent): void {
+  if (hydrating) return;
+  const voyTitle = narratives.find((n) => n.id === e.voyage)?.title ?? `Voyage ${e.voyage}`;
+  if (e.reversed) {
+    // A reversal updates the ORIGINAL record's flag; the "Course reversed" text
+    // is session commentary, not a new history row.
+    void idbGetAll<StoredEntry>('log').then((all) => {
+      const rec = all.find((r) => r.k === `${e.voyage}:${e.entry}`);
+      if (rec) void idbPut('log', { ...rec, reversed: true });
+    });
+    return;
+  }
+  void idbPut('log', { k: `${e.voyage}:${e.entry}`, voyage: e.voyage, voyTitle, entry: e.entry, ts: e.ts, dest: e.dest, prod: e.prod, text: e.text, reversed: e.reversed });
+}
+
+async function hydrateLog(): Promise<number> {
+  const rows = await idbGetAll<StoredEntry>('log');
+  if (!rows.length) return 0;
+  hydrating = true;
+  try {
+    rows.sort((a, b) => a.ts - b.ts || a.entry - b.entry);
+    for (const r of rows) {
+      let nar = narratives.find((n) => n.id === r.voyage);
+      if (!nar) { nar = { id: r.voyage, title: r.voyTitle, entries: [] }; narratives.push(nar); }
+      nar.entries.push({ id: r.entry, ts: r.ts, twist: null, dest: r.dest, prod: r.prod, added: [], removed: [], text: r.text, reversed: r.reversed, restored: true });
+      nidSeq = Math.max(nidSeq, r.voyage);
+      eidSeq = Math.max(eidSeq, r.entry);
+    }
+    narratives.sort((a, b) => a.id - b.id);
+    // New work lands in a NEW voyage, not appended to a dead session's narrative.
+    current = null;
+    render();
+  } finally { hydrating = false; }
+  return rows.length;
+}
 
 /** A log entry surfaced to external listeners (the MQTT bridge, audit §4.6). */
 export interface LogEntryEvent { voyage: number; entry: number; ts: number; dest: string; prod: string; added: string[]; removed: string[]; text: string; reversed: boolean }
 const logListeners = new Set<(e: LogEntryEvent) => void>();
 /** Subscribe to every Captain's Log entry (and course reversals). Returns an unsubscribe. */
 export function onLogEntry(cb: (e: LogEntryEvent) => void): () => void { logListeners.add(cb); return () => logListeners.delete(cb); }
-function emitLog(e: LogEntryEvent): void { for (const l of logListeners) { try { l(e); } catch { /* a bad listener must not break logging */ } } }
+function emitLog(e: LogEntryEvent): void {
+  persistEntry(e);
+  for (const l of logListeners) { try { l(e); } catch { /* a bad listener must not break logging */ } }
+}
 
 /** Log a SEMANTIC action (e.g. an Edit-Layout change) as a Captain's Log entry.
  *  `undo`, if given, is run by Reverse Course to undo it — so layout edits are
  *  narrated and reversible right alongside routing changes. */
+/** Sign a log line with the operator's name (asked at login) when one is set. */
+const signed = (text: string): string => {
+  const who = operator();
+  return who ? `${text} · by ${who}` : text;
+};
+
 export function logAction(text: string, undo?: () => void): void {
   const ts = Date.now();
   const nar = ensureNarrative();
-  const entry: Entry = { id: ++eidSeq, ts, twist: null, dest: '', prod: '', added: [], removed: [], text, reversed: false, undo };
+  const line = signed(text);
+  const entry: Entry = { id: ++eidSeq, ts, twist: null, dest: '', prod: '', added: [], removed: [], text: line, reversed: false, undo };
   nar.entries.push(entry);
-  emitLog({ voyage: nar.id, entry: entry.id, ts, dest: '', prod: '', added: [], removed: [], text, reversed: false });
+  emitLog({ voyage: nar.id, entry: entry.id, ts, dest: '', prod: '', added: [], removed: [], text: line, reversed: false });
   render();
 }
 
@@ -98,7 +152,7 @@ function onMutations(records: MutationRecord[]): void {
   byTwist.forEach((ch, twist) => {
     if (!ch.added.length && !ch.removed.length) return;
     const { dest, prod } = destInfo(twist);
-    const entry: Entry = { id: ++eidSeq, ts, twist, dest, prod, added: ch.added.slice(), removed: ch.removed.slice(), text: narrate(dest, prod, ch.removed.map((r) => r.node), ch.added, ts), reversed: false };
+    const entry: Entry = { id: ++eidSeq, ts, twist, dest, prod, added: ch.added.slice(), removed: ch.removed.slice(), text: signed(narrate(dest, prod, ch.removed.map((r) => r.node), ch.added, ts)), reversed: false };
     nar.entries.push(entry);
     emitLog({ voyage: nar.id, entry: entry.id, ts, dest, prod, added: ch.added.map(nodeLabel).filter(Boolean), removed: ch.removed.map((r) => nodeLabel(r.node)).filter(Boolean), text: entry.text, reversed: false });
     changed = true;
@@ -200,13 +254,20 @@ function render(): void {
 const entryById = (id: number): Entry | null => { for (const n of narratives) { const e = n.entries.find((x) => x.id === id); if (e) return e; } return null; };
 const narById = (id: number): Narrative | undefined => narratives.find((n) => n.id === id);
 
+/** The log is titled for the SEAT: "CAPTAIN'S LOG", "FIRST OFFICER'S LOG",
+ *  "OPS' LOG" — every role type gets its own log identity (same store). */
+export function logTitle(): string {
+  const n = role().name.toUpperCase();
+  return `${n}${n.endsWith('S') ? '’' : '’S'} LOG`;
+}
+
 function build(): HTMLElement {
   addStyles('captains-log-styles', CL_CSS);
   if (panel) return panel;
   panel = document.createElement('div');
   panel.className = 'cl-panel';
   panel.innerHTML = `
-    <div class="cl-head"><span class="cl-title">▣ CAPTAIN'S LOG</span><span class="cl-x" title="Close">CLOSE</span></div>
+    <div class="cl-head"><span class="cl-title">▣ ${logTitle()}</span><span class="cl-x" title="Close">CLOSE</span></div>
     <div class="cl-tools"><button class="cl-rev">↩ REVERSE COURSE</button><button class="cl-new">✦ NEW VOYAGE</button></div>
     <div class="cl-list"></div>`;
   document.body.appendChild(panel);
@@ -229,7 +290,7 @@ function build(): HTMLElement {
       }
       const n = narById(Number(nh.dataset.nar));
       if (!n) return;
-      const ids = n.entries.filter((x) => !x.reversed).map((x) => x.id);
+      const ids = n.entries.filter((x) => !x.reversed && !x.restored).map((x) => x.id);
       const allSel = ids.length > 0 && ids.every((id) => selected.has(id));
       ids.forEach((id) => (allSel ? selected.delete(id) : selected.add(id)));
       render(); return;
@@ -237,7 +298,7 @@ function build(): HTMLElement {
     const er = target.closest<HTMLElement>('.cl-entry');
     if (er?.dataset.entry) {
       const id = Number(er.dataset.entry), en = entryById(id);
-      if (en && en.reversed) return;
+      if (en && (en.reversed || en.restored)) return;   // restored = read-only history
       selected.has(id) ? selected.delete(id) : selected.add(id);
       render();
     }
@@ -253,12 +314,34 @@ export function initCaptainsLog(): void {
   if (!document.querySelector('.cl-btn')) {
     const b = document.createElement('button');
     b.className = 'cl-btn';
-    b.innerHTML = `CAPTAIN'S LOG<span class="cl-badge">0</span>`;
+    b.innerHTML = `${logTitle()}<span class="cl-badge">0</span>`;
     b.addEventListener('click', open);
-    const ingress = document.querySelector<HTMLElement>('.ingress-panel');   // top of the sources panel
-    if (ingress) ingress.insertBefore(b, ingress.firstChild); else document.body.appendChild(b);
+    // Preferred seat: the auth corner row (log · rights · log-out share the top
+    // corner); else the head of the sources panel.
+    const corner = document.querySelector<HTMLElement>('.au-corner');
+    const ingress = document.querySelector<HTMLElement>('.ingress-panel');
+    if (corner) corner.insertBefore(b, corner.firstChild);
+    else if (ingress) ingress.insertBefore(b, ingress.firstChild);
+    else document.body.appendChild(b);
   }
+  // The seat changes → the log re-titles itself (button, tooltip, panel head).
+  onRoleChange(() => {
+    const b = document.querySelector<HTMLElement>('.cl-btn');
+    if (b) {
+      const badge = b.querySelector('.cl-badge')?.textContent ?? '0';
+      b.innerHTML = `${logTitle()}<span class="cl-badge">${badge}</span>`;
+    }
+    const t = panel?.querySelector('.cl-title');
+    if (t) t.textContent = `▣ ${logTitle()}`;
+  });
   const root = document.getElementById('production-content') || document.body;
   observer = new MutationObserver(onMutations);
   observer.observe(root, { childList: true, subtree: true });
+  // The log survives the session: hydrate this seat's history (read-only rows)
+  // and say so on the button — the operator knows nothing was lost.
+  void hydrateLog().then((n) => {
+    if (!n) return;
+    const b = document.querySelector<HTMLElement>('.cl-btn');
+    if (b) b.title = `Log restored — ${n} entr${n === 1 ? 'y' : 'ies'} from this seat's history`;
+  });
 }

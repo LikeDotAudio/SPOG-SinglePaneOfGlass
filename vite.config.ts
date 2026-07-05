@@ -2,7 +2,7 @@
 // (`node:child_process`/`node:fs`) whose types (@types/node) aren't installed.
 import { defineConfig } from 'vite';
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 
 // Build stamp shown in the bottom-corner byline. Computed fresh on every `vite
 // build` (so it changes on every deploy): the CHANGELOG version + build time + git
@@ -33,13 +33,38 @@ function buildId(): { short: string; full: string } {
 // as the live `js/` app sees them — data and styling are never forked (see A.8).
 //
 // Entry is `index.next.htm` so the live `index.htm` is untouched until cutover.
+const BUILD = buildId();
+
 export default defineConfig({
   root: '.',
+  plugins: [{
+    // Emit the build stamp to DISK too (dist/build-id.json): deploy.py reads it
+    // to publish the retained SPOG/system/build stamp, and the service worker
+    // keys its caches on it — __BUILD_ID__ alone lives only inside the JS
+    // (audit §7.3 deploy-side facts).
+    name: 'twist-build-id',
+    apply: 'build',
+    writeBundle(_opts, bundle): void {
+      try {
+        mkdirSync('dist', { recursive: true });
+        writeFileSync('dist/build-id.json', JSON.stringify({ ...BUILD, ts: Date.now() }));
+        // Emit the service worker from its template: bake the build stamp (cache
+        // version) + the hashed bundle files (precache manifest). Entry HTMLs are
+        // precached by path; the worker still serves them NETWORK-FIRST (§5.1).
+        const precache = ['./', './index.htm', './index.next.html', './build-id.json', './manifest.json', './favicon.svg']
+          .concat(Object.keys(bundle).filter((f) => f.startsWith('assets/')).map((f) => `./${f}`));
+        const sw = readFileSync('src/sw/sw.template.js', 'utf8')
+          .replaceAll('__BUILD__', BUILD.full.replace(/[^\w.-]+/g, '_'))
+          .replaceAll('__PRECACHE__', JSON.stringify(precache));
+        writeFileSync('dist/sw.js', sw);
+      } catch (e) { console.warn('build-id/sw emit failed', e); }
+    },
+  }],
   // Relative base: the built index.next.html references ./assets/… so the bundle
   // works dropped at the site root next to Routes/ (side-by-side with index.htm),
   // regardless of mount path. App data fetches (Routes/…) are already relative.
   base: './',
-  define: { __BUILD_ID__: JSON.stringify(buildId()) },
+  define: { __BUILD_ID__: JSON.stringify({ ...BUILD, ts: Date.now() }) },
   server: { open: '/index.next.html' },
   build: {
     outDir: 'dist',

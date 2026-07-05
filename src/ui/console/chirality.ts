@@ -9,9 +9,10 @@
 // per-operator persistence is a later phase (C4). Flips are deliberate + explicit —
 // detection only *suggests* (not built yet), the toggle decides.
 
+import { getPrefs, patchPrefs } from '../../platform/prefs.js';
+
 export type Chirality = 'right' | 'left';
 
-const KEY = 'twist.chirality';
 const DEFAULT: Chirality = 'right';
 
 /** The current handedness (from the <html> attribute, default `right`). */
@@ -27,8 +28,7 @@ export function chiralitySign(): 1 | -1 {
 /** Read the persisted value and paint the attribute. Call BEFORE first render so
  *  the layout lands in the right chirality with no visible flash. */
 export function applyStoredChirality(): void {
-  let stored: string | null = null;
-  try { stored = localStorage.getItem(KEY); } catch { /* private mode / disabled */ }
+  const stored = getPrefs().chirality;
   const c: Chirality = stored === 'left' ? 'left' : stored === 'right' ? 'right' : DEFAULT;
   document.documentElement.setAttribute('data-chirality', c);
 }
@@ -36,7 +36,7 @@ export function applyStoredChirality(): void {
 /** Set handedness: paint the attribute, persist, and announce (for live listeners). */
 export function setChirality(c: Chirality): void {
   document.documentElement.setAttribute('data-chirality', c);
-  try { localStorage.setItem(KEY, c); } catch { /* ignore */ }
+  patchPrefs({ chirality: c });
   document.dispatchEvent(new CustomEvent('chirality-change', { detail: c }));
 }
 

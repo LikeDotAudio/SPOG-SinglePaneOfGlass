@@ -92,9 +92,9 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
     return bases.every((b) => b.length > 0 && b !== names[0]?.toUpperCase() && b === bases[0]);
   };
 
-  // Big banks (8 cameras, 8 remotes…) tuck up so the room scans; small groups
-  // (a person's single kit twist, the 2-strong mixer pair) start unfolded.
-  const openByDefault = (count: number): string => (count <= 3 ? ' open' : '');
+  // Every group starts UNFOLDED — the operator tucks banks up themselves; a
+  // fresh load must never hide twists behind a closed bar.
+  const openByDefault = (_count: number): string => ' open';
   // The gang elbow paints in the members' own LCARS colour (first twist's).
   const zoneStyle = (content: string): string => {
     const c = (content.match(/--lcars-color:\s*([^;"']+)/) || [])[1];
@@ -104,32 +104,32 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
   // header row, no redundant caret — the bar itself folds the group).
   const summaryFor = (name: string, count: number, gang: boolean): string => gang
     ? `<summary class="gang-bar"><span style="flex:1;">${name.toUpperCase()} <span style="opacity:0.55; font-weight:normal;">(${count})</span></span></summary>`
-    : `<summary style="cursor: pointer; padding: 4px 8px; font-weight: bold; color: ${pColor}; user-select: none; font-size: 0.85em; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
+    : `<summary style="cursor: pointer; padding: 1px 8px; font-weight: bold; color: ${pColor}; user-select: none; font-size: 0.85em; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
           <span style="flex:1;">${name.toUpperCase()} <span style="opacity:0.5; font-weight:normal;">(${count})</span></span>
         </summary>`;
   const wrapGroup = (name: string, content: string, extraClass: string = '', names: string[] = []) => {
     const count = (content.match(/twist-container/g) || []).length;
     const gang = isGang(names);
     return `
-      <details class="twist-group ${extraClass}${gang ? ' gang' : ''}"${openByDefault(count)} style="width: 100%; margin-bottom: 6px; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 4px;${zoneStyle(content)}">
+      <details class="twist-group ${extraClass}${gang ? ' gang' : ''}"${openByDefault(count)} style="width: 100%; margin-bottom: 1px; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 1px 4px;${zoneStyle(content)}">
         ${summaryFor(name, count, gang)}
-        <div class="monitor-row zone-row ${extraClass}" style="margin-top: ${gang ? 0 : 8}px;">${content}</div>
+        <div class="monitor-row zone-row ${extraClass}" style="margin-top: ${gang ? 0 : 2}px;">${content}</div>
       </details>`;
   };
 
   let html = `
     <div class="program-row${faulted ? ' fault' : ''}" style="--prod-color: ${pColor}; position: relative; overflow: hidden; padding: 0; margin-bottom: 10px; flex: 1 1 auto;">
       <div class="program-title" style="background: ${pColor};">${monoEmoji(titleText)}${titleText}${faulted ? ' ' : ''}${faultTag(pgm.status)}</div>
-      <div class="program-body" style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start; width: 100%;">`;
+      <div class="program-body" style="display: flex; flex-direction: column; gap: 1px; align-items: flex-start; width: 100%;">`;
   // Big (function) twists group like the small rows do — but keep their wrapping
   // ~3-across flow instead of the equal-share monitor row.
   const wrapBig = (name: string, content: string, names: string[] = []) => {
     const count = (content.match(/twist-container/g) || []).length;
     const gang = isGang(names);
     return `
-      <details class="twist-group${gang ? ' gang' : ''}"${openByDefault(count)} style="width: 100%; margin-bottom: 6px; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 4px;${zoneStyle(content)}">
+      <details class="twist-group${gang ? ' gang' : ''}"${openByDefault(count)} style="width: 100%; margin-bottom: 1px; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 1px 4px;${zoneStyle(content)}">
         ${summaryFor(name, count, gang)}
-        <div class="zone-row" style="display:flex;flex-wrap:wrap;gap:6px;width:100%;align-items:flex-start;margin-top:${gang ? 0 : 8}px;">${content}</div>
+        <div class="zone-row" style="display:flex;flex-wrap:wrap;gap:6px;width:100%;align-items:flex-start;margin-top:${gang ? 0 : 2}px;">${content}</div>
       </details>`;
   };
   if (rows['cameras']) html += wrapGroup('CAMERAS', rows['cameras'], 'camera-row', rowNames['cameras']);
@@ -209,7 +209,10 @@ export async function buildDestinations(openEditor?: OpenEditor): Promise<void> 
   await Promise.all(destDir.dirs.map((cat: Entry, di: number) => {
     const colorRgb = rgbAt(DEST_GROUP_COLORS, di);
     const catGroup = Footer.addGroup(stripOrder(cat.name).toUpperCase(), { color: colorRgb, collapsed: true });
-    return addDestinationTree('Routes/Destinations/' + cat.href, catGroup, colorRgb, undefined, openEditor);
+    // Rooms directly under a category inherit IT as their type ("ENCODERS —
+    // ENCODER 1") — this also keeps the UI's twist topics aligned with the
+    // advertise pass, which has always walked with the category as parent.
+    return addDestinationTree('Routes/Destinations/' + cat.href, catGroup, colorRgb, stripOrder(cat.name), openEditor);
   }));
   // People: ONE unified model — the destinations console projects `kit{}` twists
   // from the canonical Routes/People tree (same files the sources panel reads).

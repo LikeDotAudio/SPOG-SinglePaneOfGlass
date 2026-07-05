@@ -34,7 +34,10 @@ const CSS = `
 .dfx-sub{font:700 8px 'Courier New',monospace;letter-spacing:1px;color:#6b7686;text-transform:uppercase;}
 .dfx-cvs{display:block;background:#000;border-radius:8px;width:100%;height:auto;}
 .dfx-cvs.tap{cursor:pointer;}
-.dfx-chrono{display:flex;flex-direction:column;gap:8px;}
+.dfx-chrono{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;}
+.dfx-ccol{display:flex;flex-direction:column;gap:8px;flex:1 1 210px;min-width:0;}
+.dfx-swcol{flex:1 0 130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;}
+.dfx-swcol .dfx-wlab{text-align:center;line-height:1.5;}
 .dfx-crow{display:flex;align-items:center;gap:6px;}
 .dfx-crow .dfx-cvs{flex:1;min-width:0;}
 .dfx-clab{font:800 11px 'Courier New',monospace;color:#C864C8;width:14px;text-align:center;}
@@ -116,16 +119,36 @@ function clockCard(openEdit: () => void, offline: boolean): HTMLElement {
 }
 
 // ---- DUAL COUNTER: two count-up counters per destination, persistent state ---
+// EPOCH-based (Date.now, not performance.now) and persisted on every transport
+// action — a running count survives, and keeps counting THROUGH, a reload
+// (audit §3.2 / §8 W1). Elapsed is always derived, never ticked into storage.
 interface CState { running: boolean; base: number; startedAt: number; }
 // A + B are the dual counters; S is the standalone stopwatch's own count.
+const COUNTER_KEY = 'spog.counters.v1';
 const counterStore = new Map<string, { A: CState; B: CState; S: CState }>();
 const mkC = (): CState => ({ running: false, base: 0, startedAt: 0 });
+let countersLoaded = false;
+function loadCounters(): void {
+  if (countersLoaded) return;
+  countersLoaded = true;
+  try {
+    const raw = localStorage.getItem(COUNTER_KEY);
+    if (!raw) return;
+    for (const [id, trio] of Object.entries(JSON.parse(raw) as Record<string, { A: CState; B: CState; S: CState }>)) {
+      if (trio && trio.A && trio.B && trio.S) counterStore.set(id, trio);
+    }
+  } catch { /* malformed → fresh counters */ }
+}
+function saveCounters(): void {
+  try { localStorage.setItem(COUNTER_KEY, JSON.stringify(Object.fromEntries(counterStore))); } catch { /* ignore */ }
+}
 function countersOf(id: string): { A: CState; B: CState; S: CState } {
+  loadCounters();
   let s = counterStore.get(id);
   if (!s) { s = { A: mkC(), B: mkC(), S: mkC() }; counterStore.set(id, s); }
   return s;
 }
-const cMs = (s: CState): number => s.base + (s.running ? performance.now() - s.startedAt : 0);
+const cMs = (s: CState): number => s.base + (s.running ? Date.now() - s.startedAt : 0);
 
 // An old-time mechanical stopwatch (the chronos stopwatch display, shrunk to a
 // fixture control) driving its OWN count: chrome bezel, white dial, magenta second
@@ -203,9 +226,11 @@ function stopwatchCtl(s: CState, offline: boolean, k = 1): HTMLCanvasElement {
       Math.hypot(e.offsetX - k.x, e.offsetY - k.y) <= Math.max(k.size * 2.4, 8);
     if (hit(knobAt(angTop, topSize))) {
       if (s.running) { s.base = cMs(s); s.running = false; }
-      else { s.startedAt = performance.now(); s.running = true; }
+      else { s.startedAt = Date.now(); s.running = true; }
+      saveCounters();
     } else if (hit(knobAt(angSide, sideSize))) {
-      s.base = 0; s.startedAt = performance.now();
+      s.base = 0; s.startedAt = Date.now();
+      saveCounters();
     }
   });
   return cvs;
@@ -223,10 +248,11 @@ function counterRow(destId: string, id: 'A' | 'B', openEdit: () => void, offline
   const sync = (): void => { run.textContent = s.running ? '‖' : '▶'; run.classList.toggle('run', s.running); };
   run.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (s.running) { s.base = cMs(s); s.running = false; } else { s.startedAt = performance.now(); s.running = true; }
+    if (s.running) { s.base = cMs(s); s.running = false; } else { s.startedAt = Date.now(); s.running = true; }
+    saveCounters();
     sync();
   });
-  rst.addEventListener('click', (e) => { e.stopPropagation(); s.base = 0; s.startedAt = performance.now(); });
+  rst.addEventListener('click', (e) => { e.stopPropagation(); s.base = 0; s.startedAt = Date.now(); saveCounters(); });
   let last = '';
   animate(cvs, () => { const str = hms(cMs(s)); if (str !== last) { last = str; draw(str); } });
   sync();
@@ -234,20 +260,22 @@ function counterRow(destId: string, id: 'A' | 'B', openEdit: () => void, offline
 }
 
 // The stopwatch is the card's THIRD count — its own state, read off its own hands.
-function stopwatchRow(destId: string, offline: boolean): HTMLElement {
+// It sits in its own column, filling the space to the right of the A/B counters.
+function stopwatchCol(destId: string, offline: boolean): HTMLElement {
   const s = countersOf(destId).S;
-  return el('div', { class: 'dfx-crow' }, [
-    el('span', { class: 'dfx-clab' }, ['⏱']),
-    stopwatchCtl(s, offline, 1.6),
-    el('span', { class: 'dfx-wlab' }, ['stopwatch — top crown start/stop · side pusher reset']),
+  return el('div', { class: 'dfx-swcol' }, [
+    stopwatchCtl(s, offline, 2.1),
+    el('span', { class: 'dfx-wlab' }, ['top crown start/stop · side pusher reset']),
   ]);
 }
 
 function counterCard(pgm: Production, openEdit: () => void, offline: boolean): HTMLElement {
   const body = el('div', { class: 'dfx-chrono' }, [
-    counterRow(pgm.id, 'A', openEdit, offline),
-    counterRow(pgm.id, 'B', openEdit, offline),
-    stopwatchRow(pgm.id, offline),
+    el('div', { class: 'dfx-ccol' }, [
+      counterRow(pgm.id, 'A', openEdit, offline),
+      counterRow(pgm.id, 'B', openEdit, offline),
+    ]),
+    stopwatchCol(pgm.id, offline),
   ]);
   return card('DUAL COUNTER', body, 'tap a count to edit');
 }

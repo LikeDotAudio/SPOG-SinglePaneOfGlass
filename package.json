@@ -1,5 +1,5 @@
 {
-  "name": "twistrouting",
+  "name": "spog-singlepaneofglass",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,6 +14,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "mqtt": "^5.15.1",
     "puppeteer": "^25.2.1",
     "three": "^0.185.1"
   },

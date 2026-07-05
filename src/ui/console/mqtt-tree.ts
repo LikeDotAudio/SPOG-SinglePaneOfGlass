@@ -16,6 +16,7 @@
 import { el, addStyles } from '../dom.js';
 import type { TwistBus } from '../../platform/mqtt/index.js';
 import { SPOG_ROOT, getBrokerConfig, setBrokerConfig } from '../../platform/mqtt/index.js';
+import mqttJsUrl from '../../vendor/mqtt.min.js?url';
 
 // ---- minimal mqtt.js typings (mirrors platform/mqtt/client.ts) --------------
 interface MqttClient {
@@ -34,7 +35,7 @@ function loadMqtt(): Promise<MqttModule | null> {
   if (winMqtt()) return Promise.resolve(winMqtt()!);
   return new Promise((resolve) => {
     const s = document.createElement('script');
-    s.src = 'https://unpkg.com/mqtt/dist/mqtt.min.js';
+    s.src = mqttJsUrl;   // bundled, not unpkg (audit §8 W4)
     s.async = true;
     s.onload = () => resolve(winMqtt() ?? null);
     s.onerror = () => { console.warn('MQTT tree: failed to load mqtt.js from CDN'); resolve(null); };
@@ -63,6 +64,7 @@ const MQ_CSS = `
     font:bold 10px sans-serif;letter-spacing:1px;text-transform:uppercase;padding:6px 12px;cursor:pointer;
     box-shadow:0 3px 12px rgba(0,0,0,.5);}
 .mq-chip:hover{border-color:#3a6acc;color:#fff;}
+.mq-chip.seat-synced{box-shadow:0 0 10px rgba(57,211,83,.35);border-color:#2c6a3c;}
 .mq-dot{width:9px;height:9px;border-radius:50%;background:#6b82a3;box-shadow:0 0 6px currentColor;color:#6b82a3;}
 .mq-dot.on{background:#ffd400;color:#ffd400;} .mq-dot.live{background:#39d353;color:#39d353;} .mq-dot.err{background:#e33;color:#e33;}
 .mqt{position:fixed;right:14px;bottom:114px;z-index:1601;display:none;flex-direction:column;
@@ -100,6 +102,12 @@ const MQ_CSS = `
 .mqt th,.mqt td{text-align:left;padding:5px 14px;border-bottom:1px solid #1c1810;vertical-align:top;}
 .mqt th{position:sticky;top:0;background:#140f06;color:#C2B74B;letter-spacing:1px;}
 .mqt td.topic{color:#6FC8F0;white-space:nowrap;}
+.mqt tr.branch td{cursor:pointer;background:#100c05;}
+.mqt tr.branch td.topic{color:#C2B74B;font-weight:bold;}
+.mqt tr.branch:hover td{background:#181205;}
+.mqt .caret{display:inline-block;width:14px;color:#8a7430;}
+.mqt .cnt{margin-left:8px;font-size:10px;color:#8a7430;font-weight:normal;}
+.mqt .tick{display:inline-block;width:14px;color:#3a2f10;}
 .mqt td.val{color:#ffe9b0;white-space:pre-wrap;word-break:break-word;}
 .mqt td.age{color:#8a7430;text-align:right;white-space:nowrap;}
 .mqt .empty{padding:40px;text-align:center;color:#6a5a30;letter-spacing:1px;}`;
@@ -180,6 +188,35 @@ export function initMqttTree(bus: TwistBus): void {
     effEl.innerHTML = `<span class="u">→ ${escapeHtml(url)} ·</span> <b class="${cls}">${STATE_LABEL[state]}${err}</b>${sub}`;
   };
 
+  // ---- hierarchical topic TREE (parents / children / siblings) --------------
+  // Topics nest by their /-segments into fold-able branches. A branch remembers
+  // the operator's fold choice; untouched branches default to OPEN unless they
+  // fan out very wide (e.g. system/presence with hundreds of children).
+  interface TreeNode { children: Map<string, TreeNode>; leaf?: { payload: string; ts: number } }
+  const foldOverride = new Map<string, boolean>();   // path → collapsed?
+  const WIDE = 12;                                    // >n children folds by default
+
+  const buildTree = (): TreeNode => {
+    const root: TreeNode = { children: new Map() };
+    for (const k of [...store.keys()].sort()) {
+      const rel = k.startsWith(SPOG_ROOT + '/') ? k.slice(SPOG_ROOT.length + 1) : k;
+      let node = root;
+      for (const seg of rel.split('/')) {
+        let next = node.children.get(seg);
+        if (!next) { next = { children: new Map() }; node.children.set(seg, next); }
+        node = next;
+      }
+      node.leaf = store.get(k)!;
+    }
+    return root;
+  };
+
+  const leafCount = (n: TreeNode): number => {
+    let c = n.leaf ? 1 : 0;
+    for (const ch of n.children.values()) c += leafCount(ch);
+    return c;
+  };
+
   const render = (): void => {
     countEl.textContent = String(store.size);
     if (!store.size) {
@@ -187,14 +224,53 @@ export function initMqttTree(bus: TwistBus): void {
       return;
     }
     const now = Date.now();
-    rows.innerHTML = [...store.keys()].sort().map((k) => {
-      const { payload, ts } = store.get(k)!;
-      const rel = k.startsWith(SPOG_ROOT + '/') ? k.slice(SPOG_ROOT.length + 1) : k;
-      const age = Math.max(0, Math.round((now - ts) / 1000));
-      return `<tr><td class="topic">${escapeHtml(rel)}</td><td class="val">${escapeHtml(payload)}</td><td class="age">${age}s</td></tr>`;
-    }).join('');
+    const out: string[] = [];
+    const walk = (node: TreeNode, path: string, depth: number): void => {
+      for (const [name, n] of node.children) {
+        const full = path ? `${path}/${name}` : name;
+        const pad = 14 + depth * 18;
+        const isBranch = n.children.size > 0;
+        if (!isBranch) {
+          const { payload, ts } = n.leaf!;
+          const age = Math.max(0, Math.round((now - ts) / 1000));
+          out.push(`<tr class="leaf"><td class="topic" style="padding-left:${pad}px">` +
+            `<span class="tick">·</span> ${escapeHtml(name)}</td>` +
+            `<td class="val">${escapeHtml(payload)}</td><td class="age">${age}s</td></tr>`);
+          continue;
+        }
+        const collapsed = foldOverride.get(full) ?? (n.children.size > WIDE);
+        const ownVal = n.leaf ? escapeHtml(n.leaf.payload) : '';
+        out.push(`<tr class="branch" data-path="${escapeHtml(full)}">` +
+          `<td class="topic" style="padding-left:${pad}px">` +
+          `<span class="caret">${collapsed ? '▸' : '▾'}</span> ${escapeHtml(name)}` +
+          `<span class="cnt">${leafCount(n)}</span></td>` +
+          `<td class="val">${ownVal}</td><td class="age"></td></tr>`);
+        if (!collapsed) walk(n, full, depth + 1);
+      }
+    };
+    walk(buildTree(), '', 0);
+    rows.innerHTML = out.join('');
     setStatus();
   };
+
+  // Fold/unfold on branch click (delegated — rows re-render wholesale).
+  rows.addEventListener('click', (e) => {
+    const tr = (e.target as HTMLElement).closest<HTMLElement>('tr.branch');
+    if (!tr || !tr.dataset.path) return;
+    const path = tr.dataset.path;
+    const node = ((): TreeNode | null => {
+      let n = buildTree();
+      for (const seg of path.split('/')) {
+        const next = n.children.get(seg);
+        if (!next) return null;
+        n = next;
+      }
+      return n;
+    })();
+    const current = foldOverride.get(path) ?? ((node?.children.size ?? 0) > WIDE);
+    foldOverride.set(path, !current);
+    render();
+  });
 
   const connect = (): void => {
     const url = resolveUrl(hostInput.value, Number(portInput.value));

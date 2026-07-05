@@ -1,6 +1,9 @@
-// src/ui/console/mission — a slim banner (top-centre) naming your active working
-// context (the open destination + its group lineage), tied to your MISSION from
-// the schedule (the show booked to that room, and whether you're on its crew).
+// src/ui/console/mission — a slim banner naming your active working context (the
+// open destination + its group lineage), tied to your MISSION from the schedule
+// (the show booked to that room, and whether you're on its crew).
+// It DOCKS BESIDE THE CLOCK: the bottom row reads [mission · MQTT · time] — the
+// dock position is computed from the live clock/chip rects, so it follows the
+// row through both chiralities AND both faces (the clock corner swaps sides).
 // Port of js/mission.js; clicking it opens the schedule. Mirrors the context into
 // the URL as #on/<group>/<name> (replaceState, only when no overlay owns the hash).
 import { addStyles } from '../dom.js';
@@ -12,10 +15,12 @@ const fmt = (h: number): string => `${String(Math.floor(h)).padStart(2, '0')}:${
 const nowH = (): number => { try { const d = new Date(); return d.getHours() + d.getMinutes() / 60; } catch { return 14.2; } };
 
 const MZ_CSS = `
-.mz-bar{position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:1500;display:none;align-items:center;gap:10px;cursor:pointer;background:linear-gradient(90deg,rgba(8,16,34,.92),rgba(12,24,48,.92));border:1px solid #21406a;border-radius:999px;padding:5px 14px;font-family:Arial,Helvetica,sans-serif;color:#cfe6ff;font-size:11px;letter-spacing:1px;box-shadow:0 4px 18px rgba(0,0,0,.45);max-width:78vw;}
+/* Rides the LANE the credits pill vacated (bottom:6, below the tab pills),
+   docked beside the clock column — never over the footer tabs. */
+.mz-bar{position:fixed;bottom:6px;z-index:1500;display:none;align-items:center;gap:10px;cursor:pointer;background:linear-gradient(90deg,rgba(8,16,34,.92),rgba(12,24,48,.92));border:1px solid #21406a;border-radius:999px;padding:5px 14px;font-family:Arial,Helvetica,sans-serif;color:#cfe6ff;font-size:11px;letter-spacing:1px;box-shadow:0 4px 18px rgba(0,0,0,.45);max-width:64vw;}
 .mz-bar.show{display:inline-flex;}
 .mz-bar:hover{border-color:#3a6acc;}
-.mz-where{font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw;}
+.mz-where{font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:30vw;}
 .mz-show{color:#9fd6ff;white-space:nowrap;}
 .mz-role{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
 .mz-dot{width:8px;height:8px;border-radius:50%;display:inline-block;box-shadow:0 0 6px currentColor;}
@@ -70,10 +75,25 @@ export function initMission(): void {
     if (h !== want) { try { history.replaceState(null, '', want); } catch { /* ignore */ } }
   };
 
+  // Anchor the bar's outer edge to the clock column's side of the screen —
+  // it starts where the time starts, in the lane just below it.
+  const dock = (): void => {
+    const clock = document.querySelector('.ptp-clock')?.getBoundingClientRect();
+    if (!clock || !clock.width) { bar.style.right = '16px'; bar.style.left = 'auto'; return; }
+    if (clock.left + clock.width / 2 < window.innerWidth / 2) {
+      bar.style.left = `${Math.round(clock.left)}px`;
+      bar.style.right = 'auto';
+    } else {
+      bar.style.right = `${Math.round(window.innerWidth - clock.right)}px`;
+      bar.style.left = 'auto';
+    }
+  };
+
   const render = (): void => {
     const ctx = activeContext();
     if (!ctx) { bar.classList.remove('show'); return; }
     setURL(ctx);
+    dock();
     const r = role();
     const slot = matchSlot(ctx);
     const now = nowH();
@@ -96,5 +116,6 @@ export function initMission(): void {
   const schedule = (): void => { if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; render(); }); };
   new MutationObserver(schedule).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'], childList: true });
   setInterval(render, 30000);
+  window.addEventListener('resize', schedule);
   schedule();
 }

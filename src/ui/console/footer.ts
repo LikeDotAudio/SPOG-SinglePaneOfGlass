@@ -7,6 +7,7 @@
 // content (centre) · this tab footer (bottom).
 import { addStyles } from '../dom.js';
 import { stampIcon } from '../icon-face.js';
+import { getPrefs, patchPrefs } from '../../platform/prefs.js';
 
 export interface GroupHandle {
   group: HTMLElement;
@@ -14,6 +15,7 @@ export interface GroupHandle {
   bodyEl: HTMLElement;
   labelEl: HTMLElement;
   parent: GroupHandle | null;
+  path: string;
 }
 interface TabInfo { id: string; name: string }
 interface TabOpts { group?: GroupHandle | null; active?: boolean; color?: string; onActivate?: () => void }
@@ -32,13 +34,30 @@ function hexToRgb(hex: string | undefined): string | null {
 
 const FOOTER_CSS = `
 .lcars-topbar{display:flex;flex-wrap:wrap;align-items:flex-end;gap:18px;padding:8px;margin-bottom:16px;border:none;}
-.lcars-group{--group-lcars:255,170,0;display:flex;align-items:flex-end;gap:6px;padding:4px;border-radius:20px;background:rgba(var(--group-lcars),0.08);}
+.lcars-group{--group-lcars:255,170,0;display:flex;align-items:flex-end;gap:6px;padding:4px;border-radius:20px;background:rgba(var(--group-lcars),0.08);position:relative;}
 .lcars-group-label{display:flex;align-items:center;gap:8px;font-weight:900;letter-spacing:2px;text-transform:uppercase;font-size:12px;line-height:1;color:#000;background:rgb(var(--group-lcars));padding:11px 18px;border-radius:16px 4px 4px 16px;white-space:nowrap;cursor:pointer;}
 .lcars-group-caret{font-size:10px;transition:transform 0.2s;}
 .lcars-group:not(.collapsed) > .lcars-group-label .lcars-group-caret{transform:rotate(90deg);}
 .lcars-group.collapsed > .lcars-group-body{display:none;}
 .lcars-group-body{display:flex;flex-direction:column;gap:6px;align-items:flex-start;}
-.lcars-group:not(.collapsed) > .lcars-group-body{border-top:6px solid rgb(var(--group-lcars));border-radius:6px 6px 0 0;padding-top:5px;margin-top:2px;}
+/* An OPEN group's body FLOATS above the console as a pop-up panel anchored to
+   its label — expanding never grows the footer, so the main window never shifts. */
+.lcars-group:not(.collapsed) > .lcars-group-body{
+  position:absolute;bottom:calc(100% + 8px);left:0;z-index:1550;
+  border-top:6px solid rgb(var(--group-lcars));border-radius:12px;
+  padding:8px;min-width:max-content;overflow:visible;
+  background:rgba(5,10,21,.95);border-left:1px solid rgba(var(--group-lcars),.35);
+  border-right:1px solid rgba(var(--group-lcars),.35);border-bottom:1px solid rgba(var(--group-lcars),.35);
+  box-shadow:0 -10px 34px rgba(0,0,0,.65);}
+/* Leaf panels (tabs only, no nested groups) cap + scroll; panels holding nested
+   groups stay overflow-visible so their side fan-outs are not clipped. */
+.lcars-group:not(.collapsed) > .lcars-group-body:not(:has(.lcars-group)){max-height:72vh;overflow-y:auto;}
+/* Nested groups fan out SIDEWAYS from the parent panel, not stacked into it. */
+.lcars-group-body .lcars-group:not(.collapsed) > .lcars-group-body{
+  bottom:0;left:calc(100% + 10px);}
+html[data-chirality="right"] .lcars-group:not(.collapsed) > .lcars-group-body{left:auto;right:0;}
+html[data-chirality="right"] .lcars-group-body .lcars-group:not(.collapsed) > .lcars-group-body{
+  bottom:0;right:calc(100% + 10px);left:auto;}
 /* Leaf tabs — the END of the tree — stack VERTICALLY (column-reverse puts tab 1
    on the footer baseline, siblings climbing upward), not a horizontal sprawl. */
 .lcars-group-tabs{display:flex;flex-direction:column-reverse;gap:4px;align-items:stretch;}
@@ -70,13 +89,50 @@ function bindIdleWatchers(): void {
     .forEach((evt) => window.addEventListener(evt, resetIdleTimer, { passive: true }));
 }
 
-function toggleGroup(target: GroupHandle): void {
+// Remember the OPERATOR's open/closed choices (idle auto-collapse is UX, not a
+// preference, so collapseAllGroups deliberately never writes here).
+function persistOpenGroups(): void {
+  patchPrefs({ ui: { openGroups: groups.filter((g) => !g.group.classList.contains('collapsed')).map((g) => g.path) } });
+}
+
+function toggleGroup(target: GroupHandle, persist = true): void {
   const expand = target.group.classList.contains('collapsed');
   groups.filter((g) => g.parent === target.parent && g !== target).forEach((g) => g.group.classList.add('collapsed'));
   target.group.classList.toggle('collapsed', !expand);
   if (expand && !target.tabsEl.querySelector('.lcars-tab.active')) {
     target.tabsEl.querySelector<HTMLElement>('.lcars-tab')?.click();
   }
+  if (persist) persistOpenGroups();
+}
+
+/** Open a group (and its ancestor chain) by its stored path. */
+export function openGroupPath(path: string): boolean {
+  const target = groups.find((g) => g.path === path);
+  if (!target) return false;
+  const chain: GroupHandle[] = [];
+  for (let g: GroupHandle | null = target; g; g = g.parent) chain.unshift(g);
+  chain.forEach((g) => { if (g.group.classList.contains('collapsed')) toggleGroup(g, false); });
+  resetIdleTimer();
+  return true;
+}
+
+/** Activate a destination tab by its pane id (programmatic restore / deep link). */
+export function activateTab(tabId: string): boolean {
+  const tab = document.querySelector<HTMLElement>(`.lcars-tab[data-tab-id="${CSS.escape(tabId)}"]`);
+  if (!tab) return false;
+  tab.click();
+  return true;
+}
+
+/** Re-apply the remembered footer state (open groups + selected destination).
+ *  Call once after the destination tree is built; a deep-link hash still wins
+ *  because openFromHash runs after and simply switches again. */
+export function restoreFooterState(): void {
+  const ui = getPrefs().ui;
+  // parents before children so ancestor chains expand in order
+  [...(ui.openGroups ?? [])].sort((a, b) => a.split(' / ').length - b.split(' / ').length)
+    .forEach((p) => openGroupPath(p));
+  if (ui.destTab) activateTab(ui.destTab);
 }
 
 /** Show one destination pane, hide the rest (port of js/globals.js switchTab). */
@@ -126,7 +182,7 @@ export const Footer = {
     const tabsEl = document.createElement('div');
     tabsEl.className = 'lcars-group-tabs';
     bodyEl.appendChild(tabsEl);
-    const handle: GroupHandle = { group, tabsEl, bodyEl, labelEl, parent };
+    const handle: GroupHandle = { group, tabsEl, bodyEl, labelEl, parent, path: parent ? `${parent.path} / ${label}` : label };
     labelEl.addEventListener('click', (e) => { e.stopPropagation(); toggleGroup(handle); });
     groups.push(handle);
     (parent ? parent.bodyEl : tabsContainer).appendChild(group);
@@ -145,6 +201,7 @@ export const Footer = {
     const tab = document.createElement('div');
     tab.className = 'lcars-tab' + (active ? ' active' : '');
     tab.style.setProperty('--lcars', color);
+    tab.dataset['tabId'] = pgm.id;
     tab.innerText = pgm.name;
     host.appendChild(tab);
     const cont = document.createElement('div');
@@ -156,7 +213,9 @@ export const Footer = {
     tab.onclick = (e): void => {
       activate();
       switchTab(pgm.id, e);
-      if (e.isTrusted) collapseAllGroups();
+      // Only a REAL click is the operator's choice — programmatic activations
+      // (loadAllDestinations, deep links, restore) must not clobber the memory.
+      if (e.isTrusted) { collapseAllGroups(); patchPrefs({ ui: { destTab: pgm.id } }); }
     };
     if (active) activate();
     return tab;

@@ -20,8 +20,27 @@ export const ROLES: Role[] = [
   { id: 'science', name: 'Science', sub: 'Metadata & Analytics', tier: 'Operations', color: '#9fd6ff', task: 'Audience data, stream health & algorithmic performance.', caps: { view: 1 } },
 ];
 
-let current: Role = ROLES[0]!;
+// Session-scoped role memory (audit §3.2): a reload mid-shift keeps who you are,
+// but a NEW tab/session starts back at the default — silently restoring an admin
+// gate days later would be wrong, so this is sessionStorage, not localStorage.
+const ROLE_KEY = 'spog.session.role';
+function storedRole(): Role | null {
+  try { return ROLES.find((r) => r.id === sessionStorage.getItem(ROLE_KEY)) ?? null; } catch { return null; }
+}
+
+let current: Role = storedRole() ?? ROLES[0]!;
 const listeners = new Set<(r: Role) => void>();
+
+// The OPERATOR is the human in the seat — asked at login, stamped on every log
+// action. Session-scoped like the role (a new tab is a fresh sign-in).
+const OPERATOR_KEY = 'spog.session.operator';
+const DEFAULT_OPERATOR = 'Anthony Peter Kuzub';
+export function operator(): string {
+  try { return sessionStorage.getItem(OPERATOR_KEY) || DEFAULT_OPERATOR; } catch { return DEFAULT_OPERATOR; }
+}
+export function setOperator(name: string): void {
+  try { sessionStorage.setItem(OPERATOR_KEY, name.trim()); } catch { /* private mode */ }
+}
 
 export function role(): Role {
   return current;
@@ -29,6 +48,7 @@ export function role(): Role {
 
 export function setRole(r: Role): void {
   current = r;
+  try { sessionStorage.setItem(ROLE_KEY, r.id); } catch { /* private mode */ }
   for (const l of listeners) l(r);
 }
 

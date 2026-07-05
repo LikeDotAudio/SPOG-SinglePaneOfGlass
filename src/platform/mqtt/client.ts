@@ -10,6 +10,10 @@
 
 import type { TwistBus, ConfigMsg, ValueMsg } from './types.js';
 import { createThrottler, type Throttler } from './throttle.js';
+// VENDORED mqtt.js (audit §4.2 lane table / §8 W4): bundled + content-hashed by
+// Vite, so the console has zero CDN dependency at boot. The UMD build sets
+// window.mqtt when the injected script runs — same contract as the old unpkg tag.
+import mqttJsUrl from '../../vendor/mqtt.min.js?url';
 
 export const SPOG_ROOT = 'SPOG';
 const DEFAULT_PORT = 9001;
@@ -86,16 +90,16 @@ export function resolveBrokerUrl(): string | null {
   return raw.includes(':') ? `${proto}://${raw}` : `${proto}://${raw}:${port}`;
 }
 
-/** Load mqtt.js: use an already-present global, else inject the unpkg script. */
+/** Load mqtt.js: use an already-present global, else inject the BUNDLED script. */
 function loadMqtt(): Promise<MqttModule | null> {
   if (typeof window === 'undefined') return Promise.resolve(null);
   if (window.mqtt) return Promise.resolve(window.mqtt);
   return new Promise((resolve) => {
     const s = document.createElement('script');
-    s.src = 'https://unpkg.com/mqtt/dist/mqtt.min.js';
+    s.src = mqttJsUrl;   // self-hosted — no unpkg, no third-party single point of failure
     s.async = true;
     s.onload = () => resolve(window.mqtt ?? null);
-    s.onerror = () => { console.warn('TwistBus: failed to load mqtt.js from CDN — MQTT disabled'); resolve(null); };
+    s.onerror = () => { console.warn('TwistBus: failed to load bundled mqtt.js — MQTT disabled'); resolve(null); };
     document.head.appendChild(s);
   });
 }
@@ -137,6 +141,13 @@ export function createTwistBus(): TwistBus {
 
   const presenceTopic = `${SPOG_ROOT}/system/presence/${sessionId.split(':')[0]}`;
   const subs = new Set<{ filter: string; cb: (t: string, p: unknown) => void }>();
+  // LAST-VALUE CACHE (audit §7.3 gap 1): the broker replays retained topics ONCE,
+  // at the connect-time SPOG/# subscribe — anything subscribing later (editors
+  // register onParam when they OPEN) missed it. Cache the last payload per topic
+  // and replay matching entries to every new subscriber, so retained state
+  // restores no matter when the applier arrives. Self-echoes are cached too —
+  // an editor REopened later should see this console's own current state.
+  const lastValue = new Map<string, unknown>();
   const throttlers = new Map<string, Throttler<{ topic: string; payload: string }>>();
   let client: MqttClient | null = null;
   let connected = false;
@@ -182,9 +193,12 @@ export function createTwistBus(): TwistBus {
     client.on('message', (topic: string, payload: Uint8Array) => {
       let parsed: unknown;
       try { parsed = JSON.parse(new TextDecoder().decode(payload)); } catch { parsed = null; }
+      const rel = topic.startsWith(`${SPOG_ROOT}/`) ? topic.slice(SPOG_ROOT.length + 1) : topic;
+      // Cache before the echo check (empty retained payload = tombstone → evict).
+      if (payload.length === 0 || parsed === null) lastValue.delete(rel);
+      else lastValue.set(rel, parsed);
       // Self-echo suppression: drop anything we published (matches comMQTT full_id check).
       if (parsed && typeof parsed === 'object' && (parsed as { full_id?: string }).full_id === sessionId) return;
-      const rel = topic.startsWith(`${SPOG_ROOT}/`) ? topic.slice(SPOG_ROOT.length + 1) : topic;
       for (const s of subs) if (matches(s.filter, rel)) s.cb(rel, parsed);
     });
   });
@@ -216,6 +230,12 @@ export function createTwistBus(): TwistBus {
     subscribe(filter, cb): () => void {
       const entry = { filter: filter.replace(/^\/+/, ''), cb };
       subs.add(entry);
+      // Replay the cache to the late subscriber (async so subscribe() never
+      // re-enters the caller mid-registration).
+      queueMicrotask(() => {
+        if (!subs.has(entry)) return;
+        for (const [t, p] of lastValue) if (matches(entry.filter, t)) { try { entry.cb(t, p); } catch { /* applier */ } }
+      });
       return () => subs.delete(entry);
     },
 

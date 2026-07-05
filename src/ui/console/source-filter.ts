@@ -75,8 +75,10 @@ export function initSourceFilter(): void {
   const bar = document.createElement('div');
   bar.className = 'src-filter';
   bar.innerHTML = `<input type="text" class="src-filter-input" placeholder="⌕ Filter sources…" spellcheck="false" />`;
-  const cl = panel.querySelector(':scope > .cl-btn');   // sit below the Captain's Log button
-  if (cl) panel.insertBefore(bar, cl.nextSibling);
+  // Sit below the top corner row (log · rights · log-out), falling back to a
+  // bare log button, else the panel top.
+  const anchor = panel.querySelector(':scope > .au-corner') ?? panel.querySelector(':scope > .cl-btn');
+  if (anchor) panel.insertBefore(bar, anchor.nextSibling);
   else panel.insertBefore(bar, panel.firstChild);
   const input = bar.querySelector<HTMLInputElement>('input')!;
   input.addEventListener('input', () => apply(input.value));

@@ -42,7 +42,11 @@ function routedFeeds(twistEl: HTMLElement): Feed[] {
     if (!label) return;
     const color = (n.style.color || n.style.borderColor || getComputedStyle(n).color || '#4d94ff');
     const type = n.dataset.type;
-    out.push({ id: n.id || `xp-${i}`, label, color, type, origin: n.dataset.origin });
+    const media = n.classList.contains('audio') ? 'audio' as const
+      : n.classList.contains('video') ? 'video' as const
+      : n.classList.contains('control') || n.classList.contains('camera-control') ? 'control' as const
+      : undefined;
+    out.push({ id: n.id || `xp-${i}`, label, color, type, origin: n.dataset.origin, media });
   };
   dz.querySelectorAll<HTMLElement>(':scope > .signal-node').forEach((n, i) => {
     if (n.classList.contains('dropped-group')) {

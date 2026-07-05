@@ -17,8 +17,8 @@ What it does, over one Explicit-FTPS connection:
         dist/assets/**     → /assets/**      (stale /assets cleared first, since
                                              the bundle filename is content-hashed)
         Routes/**          → /Routes/**      (data + manifests)
-  4. remove the retired legacy app from the server: js/, sw.js, and the dev
-     index.next.html entry.
+  4. remove the retired legacy app from the server: js/ and the dev
+     index.next.html entry (sw.js is deliberately KEPT — see LEGACY_REMOTE).
 
 Routes upload is incremental by default (git diff); the small app bundle is always
 re-uploaded. When the working tree is CLEAN (nothing to commit), the incremental
@@ -98,7 +98,7 @@ def collect_app_files(dist_path, entry_name, remote_entry):
 
 
 # ── manifests (routing DATA discovery) ───────────────────────────────────────
-# ICON-face tile folders (Routes/*/icons): UPLOADED like any asset, but hidden
+# ICON-face tile folders (assets/icons/*; legacy Routes/*/icons): UPLOADED like any asset, but hidden
 # from the discovery manifests so the app never renders them as categories.
 # (Legacy dot-named variants kept for back-compat with older checkouts.)
 ICON_ASSET_DIRS = {'icons', '.icons', '.icon'}
@@ -266,6 +266,59 @@ def remote_rmtree(ftp, path):
 
 
 # ── main ─────────────────────────────────────────────────────────────────────
+
+# ---- MQTT build stamp (audit §8 W4a) -----------------------------------------
+# After a successful upload, publish a retained SPOG/system/build stamp so every
+# open console learns a new build exists (the app pulses its version badge).
+# BEST-EFFORT ONLY: a down broker must never fail a deploy. The house broker
+# speaks WebSockets on 9001 (no raw-TCP 1883 listener), so paho must use the
+# websockets transport.
+MQTT_HOST = os.environ.get('TWIST_MQTT_HOST', '44.44.44.163')
+MQTT_PORT = int(os.environ.get('TWIST_MQTT_PORT', '9001'))
+MQTT_USER = os.environ.get('TWIST_MQTT_USER', 'guest')
+MQTT_PASS = os.environ.get('TWIST_MQTT_PASS', 'guest')
+
+
+def routes_hash(project_dir):
+    """A stable digest of the Routes tree (paths + sizes) for the build stamp."""
+    import hashlib
+    h = hashlib.sha1()
+    for rel in sorted(get_all_routes(project_dir)):
+        try:
+            size = os.path.getsize(os.path.join(project_dir, rel))
+        except OSError:
+            size = -1
+        h.update(f"{rel}:{size};".encode())
+    return h.hexdigest()[:16]
+
+
+def publish_build_stamp(project_dir):
+    build_id = None
+    try:
+        with open(os.path.join(project_dir, DIST_DIR, 'build-id.json')) as f:
+            build_id = json.load(f)
+    except OSError:
+        pass
+    if not build_id:
+        print("No dist/build-id.json — skipping MQTT build stamp.")
+        return
+    payload = json.dumps({
+        'buildId': build_id,
+        'routesHash': routes_hash(project_dir),
+        'ts': int(__import__('time').time() * 1000),
+    })
+    try:
+        import paho.mqtt.publish as mqtt_publish
+        mqtt_publish.single(
+            'SPOG/system/build', payload, retain=True, qos=0,
+            hostname=MQTT_HOST, port=MQTT_PORT, transport='websockets',
+            auth={'username': MQTT_USER, 'password': MQTT_PASS},
+        )
+        print(f"MQTT build stamp published → SPOG/system/build ({build_id.get('short', '?')})")
+    except Exception as e:   # noqa: BLE001 — best-effort by design
+        print(f"MQTT build stamp skipped ({e.__class__.__name__}: {e}) — consoles won't auto-announce this deploy.")
+
+
 def main():
     project_dir = os.path.dirname(os.path.abspath(__file__))
     args = sys.argv[1:]
@@ -351,11 +404,15 @@ def main():
 
         # Cleanup: remove the retired legacy js/ app from the server (cutover only).
         if not no_clean and not side_by_side:
-            print("Removing retired legacy app (js/, sw.js, dev entry):")
+            print("Removing retired legacy app (js/, dev entry — sw.js kept as kill-switch):")
             for path in LEGACY_REMOTE:
                 remote_rmtree(ftp, path)
 
         ftp.quit()
+
+        # Announce the deploy on the bus (retained; best-effort).
+        publish_build_stamp(project_dir)
+
         if side_by_side:
             print(f"\nSide-by-side deploy complete → https://{FTP_HOST}/index.next.html "
                   f"(live https://{FTP_HOST}/ + js/ untouched).")

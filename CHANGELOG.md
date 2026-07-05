@@ -2,6 +2,33 @@
 
 All notable changes to SPOG (Single Pane Of Glass) are recorded here.
 
+## [v104] — 2026-07-04
+
+### Added — Seat memory & the validated cache (docs/Audit/Local-Cache-and-Preferences-Audit.md §8, waves W0–W4)
+- **Academy re-instated** (`src/ui/console/academy.ts`): the first-load quick start
+  returns, with its five step numbers overlaid as pulsing markers on the live console
+  regions they teach; ACADEMY button docks beside the byline. Legacy dismissed-key honored.
+- **Seat memory** (`src/platform/prefs.ts`, one versioned `twist.prefs.v1` blob):
+  chirality/colour/authoring migrate in; selected destination tab, open footer groups,
+  sources-sash width (drag now implemented), router-view collapse and the session role
+  all survive reload. Dual counters + stopwatch are epoch-based — a running count keeps
+  counting through a reload (`twist.counters.v1`).
+- **Production memory** (`src/platform/store-idb.ts`): Captain's Log and chat persist to
+  IndexedDB and hydrate on boot (log rows restore read-only; button says how many).
+  Prompter scripts persist per twist. **EXPORT / IMPORT "my seat"** lives in the Academy.
+- **Seats on the bus** (`src/platform/seat-sync.ts`): a last-value cache in the TwistBus
+  replays retained state to late subscribers (editors now really restore from the bus);
+  prefs ride retained `SPOG/seats/<seat>/prefs` with a `{v, ts, seat, data}` envelope,
+  newer-wins both directions; the MQTT chip glows when the seat is synced.
+- **The validated cache** (§8 W4): builds emit `dist/build-id.json`; `deploy.py`
+  publishes a retained `SPOG/system/build` stamp (paho over websockets:9001,
+  best-effort) — every open console's version badge turns into a pulsing
+  **NEW BUILD — RELOAD** chip within seconds of a deploy. mqtt.js is now VENDORED
+  (no unpkg at boot). `manifest.json` + favicon make the console installable. A
+  lane-aware service worker (`src/sw/sw.template.js` → `dist/sw.js`) replaces the
+  kill-switch/eviction era: hashed assets cache-first, Routes JSON + icon tiles
+  stale-while-revalidate, entry HTML strictly network-first — offline reloads boot.
+
 ## [v103] — 2026-07-03
 
 ### Changed — MQTT

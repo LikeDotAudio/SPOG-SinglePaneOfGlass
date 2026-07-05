@@ -1,5 +1,5 @@
 // src/ui/console/auth-panel — the user-control UI (port of js/auth.js's DOM half):
-//   • .au-badge  (top-right)   — current role + LOG OUT + (admin) RIGHTS
+//   • .au-corner (sources top) — LOG OUT + (admin) RIGHTS beside the log button
 //   • .au-focus  (top-centre)  — the role's priority-task banner (4.2s on switch)
 //   • login overlay            — pick a role (context-aware scope loads)
 //   • rights overlay           — the roles × capabilities matrix, editable live
@@ -7,15 +7,11 @@
 // hides [data-cap] controls the current role can't operate (progressive disclosure).
 import { addStyles } from '../dom.js';
 import type { Capability, Role } from '../../model/index.js';
-import { ROLES, role, setRole, can, onRoleChange } from '../../platform/auth.js';
+import { ROLES, role, setRole, can, onRoleChange, operator, setOperator } from '../../platform/auth.js';
+import { logAction } from './captains-log.js';
+import { stampIcon } from '../icon-face.js';
 
 const AUTH_CSS = `
-.au-badge{position:fixed;right:34px;top:10px;z-index:1500;display:flex;align-items:center;gap:0;font-family:Arial,Helvetica,sans-serif;border-radius:8px 16px 16px 8px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.5);cursor:default;}
-.au-badge .who{display:flex;flex-direction:column;justify-content:center;padding:5px 12px 5px 14px;background:var(--rc,#F2B74B);color:#0a1206;}
-.au-badge .who b{font-size:10.5px;font-weight:900;letter-spacing:.8px;line-height:1.1;}
-.au-badge .who span{font-size:7px;letter-spacing:.8px;opacity:.8;text-transform:uppercase;}
-.au-badge .out{background:#0c1730;color:#bcd3ee;border:none;padding:0 11px;align-self:stretch;font:900 9px sans-serif;letter-spacing:1px;cursor:pointer;}
-.au-badge .out:hover{background:#16243d;color:#fff;}
 .au-focus{position:fixed;left:50%;top:0;transform:translate(-50%,-110%);z-index:1600;background:#0a1326;border:1px solid var(--rc,#F2B74B);border-top:none;border-radius:0 0 14px 14px;padding:11px 26px;color:#e0f0ff;font:bold 13px sans-serif;letter-spacing:1px;box-shadow:0 8px 22px rgba(0,0,0,.5);transition:transform .35s cubic-bezier(.2,1.2,.4,1);white-space:nowrap;}
 .au-focus.show{transform:translate(-50%,0);}
 .au-focus b{color:var(--rc,#F2B74B);}
@@ -32,8 +28,30 @@ const AUTH_CSS = `
 .au-role .ti{color:#9fb6cc;font-size:10px;letter-spacing:1px;text-transform:uppercase;margin:2px 0 6px;}
 .au-role .ds{color:#aec6e4;font-size:11px;line-height:1.4;}
 .au-role.sel{border-color:#F2B74B;box-shadow:0 0 14px rgba(242,183,75,.4);}
-.au-badge .rights{background:#13233c;color:#F2B74B;border:none;padding:0 10px;align-self:stretch;font:900 9px sans-serif;letter-spacing:1px;cursor:pointer;display:none;}
-.au-badge .rights:hover{background:#1b2f4f;} .au-badge.admin .rights{display:block;}
+/* Operator-name row in the role picker. */
+.au-namerow{display:flex;align-items:center;gap:12px;margin:0 0 16px;font:900 10px sans-serif;
+  letter-spacing:2px;color:#8fb4d8;}
+.au-name{flex:1;background:#03060f;border:1px solid #35507a;border-radius:6px;color:#e0f0ff;
+  padding:9px 12px;font:14px Arial;}
+.au-name:focus{outline:none;border-color:var(--rc,#F2B74B);}
+/* RIGHTS + LOG OUT corner pills — head of the sources rail, ONE row with the
+   log button (captains-log.ts seats .cl-btn as this row's first child). */
+.au-corner{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:stretch;}
+.au-corner .cl-btn{flex:1 1 120px;width:auto;min-width:0;margin-bottom:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.au-corner .um-btn{flex:0 1 auto;min-width:0;margin-bottom:0;overflow:hidden;text-overflow:ellipsis;}
+.au-corner button{flex:1 1 auto;min-width:0;border:none;cursor:pointer;font:900 10px sans-serif;letter-spacing:1px;
+  text-transform:uppercase;padding:8px 10px;border-radius:6px 14px 14px 6px;white-space:nowrap;}
+.au-c-rights{display:none;background:#13233c;color:#F2B74B;}
+.au-corner.admin .au-c-rights{display:block;}
+.au-c-out{background:#0c1730;color:#bcd3ee;}
+.au-corner button:hover{filter:brightness(1.25);}
+/* ICON face: the corner pair render as tiles (icon-face stamps the artwork). */
+html[data-face="icons"] .au-corner button.has-face-icon{
+  flex:0 0 46px;width:46px;height:46px;padding:0;border-radius:12px;font-size:0;color:transparent;
+  background:var(--face-icon) center/contain no-repeat !important;}
+html[data-face="icons"] .au-corner button.has-face-icon:hover{
+  background-image:var(--face-icon-hover,var(--face-icon)) !important;filter:none;}
 .au-matrix{display:grid;gap:6px;align-items:center;}
 .au-mh{font:bold 9px sans-serif;color:#9fb6cc;letter-spacing:1px;text-transform:uppercase;text-align:center;}
 .au-mr{font:bold 13px sans-serif;color:#cfe6ff;padding-right:8px;}
@@ -96,13 +114,26 @@ export function applyScope(root: ParentNode = document): void {
 }
 
 export function initAuthPanel(): void {
-  if (document.querySelector('.au-badge')) return;
+  if (document.querySelector('.au-corner')) return;
   addStyles('auth-styles', AUTH_CSS);
 
-  const badge = document.createElement('div');
-  badge.className = 'au-badge';
-  badge.innerHTML = `<div class="who"><b></b><span></span></div><button class="rights" title="Edit user rights">⚙ RIGHTS</button><button class="out">LOG OUT</button>`;
-  document.body.appendChild(badge);
+  // RIGHTS + LOG OUT live in the sources-top corner, beside the log button
+  // (the badge keeps only the seat identity). Both carry ICON-face tiles.
+  const corner = document.createElement('div');
+  corner.className = 'au-corner';
+  const bRights = document.createElement('button');
+  bRights.className = 'au-c-rights';
+  bRights.title = 'Edit user rights';
+  bRights.textContent = '⚙ RIGHTS';
+  const bOut = document.createElement('button');
+  bOut.className = 'au-c-out';
+  bOut.title = 'Log out — pick a seat';
+  bOut.textContent = 'LOG OUT';
+  corner.append(bRights, bOut);
+  const ingress = document.querySelector<HTMLElement>('.ingress-panel');
+  if (ingress) ingress.insertBefore(corner, ingress.firstChild); else document.body.appendChild(corner);
+  stampIcon(bRights, 'chrome', 'rights');
+  stampIcon(bOut, 'chrome', 'log-out');
 
   const focus = document.createElement('div');
   focus.className = 'au-focus';
@@ -111,14 +142,26 @@ export function initAuthPanel(): void {
   // login overlay (role picker)
   const login = document.createElement('div');
   login.className = 'au-overlay';
-  login.innerHTML = `<div class="au-box"><h2>SPOG · SINGLE PANE OF GLASS</h2><p>SELECT ROLE · context-aware scope loads for the live production</p><div class="au-roles"></div></div>`;
+  login.innerHTML = `<div class="au-box"><h2>SPOG · SINGLE PANE OF GLASS</h2><p>SELECT ROLE · context-aware scope loads for the live production</p>
+    <label class="au-namerow">OPERATOR NAME<input class="au-name" type="text" placeholder="Who is taking this seat?" spellcheck="false" maxlength="40"></label>
+    <div class="au-roles"></div></div>`;
+  const nameInput = login.querySelector<HTMLInputElement>('.au-name')!;
+  nameInput.value = operator();
   const rolesHost = login.querySelector<HTMLElement>('.au-roles')!;
   const roleCards: HTMLElement[] = [];
   ROLES.forEach((r) => {
     const card = document.createElement('button');
     card.className = 'au-role';
     card.innerHTML = `<span class="tag" style="background:${r.color}">${r.tier}</span><b>${r.name}</b><div class="ti">${r.sub || ''} · ${capLine(r)}</div><div class="ds">${r.task}</div>`;
-    card.addEventListener('click', () => { setRole(r); login.classList.remove('open'); });
+    card.addEventListener('click', () => {
+      const sameWatch = role().id === r.id && operator() === nameInput.value.trim();
+      setOperator(nameInput.value);   // the human signs the seat — stamped on log actions
+      setRole(r);
+      // Taking a seat is a crew event — narrate it to the log (signed() appends
+      // "· by <operator>"). Re-clicking the same seat + name is not a new watch.
+      if (!sameWatch) logAction(`⭑ CREW — joined the crew as ${r.name}${r.sub ? ` · ${r.sub}` : ''} (${r.tier} division)`);
+      login.classList.remove('open');
+    });
     rolesHost.appendChild(card);
     roleCards.push(card);
   });
@@ -150,19 +193,14 @@ export function initAuthPanel(): void {
     });
   });
 
-  badge.querySelector('.out')?.addEventListener('click', () => login.classList.add('open'));
-  badge.querySelector('.rights')?.addEventListener('click', () => rights.classList.add('open'));
+  bOut.addEventListener('click', () => login.classList.add('open'));
+  bRights.addEventListener('click', () => rights.classList.add('open'));
 
   let focusTimer: ReturnType<typeof setTimeout> | undefined;
   onRoleChange((r) => {
     document.documentElement.style.setProperty('--rc', r.color);
-    badge.style.setProperty('--rc', r.color);
     focus.style.setProperty('--rc', r.color);
-    const whoB = badge.querySelector<HTMLElement>('.who b');
-    const whoS = badge.querySelector<HTMLElement>('.who span');
-    if (whoB) whoB.textContent = r.name;
-    if (whoS) whoS.textContent = r.sub || r.tier;
-    badge.classList.toggle('admin', !!r.caps.admin);
+    corner.classList.toggle('admin', !!r.caps.admin);   // RIGHTS shows for admin only
     document.body.className = document.body.className.replace(/\brole-\w+\b/g, '').trim() + ' role-' + r.id;
     roleCards.forEach((c, i) => c.classList.toggle('sel', ROLES[i]?.id === r.id));
     focus.innerHTML = `Priority Task · <b>${r.task}</b>`;

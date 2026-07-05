@@ -7,6 +7,7 @@
 // zone removal); click a group header to fold; hover lights the row+column. URL
 // route at #/1990s (?src/&dst/&s/&r).
 import { addStyles } from '../dom.js';
+import { getPrefs, patchPrefs } from '../../platform/prefs.js';
 import { placeSourceInTwist } from './matrix.js';
 import { updateTwistVisuals } from './helix.js';
 import { loadAllDestinations } from './footer.js';
@@ -65,7 +66,12 @@ export function initRouterView(): void {
   let fs: HTMLInputElement, fr: HTMLInputElement, body: HTMLElement;
   let tgSrc: HTMLElement, tgDst: HTMLElement;
   let showAllSrc = false, showAllDst = false, prevHash: string | null = null, syncing = false;
-  const collapsedProds = new Set<string>(), collapsedOrigins = new Set<string>();
+  // Collapse choices are seat memory — hydrated from prefs, saved on every toggle.
+  const rc = getPrefs().ui.routerCollapsed;
+  const collapsedProds = new Set<string>(rc?.prods ?? []), collapsedOrigins = new Set<string>(rc?.origins ?? []);
+  const saveCollapsed = (): void => {
+    patchPrefs({ ui: { routerCollapsed: { prods: [...collapsedProds], origins: [...collapsedOrigins] } } });
+  };
   let rowLeaves: RowLeaf[] = [], colLeaves: ColLeaf[] = [], crossSet = new Set<string>(), hlNodes: HTMLElement[] = [];
 
   const firstLine = (n: Element): string => ((n as HTMLElement).innerText || '').trim().split('\n')[0] ?? '';
@@ -289,9 +295,9 @@ export function initRouterView(): void {
   function onBodyClick(e: Event): void {
     const target = e.target as HTMLElement;
     const ph = target.closest<HTMLElement>('.rv-prodhead');
-    if (ph?.dataset.prod) { const p = decodeURIComponent(ph.dataset.prod); collapsedProds.has(p) ? collapsedProds.delete(p) : collapsedProds.add(p); buildGrid(); return; }
+    if (ph?.dataset.prod) { const p = decodeURIComponent(ph.dataset.prod); collapsedProds.has(p) ? collapsedProds.delete(p) : collapsedProds.add(p); saveCollapsed(); buildGrid(); return; }
     const oh = target.closest<HTMLElement>('.rv-originhead');
-    if (oh?.dataset.origin) { const o = decodeURIComponent(oh.dataset.origin); collapsedOrigins.has(o) ? collapsedOrigins.delete(o) : collapsedOrigins.add(o); buildGrid(); return; }
+    if (oh?.dataset.origin) { const o = decodeURIComponent(oh.dataset.origin); collapsedOrigins.has(o) ? collapsedOrigins.delete(o) : collapsedOrigins.add(o); saveCollapsed(); buildGrid(); return; }
     const cell = target.closest<HTMLElement>('.rv-cell');
     if (!cell || cell.classList.contains('grp')) return;
     const s = rowLeaves[Number(cell.dataset.r)], r = colLeaves[Number(cell.dataset.c)];
@@ -336,6 +342,7 @@ export function initRouterView(): void {
     if (src) [...gatherSenderNodes().keys()].forEach((o) => collapsedOrigins.add(o));
     collapsedProds.clear();
     if (dst) [...gatherReceivers().keys()].forEach((p) => collapsedProds.add(p));
+    saveCollapsed();
   }
 
   function build(): HTMLElement {

@@ -257,7 +257,7 @@
             /* Title text hugs the INNER edge (toward the sources rail) — right in
                right-handed mode, so ENCODER 1 sits close to the sources. */
             html[data-chirality="right"] .program-title { border-radius: 30px 14px 14px 0; text-align: right; }
-            html[data-chirality="right"] .program-body { padding: 8px 8px 8px 60px; }
+            html[data-chirality="right"] .program-body { padding: 2px 8px 4px 60px; }
 
             html[data-chirality="right"] .twist-container { padding: 24px 55px 6px 10px; }
             html[data-chirality="right"] .twist-container::before {
@@ -391,13 +391,15 @@
             box-shadow: 0 0 8px rgba(63, 193, 201, 0.6);
         }
 
-        /* Tab strip pinned to the bottom of the viewport as a footer */
+        /* Tab strip pinned to the bottom of the viewport as a footer.
+           overflow VISIBLE — an open group's body floats ABOVE the console
+           (footer.ts) and a scroll container here would clip the pop-ups. */
         .app-footer {
             position: relative;
             flex: 0 0 auto;
             background: var(--panel-bg);
             padding: 20px 16px 6px;
-            overflow-x: auto;
+            overflow: visible;
         }
 
         .panel {
@@ -484,7 +486,7 @@
            default; flips to the left with the spine in right-handed mode). The
            padding lives HERE, not inline, so the chirality flip can re-aim it —
            an inline padding let opaque fixture cards ride over the spine. */
-        .program-body { padding: 8px 60px 8px 8px; }
+        .program-body { padding: 2px 60px 4px 8px; }
 
         /* Credit pill pinned to the bottom-right corner. */
         /* The credit line + the relocated 1990s-VIEW button share this fixed row,
@@ -1455,7 +1457,7 @@
         /* The zone row keeps ONLY the arm — the summary bar replaces ::after. */
         .twist-group.gang .zone-row {
             position: relative;
-            padding: 10px 12px 12px 44px;
+            padding: 2px 12px 4px 44px;
         }
         .twist-group.gang .zone-row::before {
             content: '';
@@ -1501,7 +1503,7 @@
             border-radius: 999px 16px 16px 999px;
         }
         html[data-chirality="right"] .twist-group.gang .zone-row {
-            padding: 10px 44px 12px 12px;
+            padding: 2px 44px 4px 12px;
         }
         html[data-chirality="right"] .twist-group.gang .zone-row::before {
             left: auto; right: 0;
@@ -1538,8 +1540,6 @@
         html[data-face="icons"] .lcars-group-label.has-face-icon:hover::before {
             background-image: var(--face-icon-hover, var(--face-icon));
         }
-        /* The mouseover tile carries the name on its own scrim — drop the caption. */
-        html[data-face="icons"] .lcars-group-label.has-face-icon:hover > span:first-child { opacity: 0; }
         html[data-face="icons"] .lcars-group-label.has-face-icon .lcars-group-caret { display: none; }
 
         /* Sources sidebar pools: bar + glyph cap → tile + caption. */
@@ -1566,7 +1566,6 @@
             right: auto;
             color: #cfe0ff;
         }
-        html[data-face="icons"] .super-pool-container.has-face-icon:hover .super-pool-title > span:first-child { opacity: 0; }
 
         /* Right-handed mirror: tile hugs the OUTER (right) edge, caption inboard. */
         @media (min-width: 769px) {
@@ -1581,4 +1580,185 @@
                 left: auto;
                 right: 66px;
             }
+        }
+
+        /* ICON FACE — console chrome buttons become their dock tiles (assets/
+           make-icons.mjs, bundled via src/ui/console/chrome-icons.ts). Text is
+           muted (the tile is the mark; the title attr still names it); status
+           furniture (chat unread badge, MQTT dot) rides the tile's corner. */
+        html[data-face="icons"] .cl-btn.has-face-icon,
+        html[data-face="icons"] .um-btn.has-face-icon,
+        html[data-face="icons"] .chat-launch.has-face-icon,
+        html[data-face="icons"] .mq-chip.has-face-icon,
+        html[data-face="icons"] .chir-toggle.has-face-icon,
+        html[data-face="icons"] .palette-toggle.has-face-icon,
+        html[data-face="icons"] .rv-btn.has-face-icon {
+            background: var(--face-icon) center/contain no-repeat !important;
+            background-color: transparent !important;
+            /* Near the old pill height — these buttons keep their tuned fixed
+               anchors (clock row, corners); 46px squares scattered that row. */
+            width: 34px;
+            height: 34px;
+            min-width: 34px;
+            padding: 0;
+            border: none;
+            border-radius: 9px;
+            font-size: 0;
+            letter-spacing: 0;
+            color: transparent;
+            box-shadow: none;
+            /* NO position override — most of these are position:fixed chrome and
+               forcing relative dropped them into document flow (the scatter). A
+               fixed element is already a containing block for its badge/dot. */
+            overflow: visible;
+        }
+        /* The Captain's Log + MENU tiles head the sources rail — roomier fits
+           there, and they ARE static, so they need their own positioning context. */
+        html[data-face="icons"] .cl-btn.has-face-icon,
+        html[data-face="icons"] .um-btn.has-face-icon {
+            width: 46px;
+            height: 46px;
+            min-width: 46px;
+            border-radius: 12px;
+            position: relative;
+        }
+        html[data-face="icons"] .cl-btn.has-face-icon:hover,
+        html[data-face="icons"] .um-btn.has-face-icon:hover,
+        html[data-face="icons"] .chat-launch.has-face-icon:hover,
+        html[data-face="icons"] .mq-chip.has-face-icon:hover,
+        html[data-face="icons"] .chir-toggle.has-face-icon:hover,
+        html[data-face="icons"] .palette-toggle.has-face-icon:hover,
+        html[data-face="icons"] .rv-btn.has-face-icon:hover {
+            background-image: var(--face-icon-hover, var(--face-icon)) !important;
+            background-color: transparent !important;
+            filter: none;
+        }
+        /* The palette button's inline SVG glyph gives way to the tile. */
+        html[data-face="icons"] .palette-toggle.has-face-icon svg { display: none; }
+        /* Status furniture stays readable on the tile's corner. */
+        html[data-face="icons"] .chat-launch.has-face-icon .cd-badge,
+        html[data-face="icons"] .cl-btn.has-face-icon .cl-badge {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            font-size: 10px;
+            line-height: 1;
+            padding: 3px 6px;
+            border-radius: 9px;
+            background: #03060f;
+            color: #e0f0ff;
+            border: 1px solid #33486a;
+        }
+        html[data-face="icons"] .mq-chip.has-face-icon .mq-dot {
+            position: absolute;
+            top: -3px;
+            right: -3px;
+        }
+        /* Chat + MQTT match the other tiles and carry a caption underneath. */
+        html[data-face="icons"] .chat-launch.has-face-icon,
+        html[data-face="icons"] .mq-chip.has-face-icon {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            border-radius: 10px;
+        }
+        html[data-face="icons"] .chat-launch.has-face-icon::after,
+        html[data-face="icons"] .mq-chip.has-face-icon::after {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 3px;
+            font: 900 8px 'Courier New', monospace;
+            letter-spacing: 1px;
+            color: #8fa8c8;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+        html[data-face="icons"] .chat-launch.has-face-icon::after { content: 'CHAT'; }
+        html[data-face="icons"] .mq-chip.has-face-icon::after     { content: 'MQTT'; }
+
+        /* ICON FACE — the chrome tiles gather into ONE row on the EDGE side of
+           the clock: [edge] chat · 1990s · settings · chirality · mqtt · CLOCK.
+           The clock slides inboard to make room; mirrors with handedness. */
+        /* Left-handed (default): clock on the RIGHT → tiles to its right. */
+        /* (1990s / settings / chirality tiles moved into the seat MENU — the
+           clock row is just CHAT · MQTT · CLOCK now.) */
+        html[data-face="icons"] .ptp-clock { right: 136px !important; }
+        html[data-face="icons"] .chat-launch.has-face-icon    { right: 26px !important;  left: auto !important; bottom: 33px !important; position: fixed !important; }
+        html[data-face="icons"] .mq-chip.has-face-icon        { right: 76px !important;  left: auto !important; bottom: 33px !important; position: fixed !important; }
+        /* Right-handed: clock on the LEFT → tiles to its left (mirror). */
+        html[data-chirality="right"][data-face="icons"] .ptp-clock { left: 136px !important; right: auto !important; }
+        html[data-chirality="right"][data-face="icons"] .chat-launch.has-face-icon    { left: 26px !important;  right: auto !important; }
+        html[data-chirality="right"][data-face="icons"] .mq-chip.has-face-icon        { left: 76px !important;  right: auto !important; }
+
+        /* ICON FACE — an OPEN group/pool keeps its LIT (mouseover) tile running
+           in a glow loop, so the expanded branch is always visibly "on".
+           (prefers-reduced-motion kills the loop via the global rule.) */
+        @keyframes facePulse {
+            0%, 100% { filter: brightness(1) drop-shadow(0 0 2px rgba(255, 255, 255, .2)); }
+            50%      { filter: brightness(1.22) drop-shadow(0 0 10px rgba(255, 255, 255, .5)); }
+        }
+        /* Footer tiles: brightness-only pulse — the drop-shadow halo made the
+           open group's tile read BIGGER than its neighbours. */
+        @keyframes facePulseFlat {
+            0%, 100% { filter: brightness(1); }
+            50%      { filter: brightness(1.22); }
+        }
+        html[data-face="icons"] .lcars-group:not(.collapsed) > .lcars-group-label.has-face-icon::before {
+            background-image: var(--face-icon-hover, var(--face-icon));
+            animation: facePulseFlat 1.5s ease-in-out infinite;
+        }
+        html[data-face="icons"] .super-pool-container.has-face-icon:not(.folded) .super-pool-emoji {
+            background-image: var(--face-icon-hover, var(--face-icon));
+            animation: facePulse 1.5s ease-in-out infinite;
+        }
+
+        /* ICON FACE — ELBOWS DISABLED. The destination console loses its LCARS
+           elbow geometry (production spine, per-twist elbows/rails, gang arms):
+           flat panels + colored titles instead. The title RAIL stays as a plain
+           flat bar (EDIT LAYOUT still seats on it). LCARS face is untouched. */
+        html[data-face="icons"] .program-row::after { display: none; }
+        html[data-face="icons"] .program-title { border-radius: 10px; }
+        html[data-face="icons"] .program-body,
+        html[data-chirality="right"][data-face="icons"] .program-body { padding: 8px; }
+
+        html[data-face="icons"] .twist-container::before,
+        html[data-face="icons"] .twist-container::after,
+        html[data-chirality="right"][data-face="icons"] .twist-container::before,
+        html[data-chirality="right"][data-face="icons"] .twist-container::after { display: none; }
+        html[data-face="icons"] .twist-container,
+        html[data-face="icons"] .twist-container.monitor-twist,
+        html[data-chirality="right"][data-face="icons"] .twist-container,
+        html[data-chirality="right"][data-face="icons"] .twist-container.monitor-twist {
+            padding: 24px 6px 6px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 10px;
+        }
+        html[data-face="icons"] .twist-title,
+        html[data-face="icons"] .twist-container.monitor-twist .twist-title,
+        html[data-chirality="right"][data-face="icons"] .twist-title,
+        html[data-chirality="right"][data-face="icons"] .twist-container.monitor-twist .twist-title {
+            left: 10px; right: auto; top: 5px;
+            color: var(--lcars-color, #9fb6cc) !important;
+        }
+        html[data-face="icons"] .twist-stats,
+        html[data-chirality="right"][data-face="icons"] .twist-stats,
+        html[data-chirality="right"][data-face="icons"] .twist-container.monitor-twist .twist-stats {
+            left: auto; right: 10px; top: 6px;
+            color: #9fb6cc;
+        }
+        html[data-face="icons"] .twist-lip,
+        html[data-face="icons"] .twist-foldbar { display: none; }
+
+        /* Gang groups: arm off, flat title bar, even padding. */
+        html[data-face="icons"] .twist-group.gang .zone-row::before,
+        html[data-chirality="right"][data-face="icons"] .twist-group.gang .zone-row::before { display: none; }
+        html[data-face="icons"] .twist-group.gang .zone-row,
+        html[data-chirality="right"][data-face="icons"] .twist-group.gang .zone-row { padding: 2px 8px 4px; }
+        html[data-face="icons"] .twist-group.gang > summary.gang-bar,
+        html[data-face="icons"] .twist-group.gang:not([open]) > summary.gang-bar,
+        html[data-chirality="right"][data-face="icons"] .twist-group.gang > summary.gang-bar,
+        html[data-chirality="right"][data-face="icons"] .twist-group.gang:not([open]) > summary.gang-bar {
+            border-radius: 10px;
         }

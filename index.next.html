@@ -4,17 +4,22 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SPOG — Single Pane Of Glass</title>
+  <meta name="theme-color" content="#06070f" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="./manifest.json" />
   <!-- SHARED LCARS stylesheet (same file the live index.htm loads — never forked).
        Fully controls console styling; no per-entry chrome (the list-view skeleton is retired). -->
   <link rel="stylesheet" href="./lcars.css" />
   <script>
-    // Cutover hygiene: the retired JS app registered a cache-first service worker
-    // (twist-v*) that would otherwise keep serving the old shell at this URL. Once
-    // this TS build loads, evict every service worker + cache so the network wins.
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister()));
+    // The lane-aware service worker (audit §4.2/§8 W4b). This REPLACES the
+    // cutover-era eviction script — registering and evicting cannot coexist
+    // (§5.2), and the worker's activate step sweeps every legacy cache
+    // (including the stranded twist-v109 era) itself. Gated off localhost so
+    // the vite dev server never caches itself; sw.js only exists in the built
+    // output (emitted by the twist-build-id plugin).
+    if ('serviceWorker' in navigator && !/^(localhost|127\.)/.test(location.hostname)) {
+      addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
     }
-    if (window.caches) caches.keys().then((ks) => ks.forEach((k) => caches.delete(k)));
   </script>
 </head>
 <body>

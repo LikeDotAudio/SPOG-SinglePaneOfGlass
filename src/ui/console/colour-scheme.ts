@@ -17,6 +17,7 @@
 
 import { addStyles, el } from '../dom.js';
 import { openOverlay } from '../../platform/overlay.js';
+import { getPrefs, patchPrefs } from '../../platform/prefs.js';
 
 export type Vision = 'low' | 'normal' | 'high';
 export type Chroma = 'full' | 'grey' | 'mono';
@@ -59,7 +60,6 @@ const PALETTES: readonly Palette[] = [
 
 const paletteById = (id: string): Palette => PALETTES.find((p) => p.id === id) ?? PALETTES[0]!;
 
-const KEY = 'twist.colour';
 const DEFAULT: ColourScheme = { vision: 'normal', chroma: 'full', cvd: 'classic', face: 'lcars', monoHue: -8 };
 
 const VISIONS: readonly Vision[] = ['low', 'normal', 'high'];
@@ -115,27 +115,21 @@ function paint(s: ColourScheme): void {
 
 /** Read the persisted scheme and paint the attributes. Call BEFORE first render. */
 export function applyStoredColourScheme(): void {
-  let s: ColourScheme = DEFAULT;
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) {
-      const p = JSON.parse(raw) as Partial<ColourScheme>;
-      s = {
-        vision: isVision(p.vision ?? null) ? p.vision! : DEFAULT.vision,
-        chroma: isChroma(p.chroma ?? null) ? p.chroma! : DEFAULT.chroma,
-        cvd: isCvd(p.cvd ?? null) ? p.cvd! : DEFAULT.cvd,
-        face: isFace(p.face ?? null) ? p.face! : DEFAULT.face,
-        monoHue: typeof p.monoHue === 'number' ? p.monoHue : DEFAULT.monoHue,
-      };
-    }
-  } catch { /* private mode / disabled / malformed — fall back to default */ }
+  const p = (getPrefs().colour ?? {}) as Partial<ColourScheme>;
+  const s: ColourScheme = {
+    vision: isVision(p.vision ?? null) ? p.vision! : DEFAULT.vision,
+    chroma: isChroma(p.chroma ?? null) ? p.chroma! : DEFAULT.chroma,
+    cvd: isCvd(p.cvd ?? null) ? p.cvd! : DEFAULT.cvd,
+    face: isFace(p.face ?? null) ? p.face! : DEFAULT.face,
+    monoHue: typeof p.monoHue === 'number' ? p.monoHue : DEFAULT.monoHue,
+  };
   paint(s);
 }
 
 /** Set the scheme: paint, persist, and announce (for live listeners). */
 export function setScheme(s: ColourScheme): void {
   paint(s);
-  try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* ignore */ }
+  patchPrefs({ colour: s as unknown as Record<string, unknown> });
   document.dispatchEvent(new CustomEvent<ColourScheme>('colour-scheme-change', { detail: s }));
 }
 

@@ -14,6 +14,7 @@
 import { addStyles } from '../dom.js';
 import { logAction } from './captains-log.js';
 import { getBus, type TwistBus } from '../../platform/mqtt/index.js';
+import { idbPut, idbGetAll, idbDelete } from '../../platform/store-idb.js';
 
 interface Endpoint { name: string; color: string }   // color = "r,g,b" triplet
 interface ChatMsg {
@@ -228,7 +229,7 @@ export function initChatDock(): void {
   }
 
   /** Store a message in its thread; paint if it's the open thread. Returns true if new. */
-  function ingest(m: ChatMsg): boolean {
+  function ingest(m: ChatMsg, persist = true): boolean {
     const key = pairKey(m.from.name, m.to.name);
     const arr = history.get(key) ?? [];
     if (arr.some((x) => x.id === m.id)) return false;
@@ -236,8 +237,30 @@ export function initChatDock(): void {
     arr.sort((a, b) => a.seq - b.seq || a.ts - b.ts);
     history.set(key, arr);
     if (key === curPair()) renderThread();
+    // Ring-buffered IndexedDB copy (audit §8 W2) — images ride the bus but only
+    // SMALL ones persist locally; a reload leans on the broker for big media.
+    if (persist) {
+      const lite: ChatMsg = m.media && m.media.length > 60_000 ? { ...m, kind: 'text', media: undefined, text: `[image] ${m.text ?? ''}`.trim() } : m;
+      void idbPut('chat', { k: m.id, pair: key, m: lite });
+    }
     return true;
   }
+
+  // Hydrate this seat's chat history; prune each thread to its newest 300 rows.
+  interface StoredChat { k: string; pair: string; m: ChatMsg }
+  void idbGetAll<StoredChat>('chat').then((rows) => {
+    const byPair = new Map<string, StoredChat[]>();
+    rows.forEach((r) => { if (r?.m?.id) { const a = byPair.get(r.pair) ?? []; a.push(r); byPair.set(r.pair, a); } });
+    byPair.forEach((a) => {
+      a.sort((x, y) => x.m.ts - y.m.ts || x.m.seq - y.m.seq);
+      a.splice(0, Math.max(0, a.length - 300)).forEach((old) => void idbDelete('chat', old.k));
+      a.forEach((r) => {
+        ingest(r.m, false);
+        const key = pairKey(r.m.from.name, r.m.to.name);
+        seqByPair.set(key, Math.max(seqByPair.get(key) ?? 0, r.m.seq));
+      });
+    });
+  });
 
   // ── send ───────────────────────────────────────────────────────────────
   function nextSeq(): number {

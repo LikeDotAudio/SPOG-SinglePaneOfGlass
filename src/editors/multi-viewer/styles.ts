@@ -39,6 +39,15 @@ export function injectMultiViewerStyles(): void {
         .mv-meter{position:absolute;right:5px;top:8px;bottom:26px;width:7px;border-radius:3px;
             background:#0c1322;overflow:hidden;display:flex;flex-direction:column-reverse;}
         .mv-meter > i{display:block;background:linear-gradient(#19c54b,#e6e23a 70%,#ff3b3b);width:100%;height:0%;}
+        /* Audio-group pane: the screen is a BANK of n channel VU meters. */
+        .mv-vubank{flex:1;display:flex;gap:4px;align-items:stretch;padding:22px 8px 6px;
+            background:repeating-linear-gradient(45deg,#070b14 0 10px,#0a0f1c 10px 20px);}
+        .mv-vu{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;align-items:stretch;}
+        .mv-vu .bar{flex:1;position:relative;background:#0c1322;border-radius:2px;overflow:hidden;
+            display:flex;flex-direction:column-reverse;box-shadow:inset 0 0 3px #000;}
+        .mv-vu .bar > i{display:block;width:100%;height:0%;
+            background:linear-gradient(#ff3b3b,#e6e23a 30%,#19c54b 55%);}
+        .mv-vu > span{font-size:7px;text-align:center;color:#7e93b5;letter-spacing:.5px;}
         .mv-umd{flex:0 0 auto;display:flex;align-items:center;justify-content:center;height:24px;
             font-weight:bold;font-size:12px;letter-spacing:1px;color:#000;background:var(--umd,#9fb6cc);}
         .mv-umd[contenteditable]:focus{outline:2px solid var(--cyan);}

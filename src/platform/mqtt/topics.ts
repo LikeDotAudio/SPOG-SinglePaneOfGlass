@@ -20,9 +20,13 @@ export const seg = (s: string): string => slug(stripOrder(decodeURIComponent(Str
 
 // ---- topic builders ---------------------------------------------------------
 
-/** A production ("room"). `displayName` must match renderPrograms' titleText so the
- *  advertise pass and the live editor land on the SAME topic. */
-export const roomTopic = (displayName: string): string => `rooms/${slug(displayName)}`;
+/** A production (destination room). `displayName` must match renderPrograms'
+ *  titleText so the advertise pass and the live editor land on the SAME topic.
+ *  Each " — " lineage segment becomes its OWN topic level, so the tree reads
+ *  destinations/<type>/<room> ("PRIMARY — PROD 7" → destinations/primary/prod-7),
+ *  not one flattened slug under a "rooms" bucket. */
+export const roomTopic = (displayName: string): string =>
+  `destinations/${String(displayName ?? '').split('—').map((p) => slug(p)).filter(Boolean).join('/')}`;
 
 /** A twist inside a room. */
 export const twistTopic = (roomDisplayName: string, twistName: string): string =>

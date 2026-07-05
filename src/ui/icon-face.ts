@@ -1,35 +1,46 @@
 // src/ui/icon-face — the ICON face resolver (docs/Audit/Icon-View-Aesthetic-Audit.md).
 //
 // The FACE axis (colour-scheme.ts, html[data-face]="lcars"|"icons") swaps the LCARS
-// chrome for the macOS-style icon tiles that live beside the data they name:
-//   Routes/Sources/icons/<slug>.svg          (+ <slug>.mouseover.svg hover state)
-//   Routes/Destinations/icons/<slug>.svg
-// (The icons folders are upload-only: deploy.py excludes them from the discovery
-// manifests so they never appear as categories in the app.)
-// This module maps a chrome label to those URLs and stamps them as CSS custom
-// properties on the element. The DOM never changes — the `data-face="icons"` CSS
-// overlay in lcars.css paints the tile; in LCARS face the stamp is inert.
+// chrome for macOS-style dock tiles. Tiles are rendered PROGRAMMATICALLY
+// (src/ui/icon-tiles.ts) as data: SVG URLs in the ACTIVE palette's accents —
+// nothing fetched, nothing stored — and every stamped element re-tints live when
+// the palette changes (colour-scheme-change event).
 //
-// A tile is only activated after its SVG actually loads (Image() probe), so a label
-// without artwork keeps its LCARS pill in icon face — degrade to text, never a hole.
+// A label without a glyph in the library simply never gets `has-face-icon`, so it
+// keeps its LCARS pill even in icon face — degrade to text, never to a hole.
+
+import { tileDataUrl, hasTile } from './icon-tiles.js';
 
 const slug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
-const DIRS = { src: 'Routes/Sources/icons', dest: 'Routes/Destinations/icons' } as const;
-export type IconKind = keyof typeof DIRS;
+export type IconKind = 'src' | 'dest' | 'chrome';
 
-export const iconUrl = (kind: IconKind, label: string, hover = false): string =>
-  `${DIRS[kind]}/${slug(label)}${hover ? '.mouseover' : ''}.svg`;
+// Every stamped element, so a palette change can re-tint the whole face.
+const STAMPED = new Map<HTMLElement, string>();
 
-/** Stamp an element with its icon tile (and hover variant). The `has-face-icon`
- *  class — the CSS overlay's hook — is only added once the tile proves loadable. */
-export function stampIcon(target: HTMLElement, kind: IconKind, label: string): void {
-  const url = iconUrl(kind, label);
-  const probe = new Image();
-  probe.onload = () => {
-    target.style.setProperty('--face-icon', `url("${url}")`);
-    target.style.setProperty('--face-icon-hover', `url("${iconUrl(kind, label, true)}")`);
-    target.classList.add('has-face-icon');
-  };
-  probe.src = url;
+function paint(target: HTMLElement, id: string): void {
+  const url = tileDataUrl(id);
+  const hover = tileDataUrl(id, true);
+  if (!url || !hover) return;
+  target.style.setProperty('--face-icon', `url("${url}")`);
+  target.style.setProperty('--face-icon-hover', `url("${hover}")`);
+  target.classList.add('has-face-icon');
 }
+
+/** Stamp an element with the tile for `label` (kind kept for call-site clarity —
+ *  the glyph namespace is shared). No-op when no glyph exists for the label. */
+export function stampIcon(target: HTMLElement, _kind: IconKind, label: string): void {
+  const id = slug(label);
+  if (!hasTile(id)) return;
+  STAMPED.set(target, id);
+  paint(target, id);
+}
+
+// Palette switched → re-render every tile in the new accents. Detached elements
+// are dropped from the registry as they're encountered.
+document.addEventListener('colour-scheme-change', () => {
+  for (const [el, id] of STAMPED) {
+    if (!el.isConnected) { STAMPED.delete(el); continue; }
+    paint(el, id);
+  }
+});
