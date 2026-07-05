@@ -29,6 +29,8 @@ export interface PaneDeps {
   publishSource: (i: number, opts?: { throttle: boolean }) => void;
   publishTally: (i: number) => void;
   publishAllPanes: () => void;
+  /** Build the live picture surface for a video pane (a test-card canvas). */
+  videoScreen: (w: Win) => HTMLElement;
 }
 
 export interface Panes {
@@ -37,7 +39,7 @@ export interface Panes {
 }
 
 export function createPanes(d: PaneDeps): Panes {
-  const { wins, dispose, getPreset, redraw, publishSource, publishTally, publishAllPanes } = d;
+  const { wins, dispose, getPreset, redraw, publishSource, publishTally, publishAllPanes, videoScreen } = d;
   let dragIdx: number | null = null;
 
   function fullWin(w: Win, i: number): HTMLElement {
@@ -54,7 +56,7 @@ export function createPanes(d: PaneDeps): Panes {
     // (and unknown) feeds keep the mock picture + single side meter.
     const screen = w.channels
       ? vuBank(w.channels, dispose)
-      : el('div', { class: 'mv-screen', textContent: `▣ ${w.label}` });
+      : videoScreen(w);
     const umd = el('div', {
       class: 'mv-umd',
       style: `--umd:${w.color}`,

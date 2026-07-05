@@ -8,6 +8,7 @@
 import type { EditorPlugin } from '../types.js';
 import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { el } from '../../ui/dom.js';
+import { createTestCardWall, testCardFor } from '../../domain/test-card/index.js';
 import { injectMultiViewerStyles } from './styles.js';
 import { channelsFor } from './channels.js';
 import { createPanes, type Win } from './panes.js';
@@ -91,6 +92,12 @@ const plugin: EditorPlugin = {
     const grid = el('div', { class: 'mv-grid' });
     frame.appendChild(grid);
 
+    // One shared test-card ticker for the whole wall: each video pane's screen is
+    // a live SMPTE test frame keyed on that source's label + colour, so routing a
+    // source makes its self-identifying frame appear here (audit §8-9).
+    const cardWall = createTestCardWall(ctx.dispose);
+    const videoScreen = (w: Win): HTMLElement => cardWall.mount(testCardFor(w.label, w.color));
+
     // The tile builders are closure-coupled to render state; hand them that
     // state explicitly (getPreset reads the live selection, redraw = draw).
     const { fullWin, compactWin } = createPanes({
@@ -101,6 +108,7 @@ const plugin: EditorPlugin = {
       publishSource,
       publishTally,
       publishAllPanes,
+      videoScreen,
     });
 
     function draw(): void {
