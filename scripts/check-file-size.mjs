@@ -21,26 +21,21 @@ const ALLOWLIST = new Set([
   'src/editors/meter-input/live-input.ts',
   'src/ui/console/authoring.ts',
   'deploy.py',
-  'src/editors/camera-control/index.ts',
   'src/ui/sources/pools.ts',
-  'src/editors/clock/index.ts',
   'src/ui/console/matrix.ts',
   'src/ui/console/router-view.ts',
-  'src/editors/timer/index.ts',
   'src/ui/console/colour-scheme.ts',
-  'src/editors/stagebox-input/view.ts',
   'src/ui/console/chat-dock.ts',
   'src/ui/console/dest-fixtures.ts',
   'assets/icons/sources/make-icons.mjs',
   'assets/icons/destinations/make-icons.mjs',
-  'src/editors/audio-positioner/index.ts',
   'src/ui/console/captains-log.ts',
   'src/app/main.ts',
   'src/ui/console/mqtt-tree.ts',
+  // Honest Exception (audit section 8, item 1): one cohesive TimerEngine state
+  // machine; types already pulled to engine-types.ts. Sharding the class across
+  // files hurts more than the extra lines help.
   'src/editors/timer/engine.ts',
-  'src/ui/sources/panel.ts',
-  'src/editors/camera-control/controls.ts',
-  'src/platform/mqtt/client.ts',
 ]);
 
 function walk(dir, out) {
