@@ -26,6 +26,19 @@ export const RENDITIONS: readonly Rendition[] = [
   { name: '1080²', ar: '1:1', kbps: 3500, codec: 'H.264' },
 ];
 
+export interface TileRef {
+  kbps: number;
+  name: string;
+  param: string;   // snake_case MQTT param that arms/stops this rung
+  on: boolean;
+  err: boolean;
+  el: HTMLDivElement;
+}
+
+// snake_case a rendition name for its param (2160p, 1080×1920 → 1080x1920, 1080² → 1080sq).
+export const slug = (n: string): string =>
+  n.toLowerCase().replace(/×/g, 'x').replace(/²/g, 'sq').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+
 export const DESTS: readonly string[] = [
   'Main-CDN-Primary',
   'YouTube Live',

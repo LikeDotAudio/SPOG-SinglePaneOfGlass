@@ -12,20 +12,9 @@ import type { EditorPlugin } from '../types.js';
 import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { el, qs } from '../../ui/dom.js';
 import { injectEncoderStyles } from './styles.js';
-import { RENDITIONS, DESTS, deriveFeeds } from './state.js';
-
-interface TileRef {
-  kbps: number;
-  name: string;
-  param: string;   // snake_case MQTT param that arms/stops this rung
-  on: boolean;
-  err: boolean;
-  el: HTMLDivElement;
-}
-
-// snake_case a rendition name for its param (2160p, 1080×1920 → 1080x1920, 1080² → 1080sq).
-const slug = (n: string): string =>
-  n.toLowerCase().replace(/×/g, 'x').replace(/²/g, 'sq').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+import { RENDITIONS, DESTS, deriveFeeds, slug } from './state.js';
+import type { TileRef } from './state.js';
+import { startHealthMonitor } from './health.js';
 
 const plugin: EditorPlugin = {
   id: 'encoder',
@@ -157,27 +146,7 @@ const plugin: EditorPlugin = {
     });
 
     // live stream-health monitoring + random packet-drop simulation
-    const health = qs(host, '.enc-health');
-    ctx.dispose.interval(() => {
-      for (const bar of audBars) bar.style.width = 25 + Math.random() * 60 + '%';
-      for (const t of tiles) {
-        if (t.on && Math.random() < 0.01) t.err = true;
-        else if (t.err && Math.random() < 0.25) t.err = false;
-        t.el.classList.toggle('err', t.err && t.on);
-      }
-      const errs = tiles.filter((t) => t.on && t.err);
-      const first = errs[0];
-      const totalMbps = tiles.filter((t) => t.on).reduce((a, t) => a + t.kbps, 0) / 1000;
-      // Aggregate egress bitrate as read-only telemetry (throttled — it ticks live).
-      ctx.services.publishParam?.('egress_mbps', +totalMbps.toFixed(1));
-      health.innerHTML =
-        `Frozen Frame &nbsp;<span class="${errs.length ? 'bad' : 'ok'}">${first ? 'CHECK ' + first.name : 'OK'}</span><br>` +
-        `Black Video &nbsp;<span class="ok">OK</span><br>` +
-        `Audio Silence &nbsp;<span class="ok">OK</span><br>` +
-        `Failover &nbsp;<span class="ok">${ui.failPrimary ? 'PRIMARY' : 'SECONDARY'}</span><br>` +
-        `Encryption &nbsp;<span class="${ui.drm ? 'ok' : 'bad'}">${ui.drm ? 'AES-128' : 'CLEAR'}</span><br>` +
-        `Egress Total &nbsp;<b style="color:#cfe6ff">${totalMbps.toFixed(1)} Mbps</b>`;
-    }, 220);
+    startHealthMonitor(host, ctx, audBars, tiles, ui);
 
     // ── MQTT param bridge (audit §4.5) ──────────────────────────────────────
     // Arm/stop an ABR rung (bitrate + codec + resolution are fixed rendition

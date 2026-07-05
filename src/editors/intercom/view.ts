@@ -7,16 +7,8 @@ import type { EditorContext } from '../types.js';
 import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { el } from '../../ui/dom.js';
 import { injectIntercomStyles } from './styles.js';
-import { createIntercomState, DEFAULT_KEYS, type TalkGroup } from './state.js';
-
-function resolveKeys(ctx: EditorContext): string[] {
-  // Legacy gatherSources(twist) → ctx.sources; then config.inputs; then defaults.
-  const fromSources = ctx.sources.map((s) => s.label);
-  if (fromSources.length) return fromSources;
-  const inputs = ctx.twist.config?.inputs;
-  if (inputs && inputs.length) return [...inputs];
-  return [...DEFAULT_KEYS];
-}
+import { createIntercomState, resolveKeys, type TalkGroup } from './state.js';
+import { buildSubCards } from './subcards.js';
 
 export function renderIntercom(host: HTMLElement, ctx: EditorContext): void {
   injectIntercomStyles();
@@ -203,20 +195,5 @@ export function renderIntercom(host: HTMLElement, ctx: EditorContext): void {
   }, 1400);
 
   // ---- sub-cards: IFB / beltpacks / matrix ----
-  const sub = el('div', { class: 'ic-sub' });
-  sub.innerHTML = `
-            <div class="ic-card"><p class="ed-h">IFB — INTERRUPTIBLE FOLDBACK</p>
-                <div class="ic-row"><span>TALENT 1 EARPIECE</span><span class="ic-pill on">PROGRAM</span></div>
-                <div class="ic-row"><span>TALENT 2 EARPIECE</span><span class="ic-pill">PROGRAM</span></div>
-                <div class="ic-row"><span>STAGE MANAGER</span><span class="ic-pill">PROGRAM</span></div></div>
-            <div class="ic-card"><p class="ed-h">BELTPACKS</p>
-                <div class="ic-row"><span>CAM 1 · PARTY-LINE A</span><span class="ic-pill on">ONLINE</span></div>
-                <div class="ic-row"><span>CAM 2 · PARTY-LINE A</span><span class="ic-pill on">ONLINE</span></div>
-                <div class="ic-row"><span>FLOOR · PARTY-LINE B</span><span class="ic-pill on">ONLINE</span></div></div>
-            <div class="ic-card"><p class="ed-h">MATRIX</p>
-                <div class="ic-row"><span>TALLY-LINKED DUCKING</span><span class="ic-pill on">ENABLED</span></div>
-                <div class="ic-row"><span>PRIVATE LINE — DIR↔FLOOR</span><span class="ic-pill on">OPEN</span></div>
-                <div class="ic-row"><span>ROUTER</span><span class="ic-pill on">ONLINE</span></div></div>`;
-  sub.querySelectorAll<HTMLElement>('.ic-pill').forEach((p) => p.addEventListener('click', () => p.classList.toggle('on')));
-  host.appendChild(sub);
+  host.appendChild(buildSubCards());
 }

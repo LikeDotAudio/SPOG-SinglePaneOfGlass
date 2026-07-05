@@ -13,10 +13,7 @@ import { addStyles, qs, el } from '../../ui/dom.js';
 import type { EditorContext } from '../types.js';
 import { CSS } from './styles.js';
 import { initialFixtures, SCENES, CUES, tempK } from './state.js';
-
-const clamp = (x: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, x));
-/** Invert tempK() — map a Kelvin value back onto the 0..1 colour-temp slider. */
-const kToTemp = (k: number): number => clamp((k - 3200) / 2400, 0, 1);
+import { wireLightingParams } from './mqtt.js';
 
 export function renderLighting(host: HTMLElement, ctx: EditorContext): void {
   addStyles('lt-styles', CSS);
@@ -170,42 +167,8 @@ export function renderLighting(host: HTMLElement, ctx: EditorContext): void {
     cueHost.appendChild(b);
   });
 
-  // Advertise every driveable control as a read/write param (audit CR.6 full R/W).
-  // Intensity in % (0..100), colour temp in Kelvin (3200..5600 via tempK()).
-  const params = st.flatMap((f, i) => [
-    { name: `fix${i + 1}_intensity`, type: 'number' as const, unit: '%', min: 0, max: 100, writable: true, cap: 'shade' as const },
-    { name: `fix${i + 1}_temp`, type: 'number' as const, unit: 'K', min: 3200, max: 5600, writable: true, cap: 'shade' as const },
-  ]);
-  ctx.services.advertiseParams?.([
-    ...params,
-    { name: 'scene', type: 'enum', values: SCENES.map(([nm]) => nm), writable: true, cap: 'shade' },
-    { name: 'cue', type: 'enum', values: [...CUES], writable: true, cap: 'shade' },
-  ]);
-
-  // External control: honour writes from the bus / other consoles (apply, no echo).
-  st.forEach((f, i) => {
-    ctx.services.onParam?.(`fix${i + 1}_intensity`, (v) => {
-      if (typeof v !== 'number') return;
-      f.intensity = clamp(v / 100, 0, 1);
-      const inp = intInputs[i];
-      if (inp) inp.value = String(f.intensity);
-      paint();
-    });
-    ctx.services.onParam?.(`fix${i + 1}_temp`, (v) => {
-      if (typeof v !== 'number') return;
-      f.temp = kToTemp(v);
-      const inp = ctInputs[i];
-      if (inp) inp.value = String(f.temp);
-      paint();
-    });
-  });
-  ctx.services.onParam?.('scene', (v) => {
-    const hit = SCENES.find(([nm]) => nm === v);
-    if (hit) applyScene(hit[0], hit[1]);
-  });
-  ctx.services.onParam?.('cue', (v) => {
-    if (typeof v === 'string') flashCue(v);
-  });
+  // Advertise + honour the driveable controls as read/write params on the bus.
+  wireLightingParams({ st, ctx, intInputs, ctInputs, paint, applyScene, flashCue });
 
   paint();
   paintSel();

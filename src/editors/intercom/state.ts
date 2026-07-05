@@ -1,6 +1,8 @@
 // src/editors/intercom/state — the talk-group model the legacy render() kept as
 // closure locals (`groups`, `selecting`, `picked`). Pure data; the view owns DOM.
 
+import type { EditorContext } from '../types.js';
+
 /** A talk group gangs several key panels under one big TALK button. */
 export interface TalkGroup {
   name: string;
@@ -37,6 +39,15 @@ export const DEFAULT_KEYS: readonly string[] = [
   'PRODUCER',
   'TECH',
 ];
+
+export function resolveKeys(ctx: EditorContext): string[] {
+  // Legacy gatherSources(twist) → ctx.sources; then config.inputs; then defaults.
+  const fromSources = ctx.sources.map((s) => s.label);
+  if (fromSources.length) return fromSources;
+  const inputs = ctx.twist.config?.inputs;
+  if (inputs && inputs.length) return [...inputs];
+  return [...DEFAULT_KEYS];
+}
 
 export function createIntercomState(keys: string[]): IntercomState {
   return {

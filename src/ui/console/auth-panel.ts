@@ -7,9 +7,14 @@
 // hides [data-cap] controls the current role can't operate (progressive disclosure).
 import { addStyles } from '../dom.js';
 import type { Capability, Role } from '../../model/index.js';
-import { ROLES, role, setRole, can, onRoleChange, operator, setOperator } from '../../platform/auth.js';
+import { ROLES, role, setRole, onRoleChange, operator, setOperator } from '../../platform/auth.js';
 import { logAction } from './captains-log.js';
 import { stampIcon } from '../icon-face.js';
+
+// applyScope (the progressive-disclosure sweep) lives in scope.ts — re-exported
+// here so the ~4 modules that import it from auth-panel stay byte-identical.
+import { applyScope } from './scope.js';
+export { applyScope };
 
 const AUTH_CSS = `
 .au-focus{position:fixed;left:50%;top:0;transform:translate(-50%,-110%);z-index:1600;background:#0a1326;border:1px solid var(--rc,#F2B74B);border-top:none;border-radius:0 0 14px 14px;padding:11px 26px;color:#e0f0ff;font:bold 13px sans-serif;letter-spacing:1px;box-shadow:0 8px 22px rgba(0,0,0,.5);transition:transform .35s cubic-bezier(.2,1.2,.4,1);white-space:nowrap;}
@@ -69,49 +74,6 @@ const CAPS: Array<[Capability, string]> = [
 
 const capLine = (r: Role): string =>
   r.caps.admin ? 'All systems' : (Object.keys(r.caps).map((k) => k.toUpperCase()).join(' · ') || 'View only');
-
-export function applyScope(root: ParentNode = document): void {
-  root.querySelectorAll<HTMLElement>('[data-cap]').forEach((el) => {
-    const caps = (el.dataset.cap || '').split(/\s+/).filter(Boolean) as Capability[];
-    if (caps.length === 0) return;
-    el.style.display = caps.some((c) => can(c)) ? '' : 'none';
-  });
-
-  const isArranger = can('arrange') || can('admin');
-
-  // Hide empty twist groups (destinations)
-  root.querySelectorAll<HTMLElement>('details.twist-group').forEach((group) => {
-    const twists = Array.from(group.querySelectorAll<HTMLElement>('.twist-container'));
-    const hasVisibleChild = twists.some(c => c.style.display !== 'none');
-    // If it has NO twists, only show it to arrangers. If it HAS twists, only show if at least one is visible.
-    group.style.display = (twists.length === 0 && isArranger) || hasVisibleChild ? '' : 'none';
-  });
-
-  // Hide empty program rows (productions)
-  root.querySelectorAll<HTMLElement>('.program-row').forEach((row) => {
-    const twists = Array.from(row.querySelectorAll<HTMLElement>('.twist-container'));
-    const hasVisibleChild = twists.some(c => c.style.display !== 'none');
-    row.style.display = (twists.length === 0 && isArranger) || hasVisibleChild ? '' : 'none';
-  });
-
-  // Hide empty super pools (top-level source categories)
-  root.querySelectorAll<HTMLElement>('.super-pool-container').forEach((pool) => {
-    const inputs = Array.from(pool.querySelectorAll<HTMLElement>('.input-group'));
-    const hasVisibleChild = inputs.some(c => c.style.display !== 'none');
-    pool.style.display = (inputs.length === 0 && isArranger) || hasVisibleChild ? '' : 'none';
-  });
-
-  // Hide empty nested media groups
-  const mediaGroups = Array.from(root.querySelectorAll<HTMLElement>('.media-group'));
-  // Process deepest first so nested folders collapse correctly
-  mediaGroups.reverse().forEach((group) => {
-    const content = group.querySelector<HTMLElement>(':scope > .media-group-content');
-    if (!content) return;
-    const children = Array.from(content.children) as HTMLElement[];
-    const hasVisibleChild = children.some(c => c.style.display !== 'none');
-    group.style.display = (children.length === 0 && isArranger) || hasVisibleChild ? '' : 'none';
-  });
-}
 
 export function initAuthPanel(): void {
   if (document.querySelector('.au-corner')) return;

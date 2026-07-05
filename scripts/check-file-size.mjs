@@ -39,7 +39,6 @@ const ALLOWLIST = new Set([
   'src/ui/console/mqtt-tree.ts',
   'src/editors/audio-monitor/view.ts',
   'src/editors/timer/engine.ts',
-  'src/ui/icon-tiles.ts',
   'src/editors/graphics-engine/templates.ts',
   'src/editors/ifb/view.ts',
   'src/ui/sources/panel.ts',
@@ -51,18 +50,6 @@ const ALLOWLIST = new Set([
   'src/platform/mqtt/client.ts',
   'src/editors/iso-recorder/index.ts',
   'src/editors/person/index.ts',
-  'src/ui/tip.ts',
-  'src/editors/weather/data.ts',
-  'src/editors/graphics-engine/view.ts',
-  'src/ui/console/academy.ts',
-  'src/editors/encoder/index.ts',
-  'src/ui/console/footer.ts',
-  'src/editors/intercom/view.ts',
-  'src/ui/console/destinations.ts',
-  'src/editors/lighting/view.ts',
-  'src/ui/console/auth-panel.ts',
-  'src/editors/signaling/view.ts',
-  'src/editors/chronos/index.ts',
 ]);
 
 function walk(dir, out) {
