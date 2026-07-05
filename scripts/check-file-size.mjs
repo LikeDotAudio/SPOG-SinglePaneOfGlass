@@ -37,19 +37,10 @@ const ALLOWLIST = new Set([
   'src/ui/console/captains-log.ts',
   'src/app/main.ts',
   'src/ui/console/mqtt-tree.ts',
-  'src/editors/audio-monitor/view.ts',
   'src/editors/timer/engine.ts',
-  'src/editors/graphics-engine/templates.ts',
-  'src/editors/ifb/view.ts',
   'src/ui/sources/panel.ts',
-  'src/editors/audio-mixer/view.ts',
-  'src/editors/signal-conditioner/index.ts',
-  'src/editors/wysiwyg/view.ts',
-  'src/editors/multi-viewer/index.ts',
   'src/editors/camera-control/controls.ts',
   'src/platform/mqtt/client.ts',
-  'src/editors/iso-recorder/index.ts',
-  'src/editors/person/index.ts',
 ]);
 
 function walk(dir, out) {

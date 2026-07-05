@@ -1,6 +1,23 @@
 // src/editors/ifb/state — the per-instance IFB model (the legacy `s` object) plus
 // the interrupt hierarchy table and the dB formatter. Pure data; no DOM.
 
+import type { Sibling } from '../types.js';
+import type { Feed } from '../../domain/routing-core/index.js';
+
+/** Resolve the feeds for this IFB — sources, then config.inputs, then a default. */
+export function resolveFeeds(sib: Sibling): Feed[] {
+  if (sib.sources.length) return sib.sources;
+  const inputs = sib.config?.inputs;
+  if (inputs && inputs.length) {
+    return inputs.map((label, i) => ({ id: `in${i}`, label, color: '#4d94ff' }));
+  }
+  return Array.from({ length: 4 }, (_, i) => ({
+    id: `ifb${i + 1}`,
+    label: `IFB ${i + 1}`,
+    color: '#4d94ff',
+  }));
+}
+
 /** The three encoder targets — also the keys the dials drive on the state. */
 export type DialKey = 'progGain' | 'intGain' | 'threshold';
 

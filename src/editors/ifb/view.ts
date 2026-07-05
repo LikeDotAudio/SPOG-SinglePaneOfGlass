@@ -7,69 +7,12 @@
 
 import type { Disposer } from '../../ui/timers.js';
 import type { Sibling, EditorServices } from '../types.js';
-import type { Feed, RouteGraph } from '../../domain/routing-core/index.js';
-import { mixMinus } from '../../domain/routing-core/index.js';
+import { mixMinus, type RouteGraph } from '../../domain/routing-core/index.js';
 import { qs } from '../../ui/dom.js';
-import { PRIO, dB, initialState, DIAL_PARAM, TALK_VALUES, ROUTE_VALUES, stripPrefix, type DialKey, type IfbRoute } from './state.js';
-
-/** Resolve the feeds for this IFB — sources, then config.inputs, then a default. */
-function resolveFeeds(sib: Sibling): Feed[] {
-  if (sib.sources.length) return sib.sources;
-  const inputs = sib.config?.inputs;
-  if (inputs && inputs.length) {
-    return inputs.map((label, i) => ({ id: `in${i}`, label, color: '#4d94ff' }));
-  }
-  return Array.from({ length: 4 }, (_, i) => ({
-    id: `ifb${i + 1}`,
-    label: `IFB ${i + 1}`,
-    color: '#4d94ff',
-  }));
-}
-
-/** Confidence-feed waveform — exactly what the earpiece hears. */
-function drawFeed(cv: HTMLCanvasElement, level: number, talk: number): void {
-  const w = (cv.width = cv.clientWidth);
-  const h = (cv.height = cv.clientHeight);
-  const ctx = cv.getContext('2d');
-  if (!ctx) return;
-  ctx.clearRect(0, 0, w, h);
-  ctx.strokeStyle = talk ? 'rgba(255,120,120,.9)' : 'rgba(90,224,140,.9)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  for (let x = 0; x <= w; x += 3) {
-    const t = (x / w) * Math.PI * 2 * 6;
-    const y =
-      h / 2 +
-      Math.sin(t + performance.now() * 0.004) * level * (h * 0.42) * (0.6 + Math.random() * 0.4);
-    if (x) ctx.lineTo(x, y);
-    else ctx.moveTo(x, y);
-  }
-  ctx.stroke();
-}
-
-/** Ducker history — program gain over time while a talk key is held. */
-function drawDuck(cv: HTMLCanvasElement, hist: readonly number[]): void {
-  const w = (cv.width = cv.clientWidth);
-  const h = (cv.height = cv.clientHeight);
-  const ctx = cv.getContext('2d');
-  if (!ctx) return;
-  ctx.clearRect(0, 0, w, h);
-  ctx.strokeStyle = 'rgba(80,110,150,.25)';
-  ctx.beginPath();
-  ctx.moveTo(0, 6);
-  ctx.lineTo(w, 6);
-  ctx.stroke();
-  ctx.strokeStyle = '#ffd400';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  hist.forEach((g, i) => {
-    const x = (i / 120) * w;
-    const y = h - 4 - g * (h - 10);
-    if (i) ctx.lineTo(x, y);
-    else ctx.moveTo(x, y);
-  });
-  ctx.stroke();
-}
+import { PRIO, dB, initialState, resolveFeeds, DIAL_PARAM, TALK_VALUES, ROUTE_VALUES, stripPrefix, type DialKey, type IfbRoute } from './state.js';
+import { drawFeed, drawDuck } from './painters.js';
+import { buildDials } from './dials.js';
+import { ifbTemplate } from './template.js';
 
 /** Build one full IFB editor into `body` for a single talent (sibling) twist.
  *  `services` + `idx` scope this strip's MQTT params to the flat `t<N>_…` topics
@@ -105,97 +48,12 @@ export function buildOne(
   const mm = mixMinus(graph, sib.name, talent ? talent.id : '');
   const mmCaption = `program − ${talent ? talent.label : 'talent mic'} · ${mm.length} feeds`;
 
-  body.innerHTML = `
-      <div class="ifb">
-        <div class="ifb-card ifb-ins">
-          <div>
-            <div class="ifb-strip"><div class="ifb-meter ifb-mm"><div class="mask"></div></div>
-              <div class="ifb-stripinfo"><b>MIX-MINUS</b><span>${mmCaption}</span><span class="ifb-mmv"></span></div></div>
-          </div>
-          <div>
-            <div class="ifb-strip"><div class="ifb-meter ifb-int"><div class="mask"></div></div>
-              <div class="ifb-stripinfo"><b>IFB INPUT</b><span>interrupt bus</span><span class="ifb-intv"></span></div></div>
-          </div>
-        </div>
+  body.innerHTML = ifbTemplate(mmCaption);
 
-        <div class="ifb-conf">
-          <div class="ifb-cap">TALENT CONFIDENCE FEED — what the earpiece hears</div>
-          <div class="ifb-feed"><canvas></canvas><div class="ifb-status">● CLEAR</div></div>
-          <div class="ifb-duckwrap"><div class="ifb-cap">DUCKER — program ↓ while talking</div><div class="ifb-duck"><canvas></canvas></div></div>
-        </div>
-
-        <div class="ifb-right">
-          <div class="ifb-card"><h4>IFB Encoders</h4><div class="ifb-knobs"></div></div>
-          <div class="ifb-card"><h4>Interrupt Hierarchy · Hold to Talk</h4><div class="ifb-talks"></div></div>
-          <div class="ifb-card"><h4>Delivery · Feed Split</h4>
-            <div class="ifb-routes">
-              <button class="ifb-route" data-route="wired">WIRED</button>
-              <button class="ifb-route" data-route="wireless">RF</button>
-              <button class="ifb-route" data-route="split">SPLIT</button>
-            </div>
-            <div class="ifb-leg" data-leg="wired"><span class="led"></span>
-              <div class="nm">STAGE BOX RETURN<small>wired earpiece feed</small></div>
-              <button class="open">⚙ OPEN</button></div>
-            <div class="ifb-leg" data-leg="wireless"><span class="led"></span>
-              <div class="nm">WIRELESS IFB<small>RF beltpack / IEM</small></div>
-              <button class="open">📶 OPEN</button></div>
-          </div>
-        </div>
-      </div>`;
-
-  const knobs = qs(body, '.ifb-knobs');
-  const dialDefs: ReadonlyArray<[DialKey, string, string]> = [
-    ['progGain', 'Program', '#39d353'],
-    ['intGain', 'Interrupt', '#ff6a6a'],
-    ['threshold', 'Threshold', '#ffd400'],
-  ];
-  const dialPaint = new Map<DialKey, () => void>();
-  for (const [key, label, c] of dialDefs) {
-    const kn = document.createElement('div');
-    kn.className = 'ifb-kn';
-    kn.innerHTML = `<div class="ifb-dial" style="--c:${c}"><i></i></div><b></b><span>${label}</span>`;
-    const dial = qs<HTMLElement>(kn, '.ifb-dial');
-    const val = qs<HTMLElement>(kn, 'b');
-    const paint = (): void => {
-      const v = s[key];
-      dial.style.setProperty('--p', `${v * 100}%`);
-      dial.style.setProperty('--rot', `${v * 270 - 135}deg`);
-      val.textContent =
-        key === 'threshold'
-          ? `-${Math.round(6 + v * 18)}dB`
-          : `${v >= 0.5 ? '+' : ''}${Math.round((v - 0.5) * 24)}dB`;
-    };
-    let sy = 0;
-    let sv = 0;
-    let dr = false;
-    dial.addEventListener('mousedown', (e: MouseEvent) => {
-      dr = true;
-      sy = e.clientY;
-      sv = s[key];
-      e.preventDefault();
-    });
-    const onMove = (e: MouseEvent): void => {
-      if (!dr) return;
-      s[key] = Math.max(0, Math.min(1, sv + (sy - e.clientY) / 130));
-      paint();
-      pubDial(key); // throttled — safe inside the drag loop
-    };
-    const onUp = (): void => {
-      dr = false;
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    dispose.add(() => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    });
-    knobs.appendChild(kn);
-    dialPaint.set(key, paint);
-    paint();
-  }
+  const dialPaint = buildDials(body, s, dispose, pubDial);
 
   // Inbound encoder writes from the bus / other consoles → set + repaint (no echo).
-  for (const [key] of dialDefs) {
+  for (const key of dialPaint.keys()) {
     subscribe(`${pfx}${DIAL_PARAM[key]}`, (v) => {
       if (typeof v === 'number') {
         s[key] = Math.max(0, Math.min(1, v));

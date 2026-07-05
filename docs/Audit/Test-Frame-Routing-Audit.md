@@ -142,6 +142,79 @@ Because routing is **label‑based DOM**, not a media transport, the test frame 
 
 ---
 
+## 8. Identity design — how name, colour and shape drive the frame
+
+The whole feature is worthless unless you can look at a routed frame and know *which source it is* — under any condition, including colour‑blind and grey/mono modes (the [Colour Engine work](../Colours%20and%20shapes.md) already commits us to **triple‑redundant** identity: never colour alone). So each card carries **three orthogonal identity channels**, all derived from fields the source already has:
+
+| Channel | Source of truth | How it renders on the card | Fallback when absent |
+| --- | --- | --- | --- |
+| **Name** (text) | `SourceLeaf.name`, cleaned by `stripOrder()` (`format.ts`) | Burned‑in **UMD slate** (lower third) + the label on the moving ident badge | `id` |
+| **Colour** (hue) | `SourceLeaf.color` (`Hex`, already authored on most leaves) | The frame **border**, the slate background wash, and the ident‑shape **fill** — *not* the bars (bars stay reference‑standard) | `hashHue(id)` — stable hue from an id hash |
+| **Shape** (geometry) | **new** `ident` derived deterministically from `id` | The moving ident **badge geometry** + a static shape stamp in one corner | always present (derived) |
+
+### 8.1 Names & colours
+- **Name** is the human read. Clean the `NNN_` ordering prefix, show the rest big. It is also spoken by the audio ident slate (P5) if we ever want TTS — out of scope for now.
+- **Colour** is the fast read. Use the authored `color` as the card's *dominant identity colour* (border + slate + shape fill), so a source is recognisable by wash alone across a wall. **Leave the SMPTE bars themselves standard** — they are a calibration reference; tinting them destroys their meaning. The source colour lives in the *chrome around* the bars.
+- Respect the existing **Colour Engine modes** ([`Colours and shapes.md`](../Colours%20and%20shapes.md)): in `grey`/`mono` the colour channel collapses, so identity must survive on **name + shape alone**. That is the entire reason shape is a first‑class channel below.
+
+### 8.2 Unique shapes per frame (the third channel)
+Every source gets a **unique geometric ident** — the thing that makes two same‑colour, same‑category feeds tell‑apart‑able, and the *only* identity left in mono mode. Design:
+
+- A **shape roster** of ~12 forms chosen to stay distinct at 24 px and in silhouette: `circle, square, triangle‑up, triangle‑down, diamond, pentagon, hexagon, star5, plus, chevron, ring, bowtie`.
+- **Deterministic assignment:** `shapeIndex = hash(id) % roster.length`, `hue = hashHue(id)`. Same source → same shape+hue forever, so you recognise it *after* routing, on any surface.
+- **Absolute uniqueness guarantee:** shape+hue can collide across a large plant, so the burned‑in **numeric ident** (a stable per‑source integer, e.g. from `id`) is the tie‑breaker. Read order for a human: *shape → colour → number → name*.
+- The unique shape **is** the moving ident badge (it replaces `stepDVD`'s generic DVD logo in `camera-control/bars.ts:59`): a bouncing `[▲ V202]` chip whose geometry, fill and label are the source's three channels in one moving object — motion proves "live", the shape/colour/number prove "who".
+
+`testCardFor(source)` (P1) resolves all three channels in one place:
+```ts
+interface CardIdent { name: string; hue: number; shape: ShapeKind; num: number }
+function identFor(s: SourceLeaf): CardIdent   // color→hue, id→shape+num, name cleaned
+```
+
+## 9. Format — 1:1 aspect, 100 fps mezzanine
+
+The card is authored in a single fixed **mezzanine** format, distinct from any real broadcast raster:
+
+```ts
+const MEZZANINE: VideoFormat = { w: 1080, h: 1080, fps: 100, scan: 'p', label: '1080²p100' };
+```
+
+- **1:1 aspect (square).** This aligns with the recent **square multiviewer wall** (`multi-viewer` "square wall + UMD" commit) — a square card drops into a `cols×cols` grid with zero letterboxing, and the SMPTE bars re‑lay into a square field (bars fill the top ⅔, PLUGE/pluge strip the bottom, ident badge floats over). Every mount surface can therefore assume `w === h` and never has to reason about aspect.
+- **100 fps mezzanine, decoupled from render.** 100 fps is the **logical/reference** rate the format *advertises* and the frame counter *counts at* — it is **not** the canvas redraw rate. Reconciliation (this is the load‑bearing perf decision):
+  - **Logical frame number** `= floor(elapsedMs / 10)` (10 ms per frame at 100 fps). Timecode burns in as `HH:MM:SS:FF` with **FF = 00–99** — the distinctive "100p" slate look, and a built‑in way to *see* dropped render frames (counter jumps > 1).
+  - **Render** stays on the display‑capped shared rAF (~60 Hz) and throttles/pauses off‑screen panes. The counter still reads a true 100 fps because it is computed from elapsed time, not from redraw count.
+  - So "100 fps mezzanine" is honoured as the signal's declared cadence and its burned‑in timecode, without asking the browser to actually paint 100×/s across a 16‑pane wall.
+
+The format string `1080²p100` is what shows on the slate and in any `config` advertisement — instantly legible as "square, progressive, 100".
+
+## 10. Deployment plan — what changes, in what order, how it ships
+
+### 10.1 What actually changes (by artefact)
+| Artefact | Change | Deploy consequence |
+| --- | --- | --- |
+| **Code (`src/`)** | New `src/domain/test-card/` (render + tone + ident + `MEZZANINE`); consumers at `multi-viewer/index.ts:184`, a new `dest-fixtures.ts` MONITOR card, `context.ts` synthetic feed | Ships with a normal **JS bundle** deploy — no Routes touched |
+| **`SourceLeaf` type** (`src/model/sources.ts`) | Add optional `testCard?: { shape?: ShapeKind; hueOverride?: Hex; format?: 'MEZZANINE' }` — **purely optional override**; identity is fully *derived* by default | Type‑only; no data migration |
+| **Routes JSON** | **None required.** Identity derives from existing `name`/`color`/`id`. Author overrides only if a specific source wants a hand‑picked shape | Avoids the Routes deploy path entirely (see gotcha below) |
+| **`dispatch.test.ts`** | If P0 lands the shared module as a *non‑editor* (recommended, like `weather/`), the `PLUGINS.length` count is **unchanged**. Only bump it if we add a standalone test‑frame editor | Keep it a shared module → no test churn |
+
+**Design bias: derive, don't author.** Keeping identity 100 % derived from fields that already exist means the whole feature ships as a **code‑only deploy** — no `Routes/**` changes, so it sidesteps the [deploy‑routes gotcha](../../CHANGELOG.md) (committed Routes JSON need `npm run deploy:all`/`--all` or they never reach the server). If we *do* add authored `testCard` overrides later, those JSON edits **must** go out with `deploy:all`.
+
+### 10.2 Rollout order (maps onto the phases in §4)
+1. **P0 shared module** → deploy with `deploy.py --next` / `npm run deploy:next` (safe **side‑by‑side**, does not touch the live `js/`). Verify `meter-input` still renders identically — it is the only existing editor the refactor touches.
+2. **P1 ident/format** → same `--next` lane. Nothing user‑visible yet; unit‑test `identFor()` (deterministic, colour‑blind/mono cases) and the 100 fps counter math.
+3. **P2 multiviewer live wall** → `--next`, then **visually verify** via the vite‑dev + puppeteer recipe (open a room's MV, drop sources, confirm each pane shows the right shape/colour/name and the counter ticks). First genuinely demoable build.
+4. **P3 per‑destination MONITOR card** → `--next`, verify a route lights the destination's monitor with the matching card.
+5. **Cutover:** once P2–P3 look right on the `--next` lane, promote with a normal `npm run deploy` (destructive cutover per the side‑build convention); the lane‑aware SW + BUILD chip handle cache‑busting.
+6. **P4–P6** (tile thumbnails / audio ident / bus params) ship incrementally on the same cadence; P4 stays behind an `IntersectionObserver` + low‑fps gate before it ever hits the live grid.
+
+### 10.3 Verification gates before cutover
+- **Identity:** a colour‑blind sim pass and a `mono`‑mode pass — every routed pane still distinguishable on **shape + number** with colour removed.
+- **Format:** slate reads `1080²p100`; timecode FF field cycles 00–99; a deliberately stalled pane shows a frozen counter (proves the "live" tell works).
+- **Perf:** 16×16 MV wall holds interactive frame‑time with one shared ticker; off‑screen panes measurably idle.
+- **Audio (P5):** silent until a click; per‑channel ident audibly distinct L vs R.
+
+---
+
 ## 7. References
 - SMPTE color bars & 1 kHz line‑up tone — [Wikipedia](https://en.wikipedia.org/wiki/SMPTE_color_bars), [SMPTE RP‑219 75 % bars](https://www.tvtechnology.com/opinions/testing-sdhd3gsdi)
 - Moving zone plate (scaler/compression stress) — [Snell & Wilcox Zone Plate, Wikipedia](https://en.wikipedia.org/wiki/Snell_%26_Wilcox_Zone_Plate)

@@ -5,86 +5,12 @@
 // the wall (NxN / PIP), tiles cycle PGM/PVW/off tally on click, carry an editable
 // UMD label and an animated VU meter, and reorder by drag-and-drop.
 
-import type { EditorPlugin, EditorContext } from '../types.js';
+import type { EditorPlugin } from '../types.js';
 import type { ParamSpec } from '../../platform/mqtt/types.js';
-import type { Disposer } from '../../ui/timers.js';
 import { el } from '../../ui/dom.js';
 import { injectMultiViewerStyles } from './styles.js';
-
-type Tally = 'pgm' | 'pvw' | 'off';
-interface Win {
-  label: string;
-  color: string;
-  tally: Tally;
-  /** An AUDIO GROUP pane: one multiviewer window carrying n channel VU meters
-   *  (a routed stagebox/audio bundle occupies ONE pane, never one per channel). */
-  channels?: string[];
-}
-
-const next = (t: Tally): Tally => (t === 'off' ? 'pgm' : t === 'pgm' ? 'pvw' : 'off');
-
-// Channels for the wall: real routed sources, else the twist's input slots,
-// else a sensible default count (mirrors the legacy channelsFor(twist,cfg,'MV',9)).
-// Routed AUDIO feeds collapse by origin into a single VU-bank pane each.
-function channelsFor(ctx: EditorContext): Array<{ label: string; color: string; channels?: string[] }> {
-  if (ctx.sources.length) {
-    const out: Array<{ label: string; color: string; channels?: string[] }> = [];
-    const groups = new Map<string, { label: string; color: string; channels: string[] }>();
-    for (const f of ctx.sources) {
-      if (f.media === 'audio') {
-        const key = f.origin || 'AUDIO';
-        let g = groups.get(key);
-        if (!g) {
-          const parts = key.split(' — ').map((s) => s.trim()).filter(Boolean);
-          g = { label: parts[parts.length - 1] || key, color: f.color, channels: [] };
-          groups.set(key, g);
-          out.push(g);
-        }
-        g.channels.push(f.label);
-      } else {
-        out.push({ label: f.label, color: f.color });
-      }
-    }
-    return out;
-  }
-  const inputs = ctx.twist.config?.inputs;
-  if (inputs && inputs.length) return inputs.map((i) => ({ label: i, color: '#4d94ff' }));
-  return Array.from({ length: 9 }, (_, i) => ({ label: `MV ${i + 1}`, color: '#4d94ff' }));
-}
-
-// A bank of n vertical VU meters — the SCREEN of an audio-group pane. Each
-// channel gets its own bar + number, all animated on the shared disposer.
-function vuBank(channels: string[], dispose: Disposer): HTMLElement {
-  const bank = el('div', { class: 'mv-vubank' });
-  const fills: Array<{ fill: HTMLElement; lvl: number }> = [];
-  channels.forEach((ch, i) => {
-    const fill = el('i');
-    const bar = el('div', { class: 'bar' }, [fill]);
-    const cell = el('div', { class: 'mv-vu', title: ch }, [bar, el('span', { textContent: String(i + 1).padStart(2, '0') })]);
-    bank.append(cell);
-    fills.push({ fill, lvl: 0.2 + Math.random() * 0.4 });
-  });
-  dispose.interval(() => {
-    for (const f of fills) {
-      f.lvl = Math.max(0.04, Math.min(1, f.lvl + (Math.random() - 0.48) * 0.3));
-      f.fill.style.height = `${f.lvl * 100}%`;
-    }
-  }, 120);
-  return bank;
-}
-
-// Port of core.js meterBar('mv-meter'): a thin VU strip animated via the disposer.
-function meterBar(dispose: Disposer): HTMLElement {
-  const m = el('div', { class: 'mv-meter' });
-  const fill = el('i');
-  m.append(fill);
-  let lvl = 0.3;
-  dispose.interval(() => {
-    lvl = Math.max(0.05, Math.min(1, lvl + (Math.random() - 0.5) * 0.4));
-    fill.style.height = `${lvl * 100}%`;
-  }, 120);
-  return m;
-}
+import { channelsFor } from './channels.js';
+import { createPanes, type Win } from './panes.js';
 
 const plugin: EditorPlugin = {
   id: 'multi-viewer',
@@ -165,76 +91,17 @@ const plugin: EditorPlugin = {
     const grid = el('div', { class: 'mv-grid' });
     frame.appendChild(grid);
 
-    let dragIdx: number | null = null;
-
-    function fullWin(w: Win, i: number): HTMLElement {
-      const winEl = el('div', {
-        class: 'mv-win ' + (w.tally === 'pgm' ? 'pgm' : w.tally === 'pvw' ? 'pvw' : ''),
-      });
-      if (preset === 'PIP' && i === 0) winEl.style.gridRow = `span ${Math.max(2, wins.length - 1)}`;
-      winEl.draggable = true;
-      const tally = el('span', {
-        class: 'mv-tally',
-        textContent: w.tally === 'pgm' ? 'PGM' : w.tally === 'pvw' ? 'PVW' : 'IN ' + (i + 1),
-      });
-      // An audio group renders as ONE pane holding n channel VU meters; video
-      // (and unknown) feeds keep the mock picture + single side meter.
-      const screen = w.channels
-        ? vuBank(w.channels, ctx.dispose)
-        : el('div', { class: 'mv-screen', textContent: `▣ ${w.label}` });
-      const umd = el('div', {
-        class: 'mv-umd',
-        style: `--umd:${w.color}`,
-        textContent: w.channels ? `♪ ${w.label} ×${w.channels.length}` : w.label,
-      });
-      umd.contentEditable = 'true';
-      if (w.channels) winEl.append(tally, screen, umd);
-      else winEl.append(tally, screen, umd, meterBar(ctx.dispose));
-      screen.addEventListener('click', () => {
-        w.tally = next(w.tally);
-        publishTally(i);
-        draw();
-      });
-      umd.addEventListener('input', () => {
-        w.label = umd.textContent ?? '';
-        publishSource(i);
-      });
-      winEl.addEventListener('dragstart', () => {
-        dragIdx = i;
-        winEl.classList.add('dragging');
-      });
-      winEl.addEventListener('dragend', () => winEl.classList.remove('dragging'));
-      winEl.addEventListener('dragover', (e) => e.preventDefault());
-      winEl.addEventListener('drop', (e) => {
-        e.preventDefault();
-        if (dragIdx === null || dragIdx === i) return;
-        const m = wins.splice(dragIdx, 1)[0];
-        if (m) wins.splice(i, 0, m);
-        dragIdx = null;
-        publishAllPanes();
-        draw();
-      });
-      return winEl;
-    }
-
-    // A lightweight tile for the dense 8×8 / 16×16 walls (no per-tile chrome).
-    function compactWin(w: Win | undefined): HTMLElement {
-      const has = !!w;
-      const winEl = el('div', {
-        class:
-          'mv-win' + (w ? (w.tally === 'pgm' ? ' pgm' : w.tally === 'pvw' ? ' pvw' : '') : ' empty'),
-      });
-      winEl.append(el('div', { class: 'mv-tile', textContent: w ? (w.channels ? `♪ ${w.label} ×${w.channels.length}` : w.label) : '—' }));
-      if (w) {
-        const idx = wins.indexOf(w);
-        winEl.addEventListener('click', () => {
-          w.tally = next(w.tally);
-          publishTally(idx);
-          draw();
-        });
-      }
-      return winEl;
-    }
+    // The tile builders are closure-coupled to render state; hand them that
+    // state explicitly (getPreset reads the live selection, redraw = draw).
+    const { fullWin, compactWin } = createPanes({
+      wins,
+      dispose: ctx.dispose,
+      getPreset: () => preset,
+      redraw: () => draw(),
+      publishSource,
+      publishTally,
+      publishAllPanes,
+    });
 
     function draw(): void {
       pbar

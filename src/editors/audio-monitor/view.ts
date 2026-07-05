@@ -1,32 +1,13 @@
-// src/editors/audio-monitor/view — faithful port of audio-monitor.js buildOne()
-// plus the loudness + Lissajous canvas painters. Builds one confidence-monitor
-// panel from a sibling's resolved {name, config, sources}; animation runs on the
-// shared Disposer (no module-global timer list).
+// src/editors/audio-monitor/view — port of audio-monitor.js buildOne(): one confidence panel
+// from a sibling's resolved data on the shared Disposer. Painters → painters.ts, MQTT → mqtt.ts.
 
 import { qs } from '../../ui/dom.js';
 import type { Disposer } from '../../ui/timers.js';
 import type { EditorServices, Sibling } from '../types.js';
-import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { FORMATS, channelsFor, type ChState, type MasterState } from './state.js';
-
-interface ChEl {
-  ch: ChState;
-  meter: HTMLElement;
-  mask: HTMLElement;
-  pk: HTMLElement;
-  cueEl: HTMLElement;
-  muteEl: HTMLElement;
-}
-
-interface Block {
-  group: ChState[];
-  chEls: ChEl[];
-  liss: HTMLCanvasElement;
-  ind: HTMLElement;
-  corr: number;
-  fmt: { idx: number };
-  fmtEl: HTMLElement;
-}
+import type { ChEl, Block } from './types.js';
+import { drawLoud, drawLiss } from './painters.js';
+import { wireMonitorParams } from './mqtt.js';
 
 /**
  * Render a single Audio Monitor panel into `body`, driven by `sib`'s data.
@@ -174,52 +155,8 @@ export function buildOne(body: HTMLElement, sib: Sibling, dispose: Disposer, ser
     });
   });
 
-  // ---- MQTT: advertise every operator-driven control, publish an initial retained
-  // snapshot, and honour inbound writes from the bus / other consoles (audit §4.5).
-  // Only the SELF panel receives `services`; sibling panels skip this entirely.
-  if (services) {
-    const params: ParamSpec[] = [
-      { name: 'volume', type: 'number', min: 0, max: 1, writable: true },
-      { name: 'mute', type: 'bool', writable: true },
-      { name: 'dim', type: 'bool', writable: true },
-      { name: 'downmix', type: 'bool', writable: true },
-    ];
-    chanAll.forEach((_, i) => {
-      params.push({ name: `ch${i + 1}_cue`, type: 'bool', writable: true });
-      params.push({ name: `ch${i + 1}_mute`, type: 'bool', writable: true });
-    });
-    blocks.forEach((_, b) => params.push({ name: `group${b + 1}_format`, type: 'enum', values: [...FORMATS], writable: true }));
-    services.advertiseParams?.(params);
-
-    // Initial retained snapshot of current state.
-    services.publishParam?.('volume', ui.master);
-    services.publishParam?.('mute', ui.mute);
-    services.publishParam?.('dim', ui.dim);
-    services.publishParam?.('downmix', ui.downmix);
-    chanAll.forEach((c, i) => {
-      services.publishParam?.(`ch${i + 1}_cue`, c.ch.cue);
-      services.publishParam?.(`ch${i + 1}_mute`, c.ch.mute);
-    });
-    blocks.forEach((blk, b) => services.publishParam?.(`group${b + 1}_format`, FORMATS[blk.fmt.idx]));
-
-    // Inbound writes: apply to state + DOM WITHOUT re-publishing (no echo loop).
-    services.onParam?.('volume', (v) => {
-      if (typeof v === 'number') { ui.master = Math.max(0, Math.min(1, v)); vol.value = String(ui.master); setVolLbl(); }
-    });
-    services.onParam?.('mute', (v) => { ui.mute = !!v; masterKeys.mute?.classList.toggle('on', ui.mute); });
-    services.onParam?.('dim', (v) => { ui.dim = !!v; masterKeys.dim?.classList.toggle('on', ui.dim); });
-    services.onParam?.('downmix', (v) => { ui.downmix = !!v; masterKeys.downmix?.classList.toggle('on', ui.downmix); });
-    chanAll.forEach((c, i) => {
-      services.onParam?.(`ch${i + 1}_cue`, (v) => { c.ch.cue = !!v; c.cueEl.classList.toggle('on', !!v); });
-      services.onParam?.(`ch${i + 1}_mute`, (v) => { c.ch.mute = !!v; c.muteEl.classList.toggle('on', !!v); });
-    });
-    blocks.forEach((blk, b) => {
-      services.onParam?.(`group${b + 1}_format`, (v) => {
-        const idx = FORMATS.indexOf(v as (typeof FORMATS)[number]);
-        if (idx >= 0) { blk.fmt.idx = idx; blk.fmtEl.textContent = FORMATS[idx]!; }
-      });
-    });
-  }
+  // ---- MQTT (audit §4.5): only the SELF panel gets `services`; siblings skip this.
+  if (services) wireMonitorParams(services, ui, { chanAll, blocks, vol, setVolLbl, masterKeys });
 
   // ---- animation: ballistic meters, peak hold, phase, loudness ----
   let frame = 0;
@@ -259,67 +196,4 @@ export function buildOne(body: HTMLElement, sib: Sibling, dispose: Disposer, ser
     if (lhist.length > 240) lhist.shift();
     drawLoud(lhEl, lhist);
   }, 40);
-}
-
-// Loudness-over-time plot, with the −23 LUFS broadcast target line.
-function drawLoud(cv: HTMLCanvasElement, hist: number[]): void {
-  const w = (cv.width = cv.clientWidth);
-  const h = (cv.height = cv.clientHeight);
-  const ctx = cv.getContext('2d');
-  if (!ctx || !w || !h) return;
-  ctx.clearRect(0, 0, w, h);
-  const lo = -40;
-  const hi = -8;
-  const y = (v: number): number => h - ((v - lo) / (hi - lo)) * h;
-  // gridlines + labels
-  ctx.font = '8px Courier New, monospace';
-  [-12, -18, -23, -30].forEach((v) => {
-    const yy = y(v);
-    ctx.strokeStyle = v === -23 ? 'rgba(57,211,83,.45)' : 'rgba(80,110,150,.18)';
-    ctx.beginPath();
-    ctx.moveTo(20, yy);
-    ctx.lineTo(w, yy);
-    ctx.stroke();
-    ctx.fillStyle = v === -23 ? 'rgba(120,235,150,.8)' : 'rgba(120,150,190,.6)';
-    ctx.fillText(String(v), 1, yy + 3);
-  });
-  ctx.beginPath();
-  hist.forEach((v, i) => {
-    const x = 20 + (i / 240) * (w - 20);
-    const yy = y(v);
-    i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy);
-  });
-  ctx.strokeStyle = '#6FC8F0';
-  ctx.lineWidth = 1.6;
-  ctx.stroke();
-}
-
-function drawLiss(cv: HTMLCanvasElement, corr: number, frame: number, amp: number): void {
-  const ctx = cv.getContext('2d');
-  if (!ctx) return;
-  const w = cv.width;
-  const h = cv.height;
-  ctx.clearRect(0, 0, w, h);
-  ctx.strokeStyle = 'rgba(80,110,150,.25)';
-  ctx.beginPath();
-  ctx.moveTo(w / 2, 4);
-  ctx.lineTo(w / 2, h - 4);
-  ctx.moveTo(4, h / 2);
-  ctx.lineTo(w - 4, h / 2);
-  ctx.stroke();
-  ctx.strokeStyle = corr < 0 ? 'rgba(255,90,90,.85)' : 'rgba(120,235,150,.85)';
-  ctx.lineWidth = 1.4;
-  ctx.beginPath();
-  const a = (0.5 + amp * 0.5) * (w / 2 - 8);
-  const spread = (1 - Math.abs(corr)) * 0.9;
-  for (let i = 0; i <= 60; i++) {
-    const t = (i / 60) * Math.PI * 2;
-    const l = Math.sin(t + frame * 0.06);
-    const r = Math.sin(t + frame * 0.06 + spread * Math.PI * (corr < 0 ? 1 : 0.3));
-    // rotate L/R into X/Y (45°): the classic audio Lissajous
-    const x = w / 2 + (l - r) * a * 0.5;
-    const yv = h / 2 - (l + r) * a * 0.5;
-    i ? ctx.lineTo(x, yv) : ctx.moveTo(x, yv);
-  }
-  ctx.stroke();
 }
