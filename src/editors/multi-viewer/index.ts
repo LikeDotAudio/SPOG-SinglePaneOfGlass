@@ -243,13 +243,23 @@ const plugin: EditorPlugin = {
       const cols = PRESETS[preset] || 3;
       const compact = cols >= 8;
       grid.classList.toggle('compact', compact);
+      // The wall is a SQUARE raster: cols×cols with explicit 1fr rows, so every
+      // pane lands 1:1 on the 1:1 canvas. PIP keeps its own asymmetric split.
       grid.style.gridTemplateColumns = preset === 'PIP' ? '3fr 1fr' : `repeat(${cols},1fr)`;
+      grid.style.gridTemplateRows = preset === 'PIP' ? '' : `repeat(${cols},1fr)`;
       grid.innerHTML = '';
       if (compact) {
         // Fill a full cols×cols wall; map cells to sources, rest stay empty.
         for (let i = 0; i < cols * cols; i++) grid.appendChild(compactWin(wins[i]));
-      } else {
+      } else if (preset === 'PIP') {
         wins.forEach((w, i) => grid.appendChild(fullWin(w, i)));
+      } else {
+        // Full cols×cols wall here too — cells past the sources render empty,
+        // like unassigned inputs on a real multiviewer.
+        for (let i = 0; i < cols * cols; i++) {
+          const w = wins[i];
+          grid.appendChild(w ? fullWin(w, i) : compactWin(undefined));
+        }
       }
     }
 

@@ -22,11 +22,13 @@ export function injectMultiViewerStyles(): void {
         .mv-pbtn{padding:9px 16px;border-radius:16px;background:#16223c;border:1px solid #2c3a5a;
             color:#cfe0ff;cursor:pointer;font-weight:bold;letter-spacing:1px;font-size:12px;}
         .mv-pbtn.sel{background:var(--cyan,#00ffff);color:#000;border-color:#fff;}
-        .mv-grid{display:grid;gap:10px;}
+        /* The WALL is a 1:1 canvas — equal explicit rows/cols keep every pane
+           1:1 too (a cols×cols wall of squares on a square raster). */
+        .mv-grid{display:grid;gap:10px;aspect-ratio:1/1;width:min(100%,calc(100vh - 260px));}
         .mv-grid.compact{gap:4px;}
-        .mv-win{background:#05080f;border:3px solid #2a3550;border-radius:6px;min-height:120px;
+        .mv-win{background:#05080f;border:3px solid #2a3550;border-radius:6px;min-height:0;min-width:0;
             display:flex;flex-direction:column;overflow:hidden;cursor:grab;position:relative;}
-        .mv-grid.compact .mv-win{min-height:0;border-width:2px;border-radius:4px;aspect-ratio:16/9;}
+        .mv-grid.compact .mv-win{border-width:2px;border-radius:4px;}
         .mv-tile{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;
             letter-spacing:.5px;color:#7e93b5;text-align:center;padding:2px;height:100%;
             background:repeating-linear-gradient(45deg,#070b14 0 8px,#0a0f1c 8px 16px);}
@@ -48,8 +50,12 @@ export function injectMultiViewerStyles(): void {
         .mv-vu .bar > i{display:block;width:100%;height:0%;
             background:linear-gradient(#ff3b3b,#e6e23a 30%,#19c54b 55%);}
         .mv-vu > span{font-size:7px;text-align:center;color:#7e93b5;letter-spacing:.5px;}
+        /* UMD — a proper Under-Monitor Display: dark strip, high-contrast
+           program name, the source colour rides as a thin accent bar above. */
         .mv-umd{flex:0 0 auto;display:flex;align-items:center;justify-content:center;height:24px;
-            font-weight:bold;font-size:12px;letter-spacing:1px;color:#000;background:var(--umd,#9fb6cc);}
+            font-weight:bold;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;
+            color:#F4F8FF;background:#04070d;border-top:3px solid var(--umd,#9fb6cc);
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px;}
         .mv-umd[contenteditable]:focus{outline:2px solid var(--cyan);}
         .mv-tally{position:absolute;top:6px;left:6px;font-size:9px;font-weight:900;letter-spacing:1px;
             padding:1px 6px;border-radius:3px;background:#33405e;color:#cfe0ff;}

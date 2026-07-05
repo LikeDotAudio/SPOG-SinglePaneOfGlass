@@ -2,6 +2,53 @@
 
 All notable changes to SPOG (Single Pane Of Glass) are recorded here.
 
+## [v105] — 2026-07-05
+
+### Changed — ICON-face tile glyphs (`src/ui/icon-glyphs.ts`, `src/ui/icon-glyphs-chrome.ts`)
+- Every tile's animation now performs its subject's real job: **streams** flows as a
+  seamless looping wave (no seam/gap), **play** cycles ▶ → ‖ → ■, **prompter** scrolls
+  its lines continuously upward, **portals** ripple outward with a springy radius bounce,
+  **floors** is an elevator car with a rider walking in/up/out, **control-rooms** flickers
+  images across its quad-split, **test-tools** flips its sine wave up and down, **encoders**
+  pumps a dash stream into the hub that fans out along three rays.
+- **VIDEO** redrawn to read the signal path left-to-right: photons converge into the
+  mirrored lens, a full-height red tally blinks on the camera body, and the encoded
+  stream leaves the back as a distinct dots-and-dashes flow.
+- New **menu** and **credits** glyphs — the seat MENU launcher and the credit row now
+  render as proper tiles in ICON face (previously had ids but no artwork).
+- Glyph library split into category (`icon-glyphs.ts`) + chrome (`icon-glyphs-chrome.ts`)
+  modules, spread-merged into one `GLYPHS` namespace, to keep each under the 200-line rule.
+
+### Changed — console chrome & layout
+- **Seat menu** now closes whenever a row opens another window (Academy, 1990s view,
+  Colour & Vision, Chirality, credits), so it never strands on top of the new surface.
+- **Captain role badge removed** from the top-right — LOG OUT / RIGHTS already live in
+  the sources-rail corner row, which now wraps so LOG OUT is never clipped.
+- **Chat + MQTT** chips sized to match the other tiles and captioned (`CHAT` / `MQTT`).
+- **Destination groups load open** — no bank is hidden behind a collapsed bar on first
+  paint; the operator tucks them up themselves. Room-pane vertical spacing tightened.
+- **EDIT LAYOUT** dock rides the room scroll so it stays butted to the elbow corner
+  instead of floating over content.
+- **Contrast** — signal-node feed labels paint near-white over the category shape/colour;
+  RIGHTS / LOG OUT / filter placeholder raised to legible contrast.
+
+### Changed — editors
+- **Multi-viewer** wall is a true 1:1 canvas: NxN presets lay out a square `cols × cols`
+  raster so every pane is 1:1, the wall fills out with empty unassigned cells like real
+  hardware, and each pane gains a proper **UMD** (dark under-monitor strip, high-contrast
+  program name, source colour as an accent bar).
+- **Colour & Vision** editor shows three sample LCARS windows in the live preview that
+  repaint instantly with the picked palette.
+
+### Changed — assets & deploy
+- **Logo** wordmark updated to **SPOG**.like.audio; logos moved to `assets/logos/` with a
+  new `make-logos.mjs` generator that reproduces them byte-for-byte.
+- **Icon SVGs centralized** under `assets/icons/{chrome,destinations,sources}/` (out of
+  the loose `assets/` root and `Routes/*/icons/`), each with its generator alongside.
+- **`deploy.py --fresh`**: mirror mode — full upload, then sweep every server file this
+  deploy didn't produce (dead bundles, retired icons, moved folders). Dot-entries
+  (`.htaccess`, `.well-known`) are never touched.
+
 ## [v104] — 2026-07-04
 
 ### Added — Seat memory & the validated cache (docs/Audit/Local-Cache-and-Preferences-Audit.md §8, waves W0–W4)
