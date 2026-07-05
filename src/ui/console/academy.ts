@@ -51,7 +51,7 @@ function ensure(): HTMLElement {
   overlay.innerHTML = `
     <div class="tut-marks"></div>
     <div class="tut-card" role="dialog" aria-label="Quick start">
-      <div class="tut-head"><span class="tut-title">Starfleet Academy — Quick Start</span><span class="tut-x" title="Close">&times;</span></div>
+      <div class="tut-head"><span class="tut-title">SPOGFLEET Academy — Quick Start</span><span class="tut-x" title="Close">&times;</span></div>
       <div class="tut-body">
         ${STEPS.map((s, i) => `
           <div class="tut-step" data-n="${i + 1}">
