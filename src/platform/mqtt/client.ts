@@ -10,99 +10,17 @@
 
 import type { TwistBus, ConfigMsg, ValueMsg } from './types.js';
 import { createThrottler, type Throttler } from './throttle.js';
-// VENDORED mqtt.js (audit §4.2 lane table / §8 W4): bundled + content-hashed by
-// Vite, so the console has zero CDN dependency at boot. The UMD build sets
-// window.mqtt when the injected script runs — same contract as the old unpkg tag.
-import mqttJsUrl from '../../vendor/mqtt.min.js?url';
+import { getBrokerConfig, resolveBrokerUrl } from './config.js';
+import { loadMqtt, type MqttClient } from './mqtt-load.js';
+
+// Re-exported so consumers (barrel index.ts) keep importing broker config from
+// client.js after the config/loader extraction — public bus API is unchanged.
+export {
+  getBrokerSetting, setBrokerSetting, getBrokerConfig, setBrokerConfig,
+  resolveBrokerUrl, type BrokerConfig,
+} from './config.js';
 
 export const SPOG_ROOT = 'SPOG';
-const DEFAULT_PORT = 9001;
-// Compiled default host. Baked to the house broker so MQTT is live out of the box;
-// override per-session with `?mqtt=<host[:port]>` (matches comMQTT's `?mqtt=`
-// convention), by setting localStorage.twistMqtt, or via the connection form.
-const DEFAULT_HOST = '44.44.44.163';
-
-// ---- minimal mqtt.js typings (no @types/mqtt dependency) --------------------
-interface MqttClient {
-  on(ev: 'connect' | 'reconnect' | 'close' | 'offline' | 'error', cb: (arg?: unknown) => void): void;
-  on(ev: 'message', cb: (topic: string, payload: Uint8Array) => void): void;
-  subscribe(topic: string, opts?: { qos?: 0 | 1 | 2 }): void;
-  publish(topic: string, payload: string, opts?: { retain?: boolean; qos?: 0 | 1 | 2 }): void;
-  end(force?: boolean, opts?: unknown, cb?: () => void): void;
-}
-interface MqttModule {
-  connect(url: string, opts?: Record<string, unknown>): MqttClient;
-}
-declare global {
-  interface Window { mqtt?: MqttModule; OA_MQTT_DEBUG?: boolean; }
-}
-
-const LS_KEY = 'twistMqtt';
-const LS_PORT = 'twistMqttPort', LS_USER = 'twistMqttUser', LS_PASS = 'twistMqttPass';
-const DEFAULT_USER = 'guest', DEFAULT_PASS = 'guest';
-/** The persisted broker setting (host[:port] or ws(s):// url). Falls back to the
- *  compiled DEFAULT_HOST only when never set; an explicit Disable stores '' so the
- *  bus stays off across reloads instead of snapping back to the default. */
-export function getBrokerSetting(): string {
-  try { return localStorage.getItem(LS_KEY) ?? DEFAULT_HOST; } catch { return DEFAULT_HOST; }
-}
-/** Persist the broker setting; a trimmed-empty host stores '' → MQTT disabled next
- *  boot (a stored '' beats the default; use it to opt out of the baked-in host). */
-export function setBrokerSetting(host: string): void {
-  try { localStorage.setItem(LS_KEY, (host || '').trim()); } catch { /* ignore */ }
-}
-
-/** The full broker connection config — host, port, and credentials. Port/user/pass
- *  always resolve to a value (the defaults) so the connection form is never blank. */
-export interface BrokerConfig { host: string; port: number; username: string; password: string; }
-const lsGet = (k: string, d: string): string => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
-export function getBrokerConfig(): BrokerConfig {
-  return {
-    host: getBrokerSetting(),
-    port: Number(lsGet(LS_PORT, String(DEFAULT_PORT))) || DEFAULT_PORT,
-    username: lsGet(LS_USER, DEFAULT_USER),
-    password: lsGet(LS_PASS, DEFAULT_PASS),
-  };
-}
-/** Persist any subset of the broker config (host '' clears MQTT next boot). */
-export function setBrokerConfig(c: Partial<BrokerConfig>): void {
-  try {
-    if (c.host !== undefined) setBrokerSetting(c.host);
-    if (c.port !== undefined) localStorage.setItem(LS_PORT, String(c.port));
-    if (c.username !== undefined) localStorage.setItem(LS_USER, c.username);
-    if (c.password !== undefined) localStorage.setItem(LS_PASS, c.password);
-  } catch { /* ignore */ }
-}
-
-/** Resolve the broker WS url from `?mqtt=`, localStorage, or the compiled default. */
-export function resolveBrokerUrl(): string | null {
-  let raw = '';
-  try {
-    raw = new URLSearchParams(location.search).get('mqtt')
-      ?? localStorage.getItem('twistMqtt')
-      ?? DEFAULT_HOST;
-  } catch { raw = DEFAULT_HOST; }
-  raw = (raw || '').trim();
-  if (!raw || raw === 'off' || raw === '0') return null;
-  if (/^wss?:\/\//i.test(raw)) return raw;
-  const proto = (typeof location !== 'undefined' && location.protocol === 'https:') ? 'wss' : 'ws';
-  const port = Number(lsGet(LS_PORT, String(DEFAULT_PORT))) || DEFAULT_PORT;
-  return raw.includes(':') ? `${proto}://${raw}` : `${proto}://${raw}:${port}`;
-}
-
-/** Load mqtt.js: use an already-present global, else inject the BUNDLED script. */
-function loadMqtt(): Promise<MqttModule | null> {
-  if (typeof window === 'undefined') return Promise.resolve(null);
-  if (window.mqtt) return Promise.resolve(window.mqtt);
-  return new Promise((resolve) => {
-    const s = document.createElement('script');
-    s.src = mqttJsUrl;   // self-hosted — no unpkg, no third-party single point of failure
-    s.async = true;
-    s.onload = () => resolve(window.mqtt ?? null);
-    s.onerror = () => { console.warn('TwistBus: failed to load bundled mqtt.js — MQTT disabled'); resolve(null); };
-    document.head.appendChild(s);
-  });
-}
 
 function makeSessionId(): string {
   let hex = '';
