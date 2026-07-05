@@ -42,4 +42,10 @@ export interface CardSpec {
   format: VideoFormat;
   /** The authored source colour (hex) — drives the border, slate wash and shape fill. */
   color: string;
+  /** Device lineage ("Floor — Room — Device"), surfaced as the faux-signal room caption. */
+  origin?: string;
+  /** Signal medium (audio feeds add a mic to the faux signal). */
+  media?: 'audio' | 'video' | 'control';
+  /** A faulted source shows a "NO SIGNAL" slate instead of the person-in-a-room. */
+  faulted?: boolean;
 }

@@ -21,9 +21,14 @@ export { identFor, hashHue, hueOf } from './ident.js';
 export { pathShape } from './shapes.js';
 export * from './types.js';
 
-/** Build a CardSpec from a source's label + authored colour (the common case). */
-export function testCardFor(label: string, color?: string): CardSpec {
-  return { ident: identFor(label, color), format: MEZZANINE, color: color || '#4d94ff' };
+/** Build a CardSpec from a source's label + authored colour (the common case).
+ *  `extra` threads the source's origin/media/fault through to the faux signal. */
+export function testCardFor(
+  label: string,
+  color?: string,
+  extra?: { origin?: string; media?: 'audio' | 'video' | 'control'; faulted?: boolean },
+): CardSpec {
+  return { ident: identFor(label, color), format: MEZZANINE, color: color || '#4d94ff', ...extra };
 }
 
 export interface TestCardWall {
