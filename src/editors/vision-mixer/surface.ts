@@ -9,13 +9,13 @@
 // while extracted modules mutate the very same bindings by reference.
 
 import type { EditorContext } from '../types.js';
-import type { DVEPreset, MEPreset, SceneDef, SwitcherDef } from '../../model/index.js';
+import type { DVESnapshot, MEPreset, SceneDef, SwitcherDef } from '../../model/index.js';
 import type { MEState } from './me.js';
 import type { SwitcherState } from './scenes.js';
 import type { MacroRecorder } from './macros.js';
 
-/** A keyer's live DVE flight: the preset in motion and when it was triggered. */
-export interface Flight { preset: DVEPreset; t0: number; }
+/** A keyer's live DVE flight: animates from pose 'a' to 'snapshot.pose'. */
+export interface Flight { a: import('../../model/index.js').DVEKeyframe; snapshot: DVESnapshot; t0: number; }
 
 export interface Surface {
   readonly ctx: EditorContext;
@@ -23,7 +23,7 @@ export interface Surface {
   readonly state: SwitcherState;
   readonly allLabels: string[];
   readonly flights: Map<string, Flight>;
-  readonly dvePresets: DVEPreset[];
+  readonly dveSnapshots: DVESnapshot[];
   readonly mePresets: MEPreset[];
   readonly scenes: SceneDef[];
   readonly macroRecorder: MacroRecorder;

@@ -1,0 +1,29 @@
+{
+  "id": "gfx-tsg",
+  "name": "TEST SIGNAL GEN",
+  "title": "TEST SIGNAL GENERATOR (TSG)",
+  "color": "#FF9640",
+  "kind": "video",
+  "extraClass": "tsg-source",
+  "video": [
+    "TSG SET",
+    "TEST CARD (RP 219)",
+    "EBU BARS",
+    "ALIGNMENT GRID",
+    "GREY RAMP",
+    "BLACK 100%",
+    "WHITE 100%",
+    "RED 100%",
+    "GREEN 100%",
+    "BLUE 100%",
+    "PLASMA (BURN-IN)",
+    "COLOUR SWEEP",
+    "COLOUR SWEEP + GRID",
+    "BT.2111 PQ",
+    "BT.2111 HLG",
+    "PQ RAMP",
+    "PQ GREY STEPS",
+    "1000-NIT WINDOW"
+  ],
+  "status": "OK"
+}

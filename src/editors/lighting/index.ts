@@ -5,6 +5,7 @@
 // live over DMX from one pane. Self-contained plugin (match + title + caps +
 // render); reads only the typed EditorContext.
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import { renderLighting } from './view.js';
 
@@ -17,6 +18,7 @@ const plugin: EditorPlugin = {
     /\blight(ing)?\b|key light|fill light|back light|cyc|gobo|\bdmx\b|fixture/i.test(n) &&
     !/on.?air/i.test(n),
   requiredCaps: ['shade'],
+  voiceCommands: VOICE_COMMANDS,
   render: renderLighting,
 };
 

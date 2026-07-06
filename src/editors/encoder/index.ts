@@ -8,9 +8,11 @@
 // twist.config.inputs / default fallback), NOT a DOM walk. Stats animate via
 // ctx.dispose so the host tears the interval down on close.
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { el, qs } from '../../ui/dom.js';
+import { drawFauxSignal } from '../../ui/faux-signal.js';
 import { injectEncoderStyles } from './styles.js';
 import { RENDITIONS, DESTS, deriveFeeds, slug } from './state.js';
 import type { TileRef } from './state.js';
@@ -22,6 +24,7 @@ const plugin: EditorPlugin = {
   order: 10,
   match: (n) => /\bencoder\b|transcod|stream(ing)?\s*(out|engine)|elemental/i.test(n),
   requiredCaps: ['route'],
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     injectEncoderStyles();
 
@@ -60,8 +63,13 @@ const plugin: EditorPlugin = {
     const strm = qs(host, '.enc-streams');
     streams.forEach((s, si) => {
       const item = el('div', { class: 'enc-strm' });
-      item.innerHTML = `<div class="pic"></div><div class="nm">STREAM ${si + 1}<small>${s.label}</small></div>`;
+      item.innerHTML = `<canvas class="pic"></canvas><div class="nm">STREAM ${si + 1}<small>${s.label}</small></div>`;
       strm.appendChild(item);
+      // The input thumbnail IS the routed source's faux signal (person-in-a-room).
+      // Deferred one frame so the canvas has its laid-out box (else it paints into
+      // the default 300×150 backing store — soft + wrong aspect).
+      const pic = item.querySelector<HTMLCanvasElement>('.pic');
+      if (pic) requestAnimationFrame(() => drawFauxSignal(pic, { label: s.label, color: s.color, origin: s.origin }));
     });
 
     // embedded audio tracks (auto-populated from routed audio)

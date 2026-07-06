@@ -7,6 +7,7 @@ import type { CameraConsole } from './state.js';
 import { drawSMPTE, stepDVD } from './bars.js';
 import { updateMaps } from './maps.js';
 import { drawParade, drawVectorscope } from '../../ui/scopes.js';
+import { drawFauxSignal, type FauxSource } from '../../ui/faux-signal.js';
 
 /** The robotics keys a fly-to interpolation eases between. */
 const FLY_KEYS = ['pan', 'tilt', 'zoom', 'dolly', 'ped'] as const;
@@ -15,8 +16,10 @@ const RGB_GAINS = ['rGain', 'gGain', 'bGain'] as const;
 
 /** The scene/scope elements + control-surface syncs the loop drives each tick. */
 export interface FrameDeps {
-  scene: HTMLElement;
-  subject: HTMLElement;
+  /** The camera picture: a canvas painted with the routed source's faux signal. */
+  subject: HTMLCanvasElement;
+  /** The routed source this camera is shooting (drives the faux person-in-a-room). */
+  renderFeed: FauxSource;
   smpte: HTMLCanvasElement;
   smpteBox: HTMLElement;
   wf: HTMLCanvasElement;
@@ -32,7 +35,7 @@ export interface FrameDeps {
 
 /** Build the per-frame tick (registered on ctx.dispose.interval at 33ms). */
 export function makeFrame(cc: CameraConsole, deps: FrameDeps): () => void {
-  const { scene, subject, smpte, smpteBox, wf, osd, vec, tel, dvd, syncKnobs, placePuck, syncAxes, publishState } = deps;
+  const { subject, renderFeed, smpte, smpteBox, wf, osd, vec, tel, dvd, syncKnobs, placePuck, syncAxes, publishState } = deps;
   const ui = cc.ui;
   return (): void => {
     ui.t += 0.05;
@@ -68,11 +71,14 @@ export function makeFrame(cc: CameraConsole, deps: FrameDeps): () => void {
       syncAxes();
       if (fly.t >= 1) cc.fly = null;
     }
-    scene.style.setProperty('--sx', 50 + (s.pan - 0.5) * 60 + '%');
-    subject.style.setProperty('--subx', 50 - (s.pan - 0.5) * 80 + '%');
-    const zs = 0.7 + s.zoom * 2.6 + s.dolly * 0.4;
-    const ty = (s.tilt - 0.5) * -40 + (s.ped - 0.5) * -30;
-    subject.style.transform = `translate(-50%,-50%) scale(${zs.toFixed(2)}) translateY(${ty}px)`;
+    // Paint the faux signal (person-in-a-room) the camera is shooting, then FRAME it
+    // with the live pose: zoom/dolly = scale, pan = X sweep, tilt/ped = Y sweep. The
+    // baseline scale over-fills so a pan/tilt never reveals the empty scene edge.
+    drawFauxSignal(subject, renderFeed, ui.t * 1000);
+    const zs = 1.3 + s.zoom * 1.5 + s.dolly * 0.35;
+    const tx = (s.pan - 0.5) * -28;
+    const ty = (s.tilt - 0.5) * -20 + (s.ped - 0.5) * -12;
+    subject.style.transform = `scale(${zs.toFixed(2)}) translate(${tx.toFixed(1)}%, ${ty.toFixed(1)}%)`;
     if (ui.bars) {
       drawSMPTE(smpte);
       stepDVD(dvd, smpteBox, cc.dvdState);

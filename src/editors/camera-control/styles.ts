@@ -8,15 +8,11 @@ export const CSS = `
 .cc-glass{grid-column:1;grid-row:1;position:relative;background:#03060f;border:1px solid #1d2942;border-radius:12px;overflow:hidden;min-height:320px;}
 /* the "video" is a true 1:1 square, centred, with the scopes/maps overlaid on it */
 .cc-video{position:absolute;top:0;bottom:10px;left:50%;transform:translateX(-50%);aspect-ratio:1/1;overflow:hidden;background:#03060f;box-shadow:0 0 0 1px #11203a;}
-.cc-scene{position:absolute;inset:0;transition:filter .12s;}
-.cc-scene::before{content:'';position:absolute;inset:0;
-    background:
-      radial-gradient(120px 120px at var(--sx,50%) 40%, #ffe9b0 0%, #caa15a 30%, transparent 70%),
-      linear-gradient(180deg,#23406b 0%,#16263f 55%,#0a1322 100%);}
-.cc-subject{position:absolute;left:var(--subx,50%);top:54%;transform:translate(-50%,-50%);
-    width:64px;height:96px;border-radius:30px 30px 12px 12px;background:linear-gradient(#e7b48a,#b67a52);
-    box-shadow:0 8px 24px rgba(0,0,0,.5);transition:left .1s linear;}
-.cc-subject::after{content:'';position:absolute;left:50%;top:-30px;transform:translateX(-50%);width:40px;height:40px;border-radius:50%;background:#e7b48a;}
+.cc-scene{position:absolute;inset:0;transition:filter .12s;background:#03060f;overflow:hidden;}
+/* The camera picture is the routed source's FAUX SIGNAL (person-in-a-room). It
+   fills the scene; the frame loop applies pan/tilt/zoom as a transform over it. */
+.cc-subject{position:absolute;inset:0;width:100%;height:100%;display:block;
+    transform-origin:center center;transition:transform .1s linear;will-change:transform;}
 /* Colour bars: the largest 1:1 square that fits (full height), centred */
 .cc-smpte{position:absolute;top:0;bottom:10px;left:50%;transform:translateX(-50%);aspect-ratio:1/1;display:none;z-index:1;}
 .cc-smpte.on{display:block;} .cc-smpte canvas{width:100%;height:100%;display:block;}

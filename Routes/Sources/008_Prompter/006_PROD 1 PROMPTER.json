@@ -1,0 +1,16 @@
+{
+  "id": "prompter-prod-1",
+  "name": "PROD 1 PROMPTER",
+  "title": "TELEPROMPTER ENGINE",
+  "color": "#C9A227",
+  "kind": "video",
+  "extraClass": "prompter-source",
+  "wpm": 150,
+  "video": [
+    "PROMPT HEAD ▷ MIRRORED",
+    "CONFIDENCE ▷ DIRECT",
+    "PROGRAM ▷ CLEAN"
+  ],
+  "blocks": [],
+  "status": "OK"
+}

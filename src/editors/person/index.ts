@@ -7,6 +7,7 @@
 // person's profile (name/pronunciation/super/side/mic-pref/seat) — the attributes
 // the audit §1A lists, consumed by graphics (super), cameras (side), audio (mic).
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import { el } from '../../ui/dom.js';
 import { knob as rotary } from '../../ui/widgets.js';
@@ -20,6 +21,7 @@ const plugin: EditorPlugin = {
   title: 'PERSON · VIRTUAL CHANNEL STRIP',
   order: 7,
   match: (n) => /\bperson\b|talent|channel.?strip/i.test(n),
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     injectPersonStyles();
     const s: Strip = { ...BASE };

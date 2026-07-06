@@ -12,6 +12,9 @@ export interface ChannelSpec {
   label: string;
   color: string;
   channels?: string[];
+  /** Device lineage ("Floor — Room — Device") — feeds the faux-signal room caption. */
+  origin?: string;
+  media?: 'audio' | 'video' | 'control';
 }
 
 // Channels for the wall: real routed sources, else the twist's input slots,
@@ -33,7 +36,7 @@ export function channelsFor(ctx: EditorContext): ChannelSpec[] {
         }
         g.channels.push(f.label);
       } else {
-        out.push({ label: f.label, color: f.color });
+        out.push({ label: f.label, color: f.color, origin: f.origin, media: f.media });
       }
     }
     return out;

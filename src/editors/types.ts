@@ -70,5 +70,7 @@ export interface EditorPlugin {
   order?: number;
   /** Editor-level gating; the host hides the editor if unmet. */
   requiredCaps?: Capability[];
+  /** Optional dictionary of voice commands available for this editor (Command -> Description) */
+  voiceCommands?: Record<string, string>;
   render: EditorRender;
 }

@@ -5,6 +5,7 @@
 // only (no DOM scraping, no window globals — cross-editor calls go through
 // ctx.services.openStageBox).
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import { injectAudioMixerStyles } from './styles.js';
 import { renderConsole } from './view.js';
@@ -15,6 +16,7 @@ const plugin: EditorPlugin = {
   order: 4,
   match: (n) => /audio\s*mix|monitor\s*console/i.test(n),
   requiredCaps: ['audio'],
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     injectAudioMixerStyles();
     renderConsole(host, ctx);

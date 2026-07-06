@@ -10,6 +10,7 @@
 // is named "Timer". Chrome (styles), the locked wall-clock header, and the channel
 // panels/drawer are split into sibling modules (audit §4.5).
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import { el, addStyles } from '../../ui/dom.js';
 import { logAction } from '../../ui/console/captains-log.js';
@@ -25,6 +26,7 @@ const plugin: EditorPlugin = {
   order: 7,
   blurb: 'Dual-channel up/down production timer — two independent 6-digit count keypads, presets, follow buffer, calculator, GPI on the bus; a locked time-of-day clock (zone · resolution · face, same faces as the clock bench) pinned above the channels.',
   match: (n) => /\btimer\b|count.?down|count.?up|stopwatch/i.test(n),
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     addStyles('twist-editor-timer', CSS);
 

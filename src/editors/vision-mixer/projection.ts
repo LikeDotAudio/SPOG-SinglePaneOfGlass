@@ -8,6 +8,7 @@
 // refs the closure already built, plus the shared `Surface`.
 
 import { el } from '../../ui/dom.js';
+import { drawFauxSignal } from '../../ui/faux-signal.js';
 import { srcLabel, tallySet } from './me.js';
 import { poseAt, applyPose } from './dve.js';
 import { emulateTransition } from './transitions/index.js';
@@ -34,10 +35,27 @@ export function createProjection(s: Surface, refs: ProjectionRefs): { sync: () =
   const { def, state } = s;
   let lastTally = '';
 
-  const getZigZagStyle = (idx: number): string => {
-    const hue = (idx * 37) % 360;
-    return `background-color: hsl(${hue}, 40%, 30%); background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, hsl(${hue}, 40%, 20%) 10px, hsl(${hue}, 40%, 20%) 20px);`;
+  // Each monitor feed shows the routed source's FAUX SIGNAL (a person-in-a-room),
+  // not a colour swatch. One canvas per feed fills its .vm-feed box; pgmFeedNext is
+  // already an absolute overlay (its transition transform rides on top).
+  const mkFeedCanvas = (feedHost: HTMLElement): HTMLCanvasElement => {
+    if (!feedHost.style.position) feedHost.style.position = 'relative';
+    const cv = el('canvas', { style: 'position:absolute;inset:0;width:100%;height:100%;display:block' });
+    feedHost.appendChild(cv);
+    return cv;
   };
+  const pgmCv = mkFeedCanvas(stage.pgmFeed);
+  const pvwCv = mkFeedCanvas(stage.pvwFeed);
+  const nextCv = mkFeedCanvas(stage.pgmFeedNext);
+  // A source's colour: the authored input colour, else a stable hue from its index
+  // (matching the retired zig-zag hue), converted to hex for the faux painter.
+  const inputColor = (i: number): string => {
+    const authored = def.inputs[i]?.color; if (authored) return authored;
+    const h = (i * 37) % 360, l = 0.45, a = 0.42 * Math.min(l, 1 - l);
+    const chan = (n: number): string => { const k = (n + h / 30) % 12; const x = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return Math.round(255 * x).toString(16).padStart(2, '0'); };
+    return `#${chan(0)}${chan(8)}${chan(4)}`;
+  };
+  const sourceFor = (i: number): { label: string; color: string } => ({ label: srcLabel(i, def), color: inputColor(i) });
 
   /** The PIP chips over the monitors — one per active keyer of the delegated bank. */
   function rebuildPips(): void {
@@ -54,12 +72,13 @@ export function createProjection(s: Surface, refs: ProjectionRefs): { sync: () =
   function sync(): void {
     const m = s.me();
     meTabs.forEach((t, i) => t.classList.toggle('sel', i === s.delegate));
-    stage.pgmFeed.textContent = srcLabel(m.pgm, def);
-    stage.pgmFeed.style.cssText = getZigZagStyle(m.pgm);
-    stage.pgmFeedNext.textContent = srcLabel(m.pvw, def);
-    stage.pgmFeedNext.style.cssText = getZigZagStyle(m.pvw) + ' position:absolute; inset:0; opacity:0; pointer-events:none; z-index:1;';
-    stage.pvwFeed.textContent = srcLabel(m.pvw, def);
-    stage.pvwFeed.style.cssText = getZigZagStyle(m.pvw);
+    // Paint the routed source's faux signal into each monitor feed. pgmFeedNext's
+    // overlay positioning + transition transforms are owned by stage.ts/startAnimation,
+    // so we only repaint its canvas here (never clobber its inline style).
+    const now = performance.now();
+    drawFauxSignal(pgmCv, sourceFor(m.pgm), now);
+    drawFauxSignal(pvwCv, sourceFor(m.pvw), now);
+    drawFauxSignal(nextCv, sourceFor(m.pvw), now);
     stage.pgmSrc.textContent = `M/E ${s.delegate + 1}`;
     stage.pvwSrc.textContent = `NEXT · ${m.trans} ${m.rate}f`;
     s.busBtns.pgm.forEach((b, i) => b?.classList.toggle('sel', i === m.pgm));
@@ -85,7 +104,7 @@ export function createProjection(s: Surface, refs: ProjectionRefs): { sync: () =
       for (const chipHost of [stage.pgmPips, stage.pvwPips]) {
         for (const chip of chipHost.children) {
           const f = s.flights.get((chip as HTMLElement).dataset.fk ?? '');
-          if (f) applyPose(chip as HTMLElement, poseAt(f.preset, f.t0, now));
+          if (f) applyPose(chip as HTMLElement, poseAt(f.a, f.snapshot, f.t0, now));
         }
       }
       if (auto.current) {

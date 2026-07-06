@@ -25,8 +25,8 @@ export interface DVEKeyframe {
   crop?: DVECrop;                // optional source-crop rectangle
 }
 
-/** A named A→B transform move; recall tweens A→B over `ms`. */
-export interface DVEPreset { id: string; name: string; a: DVEKeyframe; b: DVEKeyframe; ms: number; }
+/** A named 3D pose for the flown picture (Snapshot). Recall auto-tweens to it. */
+export interface DVESnapshot { id: string; name: string; pose: DVEKeyframe; ms?: number; }
 
 export interface KeyerDef {
   on?: boolean;
@@ -62,7 +62,7 @@ export interface SwitcherDef {
   macros?: MacroDef[];           // Recorded MQTT sequences
   transitions: TransitionKind[];
   wipePatterns: string[];
-  dvePresets: DVEPreset[];
+  dveSnapshots: DVESnapshot[];
   mePresets: MEPreset[];
   scenes: SceneDef[];
   /** Presentation DEFAULTS only — the operator's device pref overrides (plan D9). */

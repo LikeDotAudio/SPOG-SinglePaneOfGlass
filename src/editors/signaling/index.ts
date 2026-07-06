@@ -8,6 +8,7 @@
 // into this twist) — never from DOM scraping — with the legacy channelsFor
 // fallback chain preserved in state.camsFor.
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import { injectSignalingStyles } from './styles.js';
 import { renderSignaling } from './view.js';
@@ -18,6 +19,7 @@ const plugin: EditorPlugin = {
   order: 11,
   match: (n) => /signal|\btally\b|on.?air/i.test(n),
   requiredCaps: ['signal'],
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     injectSignalingStyles();
     renderSignaling(host, ctx);

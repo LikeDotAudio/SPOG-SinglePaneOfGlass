@@ -10,6 +10,7 @@
 // with IN/UPDATE/NEXT/OUT lifecycle in preview.ts; the rail/fields/transport UI
 // in view.ts. Gated to `gfx` (Tactical / admin).
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import { injectGraphicsStyles } from './styles.js';
 import { buildEngine } from './view.js';
@@ -20,6 +21,7 @@ const plugin: EditorPlugin = {
   order: 6,
   match: (n) => /graphic|\bgfx\b|\bcg\b|title|lower.?third|name.?super|super|chyron|aston|preset|crawl|credit|weather|forecast/i.test(n),
   requiredCaps: ['gfx'],
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     injectGraphicsStyles();
     buildEngine(host, ctx);

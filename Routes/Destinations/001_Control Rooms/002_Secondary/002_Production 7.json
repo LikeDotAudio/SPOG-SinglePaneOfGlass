@@ -3,9 +3,9 @@
   "name": "PROD 7",
   "color": "#5566EE",
   "tip": {
-    "lead": "Secondary control room \u2014 an 8-camera multicam gallery with 4 ISO records and full graphics.",
+    "lead": "Secondary control room — an 8-camera multicam gallery with 4 ISO records and full graphics.",
     "good": "PGM cut before you roll ISO; talkback open to the floor.",
-    "bad": "Do not switch here while PROD 3 holds the primary bus \u2014 check the schedule first."
+    "bad": "Do not switch here while PROD 3 holds the primary bus — check the schedule first."
   },
   "twists": [
     {
@@ -123,7 +123,7 @@
     {
       "name": "Video Mixer",
       "accepts": "video",
-      "tip": "Production switcher \u2014 3 M/E banks with re-entry, 24 inputs, keyers with DVE flight, M/E looks, scene registers. Drives tally.",
+      "tip": "Production switcher — 3 M/E banks with re-entry, 24 inputs, keyers with DVE flight, M/E looks, scene registers. Drives tally.",
       "inputs": [
         "SW IN 1",
         "SW IN 2",
@@ -474,6 +474,10 @@
         "CREDIT ROLL"
       ],
       "row": "graphics"
+    },
+    {
+      "name": "PROMPTER",
+      "accepts": "both"
     }
   ]
 }

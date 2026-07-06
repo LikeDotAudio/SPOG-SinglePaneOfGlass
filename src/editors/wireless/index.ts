@@ -1,3 +1,4 @@
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import { el, ctx2d } from '../../ui/dom.js';
 import { injectWirelessStyles } from './styles.js';
@@ -7,6 +8,7 @@ const plugin: EditorPlugin = {
   title: 'WIRELESS TELEMETRY & RF MANAGEMENT',
   order: 8,
   match: (n) => /\bwireless\b/i.test(n),
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     injectWirelessStyles();
 

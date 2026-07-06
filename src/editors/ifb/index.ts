@@ -7,6 +7,7 @@
 // Legacy renderGridOfSiblings → ui/grid `gridCells` + EditorContext.siblings,
 // one full IFB strip per same-kind sibling twist (no DOM scraping).
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { gridCells } from '../../ui/grid.js';
@@ -20,6 +21,7 @@ const plugin: EditorPlugin = {
   order: 8,
   match: (n) => /\bifb\b|foldback/i.test(n),
   requiredCaps: ['comms'],
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     injectIfbStyles();
     // ctx.siblings includes self; fall back to this twist if the host left it

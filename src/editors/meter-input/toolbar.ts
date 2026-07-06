@@ -6,7 +6,7 @@ import { el } from '../../ui/dom.js';
 
 export interface ToolbarRefs {
   bar: HTMLElement;
-  bBars: HTMLElement; bCap: HTMLElement; bFile: HTMLElement; url: HTMLInputElement; bUrl: HTMLElement; file: HTMLInputElement;
+  bBars: HTMLElement; bTsg: HTMLElement; bCap: HTMLElement; bFile: HTMLElement; url: HTMLInputElement; bUrl: HTMLElement; file: HTMLInputElement;
   pDef: HTMLElement; pAud: HTMLElement; pVid: HTMLElement; pCol: HTMLElement; pLum: HTMLElement;
   sSub: HTMLElement; sNorm: HTMLElement; sHard: HTMLElement;
   bLayout: HTMLElement; stat: HTMLElement;
@@ -14,6 +14,7 @@ export interface ToolbarRefs {
 
 export function buildToolbar(): ToolbarRefs {
   const bBars = el('button', { class: 'mi-pill on' }, ['▦ Test Pattern']);
+  const bTsg = el('button', { class: 'mi-pill' }, ['◈ TSG ▾']);
   const bCap = el('button', { class: 'mi-pill' }, ['⧉ Capture Tab']);
   const bFile = el('button', { class: 'mi-pill' }, ['▶ Load File']);
   const url = el('input', { class: 'mi-url', type: 'text', placeholder: '…CORS .mp4/.webm URL' });
@@ -36,12 +37,12 @@ export function buildToolbar(): ToolbarRefs {
     // SOURCE + PRESETS sit side-by-side, each dropping its buttons downward.
     // (The editor's name is already in the overlay top bar — no title tab here.)
     el('div', { class: 'mi-bar-row mi-bar-groups' }, [
-      grp('mi-grp-src', 'Source', [bBars, bCap, bFile, url, bUrl, file]),
+      grp('mi-grp-src', 'Source', [bBars, bTsg, bCap, bFile, url, bUrl, file]),
       grp('mi-grp-pre', 'Presets', [pDef, pAud, pVid, pCol, pLum]),
       bLayout,
     ]),
     el('div', { class: 'mi-bar-row mi-bar-stat' }, [stat]),
   ]);
 
-  return { bar, bBars, bCap, bFile, url, bUrl, file, pDef, pAud, pVid, pCol, pLum, sSub, sNorm, sHard, bLayout, stat };
+  return { bar, bBars, bTsg, bCap, bFile, url, bUrl, file, pDef, pAud, pVid, pCol, pLum, sSub, sNorm, sHard, bLayout, stat };
 }

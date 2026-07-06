@@ -5,6 +5,7 @@
 // the wall (NxN / PIP), tiles cycle PGM/PVW/off tally on click, carry an editable
 // UMD label and an animated VU meter, and reorder by drag-and-drop.
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { el } from '../../ui/dom.js';
@@ -19,6 +20,7 @@ const plugin: EditorPlugin = {
   order: 2,
   match: (n) => /multi\s*view/i.test(n),
   requiredCaps: ['view'],
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     injectMultiViewerStyles();
 
@@ -27,6 +29,7 @@ const plugin: EditorPlugin = {
       color: s.color,
       tally: i === 0 ? 'pgm' : i === 1 ? 'pvw' : 'off',
       channels: s.channels,
+      origin: s.origin,
     }));
 
     // PIP=0 (special). NxN presets render a full cols×cols wall; cells beyond
@@ -96,7 +99,7 @@ const plugin: EditorPlugin = {
     // a live SMPTE test frame keyed on that source's label + colour, so routing a
     // source makes its self-identifying frame appear here (audit §8-9).
     const cardWall = createTestCardWall(ctx.dispose);
-    const videoScreen = (w: Win): HTMLElement => cardWall.mount(testCardFor(w.label, w.color));
+    const videoScreen = (w: Win): HTMLElement => cardWall.mount(testCardFor(w.label, w.color, { origin: w.origin }));
 
     // The tile builders are closure-coupled to render state; hand them that
     // state explicitly (getPreset reads the live selection, redraw = draw).

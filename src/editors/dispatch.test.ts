@@ -61,6 +61,8 @@ const EXPECT: Array<[string, string | null]> = [
   ['Countdown', 'timer'],
   ['Weather', 'graphics-engine'],   // WEATHER is a dataset/template INSIDE the CG engine
   ['Forecast', 'graphics-engine'],
+  ['TSG', 'tsg'],                   // TEST SIGNAL GENERATOR — standardised test patterns
+  ['Test Signal Generator', 'tsg'], // order:9 beats signaling's /signal/ (order 11)
   ['Wireless Controller', 'wireless'],   // RF telemetry: packs + coordination controllers
 ];
 
@@ -71,8 +73,8 @@ describe('editor dispatch', () => {
     }
   });
 
-  it('registers all 23 editors', () => {
-    expect(PLUGINS.length).toBe(23);
+  it('registers all 24 editors', () => {
+    expect(PLUGINS.length).toBe(24);
   });
 
   it('orders plugins by ascending precedence (legacy import order)', () => {

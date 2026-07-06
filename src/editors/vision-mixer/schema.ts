@@ -9,25 +9,25 @@
 // data, not a code change).
 
 import type {
-  SwitcherDef, SwitcherInput, DVEPreset, DVEKeyframe, MEPreset, SceneDef, KeyerDef, TransitionKind
+  SwitcherDef, SwitcherInput, DVESnapshot, DVEKeyframe, MEPreset, SceneDef, KeyerDef, TransitionKind
 } from '../../model/index.js';
 import type { EditorContext } from '../types.js';
 
 export const FULL: DVEKeyframe = { x: 0, y: 0, z: 0, scale: 100, rotX: 0, rotY: 0, rotZ: 0 };
 const KF = (p: Partial<DVEKeyframe>): DVEKeyframe => ({ ...FULL, ...p });
 
-/** Starter DVE library (audit §6): corner PIPs, over-the-shoulders, moves. */
-export const DVE_PRESETS: DVEPreset[] = [
-  { id: 'full', name: 'FULL', a: FULL, b: FULL, ms: 0 },
-  { id: 'pip-tr', name: 'PIP · TOP-R', a: KF({ x: 110, y: -60, scale: 30 }), b: KF({ x: 55, y: -55, scale: 30 }), ms: 400 },
-  { id: 'pip-tl', name: 'PIP · TOP-L', a: KF({ x: -110, y: -60, scale: 30 }), b: KF({ x: -55, y: -55, scale: 30 }), ms: 400 },
-  { id: 'pip-br', name: 'PIP · BOT-R', a: KF({ x: 110, y: 60, scale: 30 }), b: KF({ x: 55, y: 55, scale: 30 }), ms: 400 },
-  { id: 'pip-bl', name: 'PIP · BOT-L', a: KF({ x: -110, y: 60, scale: 30 }), b: KF({ x: -55, y: 55, scale: 30 }), ms: 400 },
-  { id: 'ots-r', name: 'OTS · RIGHT', a: KF({ x: 46, y: -34, scale: 38, rotY: -12 }), b: KF({ x: 46, y: -34, scale: 38, rotY: -12 }), ms: 0 },
-  { id: 'ots-l', name: 'OTS · LEFT', a: KF({ x: -46, y: -34, scale: 38, rotY: 12 }), b: KF({ x: -46, y: -34, scale: 38, rotY: 12 }), ms: 0 },
-  { id: 'squeeze', name: 'SQUEEZE-BACK', a: FULL, b: KF({ x: -28, y: -22, scale: 55 }), ms: 700 },
-  { id: 'tumble', name: 'TUMBLE-IN', a: KF({ x: -160, z: 80, scale: 20, rotY: 80, rotZ: -30 }), b: FULL, ms: 800 },
-  { id: 'flip-3d', name: 'FLIP · 3D', a: KF({ rotY: -180, z: 40, scale: 70 }), b: FULL, ms: 650 },
+/** Starter DVE library (Snapshots): single poses that get auto-tweened. */
+export const DVE_SNAPSHOTS: DVESnapshot[] = [
+  { id: 'full', name: 'FULL', pose: FULL, ms: 0 },
+  { id: 'pip-tr', name: 'PIP · TOP-R', pose: KF({ x: 55, y: -55, scale: 30 }), ms: 400 },
+  { id: 'pip-tl', name: 'PIP · TOP-L', pose: KF({ x: -55, y: -55, scale: 30 }), ms: 400 },
+  { id: 'pip-br', name: 'PIP · BOT-R', pose: KF({ x: 55, y: 55, scale: 30 }), ms: 400 },
+  { id: 'pip-bl', name: 'PIP · BOT-L', pose: KF({ x: -55, y: 55, scale: 30 }), ms: 400 },
+  { id: 'ots-r', name: 'OTS · RIGHT', pose: KF({ x: 46, y: -34, scale: 38, rotY: -12 }), ms: 0 },
+  { id: 'ots-l', name: 'OTS · LEFT', pose: KF({ x: -46, y: -34, scale: 38, rotY: 12 }), ms: 0 },
+  { id: 'squeeze', name: 'SQUEEZE-BACK', pose: KF({ x: -28, y: -22, scale: 55 }), ms: 700 },
+  { id: 'tumble', name: 'TUMBLE-IN', pose: FULL, ms: 800 },
+  { id: 'flip-3d', name: 'FLIP · 3D', pose: FULL, ms: 650 },
 ];
 
 const key = (p: Partial<KeyerDef> = {}): KeyerDef => ({ on: false, type: 'linear', source: 0, ...p });
@@ -79,7 +79,7 @@ export const DEFAULT_SWITCHER: SwitcherDef = {
     'DVE PUSH', 'STINGER'
   ] as TransitionKind[],
   wipePatterns: ['L→R', 'R→L', 'T→B', 'BOX', 'CIRCLE', 'DIAG'],
-  dvePresets: DVE_PRESETS,
+  dveSnapshots: DVE_SNAPSHOTS,
   mePresets: ME_PRESETS,
   scenes: SCENES,
   layout: 'shift12',
@@ -128,7 +128,7 @@ export function resolveDef(ctx: EditorContext): SwitcherDef {
     inputs: [...inputs, ...internalInputs],
     // Preset libraries MERGE (authored extend the starters) rather than replace,
     // so a production adds looks without losing the standard kit.
-    dvePresets: mergeById(DEFAULT_SWITCHER.dvePresets, authored?.dvePresets),
+    dveSnapshots: mergeById(DEFAULT_SWITCHER.dveSnapshots, authored?.dveSnapshots),
     mePresets: mergeById(DEFAULT_SWITCHER.mePresets, authored?.mePresets),
     scenes: mergeById(DEFAULT_SWITCHER.scenes, authored?.scenes),
   };

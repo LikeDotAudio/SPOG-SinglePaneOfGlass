@@ -25,7 +25,7 @@ const services: EditorServices = {
     // same pattern as openWirelessMic below. Channels ride in via config.inputs.
     const plugin = pluginFor('Stage Box');
     if (!plugin) return;
-    openOverlay({ title: plugin.title, color, prodName: 'System', twistName: name }, (body, dispose) => {
+    openOverlay({ title: plugin.title, color, prodName: 'System', twistName: name, voiceCommands: plugin.voiceCommands }, (body, dispose) => {
       const ctx: any = {
         twist: { name, config: { name, inputs: channels } },
         sources: [],
@@ -41,7 +41,7 @@ const services: EditorServices = {
   openWirelessMic(name, color) {
     const plugin = pluginFor('wireless');
     if (!plugin) return;
-    openOverlay({ title: plugin.title, color, prodName: 'System', twistName: name }, (body, dispose) => {
+    openOverlay({ title: plugin.title, color, prodName: 'System', twistName: name, voiceCommands: plugin.voiceCommands }, (body, dispose) => {
       const ctx: any = {
         twist: { name, config: { type: 'wireless-mic' } },
         sources: [],
@@ -94,6 +94,9 @@ export function openEditorForTwist(twistEl: HTMLElement): void {
   // onto any twist opens the CG engine, which selects its WEATHER template from
   // the routed source label (see graphics-engine/view railEntries).
   const hasWeather = twistEl.querySelector('.signal-node.weather-source');
+  // A TEST SIGNAL GENERATOR feed routed onto any twist/MONITOR opens the TSG editor,
+  // so the op can choose which standardised pattern the generator outputs.
+  const hasTsg = twistEl.querySelector('.signal-node.tsg-source');
   const plugin = hasPrompter
     ? (pluginFor('PROMPTER') ?? pluginFor(name))
     : hasTimer
@@ -104,7 +107,9 @@ export function openEditorForTwist(twistEl: HTMLElement): void {
           ? (pluginFor('CLOCK') ?? pluginFor(name))
           : hasWeather
             ? (pluginFor('GRAPHIC EDITOR') ?? pluginFor(name))
-            : pluginFor(name);
+            : hasTsg
+              ? (pluginFor('TSG') ?? pluginFor(name))
+              : pluginFor(name);
   if (!plugin) return;
   const prodName = twistEl.dataset.prodName ?? '';
   const color = (twistEl.style.getPropertyValue('--lcars-color').trim() || '#646DCC') as Hex;
@@ -118,7 +123,7 @@ export function openEditorForTwist(twistEl: HTMLElement): void {
   };
   const twistSvc = twistServices(prodName, name);
   openOverlay(
-    { title: prodName ? `${prodName} · ${plugin.title}` : plugin.title, color, prodName, twistName: name },
+    { title: prodName ? `${prodName} · ${plugin.title}` : plugin.title, color, prodName, twistName: name, voiceCommands: plugin.voiceCommands },
     (body, dispose) => {
       const ctx = buildContext(prod, twist, dispose, twistSvc, twistEl);
       // "What the production expects of this window" — a hover tip on the title rail,

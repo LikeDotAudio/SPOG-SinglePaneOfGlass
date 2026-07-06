@@ -13,6 +13,7 @@
 
 import { el } from '../dom.js';
 import { drawFauxSignal, type FauxSource } from '../faux-signal.js';
+import { patternForLabel } from '../../domain/tsg/index.js';
 import { animate, card } from './dest-fixtures-shared.js';
 
 /** The feed to monitor: the first VIDEO/control feed routed anywhere in the room
@@ -30,6 +31,9 @@ function routedFeed(body: HTMLElement): FauxSource | null {
       : n.classList.contains('control') || n.classList.contains('camera-control') ? 'control' as const
       : undefined;
     const feed: FauxSource = { id: n.id || label, label, color, origin: n.dataset.origin, media };
+    // A routed TEST SIGNAL GENERATOR feed paints its standardised pattern (resolved
+    // from the routed label) instead of the person-in-a-room faux signal.
+    if (n.classList.contains('tsg-source')) feed.tsg = patternForLabel(label).id;
     if (media !== 'audio') return feed;   // prefer a picture feed
     audioFallback ??= feed;
   }

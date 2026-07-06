@@ -25,6 +25,8 @@ const CSS = `
   cursor:pointer;font-size:30px;font-weight:bold;line-height:1;color:#000;
   box-shadow:inset 2px 0 0 rgba(0,0,0,.25);}
 .ed-close:hover{background:rgba(0,0,0,.18);}
+.ed-voice{flex:0 0 auto;display:flex;align-items:center;padding:0 15px;background:none;border:none;color:#ff3366;font-weight:bold;font-size:13px;cursor:pointer;letter-spacing:1px;box-shadow:inset 2px 0 0 rgba(0,0,0,.25);}
+.ed-voice:hover{background:rgba(0,0,0,.18);}
 .ed-body{flex:1;min-height:0;overflow:auto;padding:12px 14px 14px;}
 .ed-h{color:var(--cyan,#00ffff);font-size:11px;font-weight:bold;letter-spacing:2px;
   text-transform:uppercase;margin:0 0 8px;}
@@ -48,6 +50,7 @@ interface OverlayHandle {
   root: HTMLDivElement;
   title: HTMLElement;
   body: HTMLElement;
+  voiceBtn: HTMLElement;
 }
 
 let handle: OverlayHandle | null = null;
@@ -62,6 +65,7 @@ function ensureOverlay(): OverlayHandle {
     <div class="ed-topbar" title="Click anywhere (or press Esc) to go back">
       <span class="ed-back"></span>
       <span class="ed-title"></span>
+      <button class="ed-voice" title="Voice Commands for this Editor" style="display:none">🎤 VOICE</button>
       <span class="ed-close" title="Close">&times;</span>
     </div>
     <div class="ed-body"></div>`;
@@ -75,6 +79,7 @@ function ensureOverlay(): OverlayHandle {
     root,
     title: root.querySelector<HTMLElement>('.ed-title')!,
     body: root.querySelector<HTMLElement>('.ed-body')!,
+    voiceBtn: root.querySelector<HTMLElement>('.ed-voice')!,
   };
   return handle;
 }
@@ -85,7 +90,7 @@ function ensureOverlay(): OverlayHandle {
  * hash to #/<prod>/<twist> and restores the previous hash on close.
  */
 export function openOverlay(
-  opts: { title: string; color: string; prodName: string; twistName: string },
+  opts: { title: string; color: string; prodName: string; twistName: string; voiceCommands?: Record<string, string> },
   build: (body: HTMLElement, dispose: Disposer) => void,
 ): Disposer {
   const h = ensureOverlay();
@@ -95,6 +100,40 @@ export function openOverlay(
   h.root.style.setProperty('--ed-color', opts.color || '#646DCC');
   h.title.textContent = opts.title;
   h.body.innerHTML = '';
+  
+  if (opts.voiceCommands) {
+    h.voiceBtn.style.display = 'flex';
+    const vc = opts.voiceCommands;
+    const oldClick = (h.voiceBtn as any)._click;
+    if (oldClick) h.voiceBtn.removeEventListener('click', oldClick);
+    
+    const clickHandler = (e: Event) => {
+      e.stopPropagation(); // prevent topbar from closing the overlay
+      // Remove any existing voice modal
+      document.getElementById('ed-voice-modal')?.remove();
+      const modal = el('div', { id: 'ed-voice-modal', style: 'position:absolute;top:48px;right:66px;width:350px;background:#17233c;border:2px solid #ff3366;border-radius:0 0 8px 8px;padding:12px;z-index:3000;box-shadow:0 10px 30px rgba(0,0,0,0.5);' });
+      modal.append(el('div', { class: 'ed-h', style: 'color:#ff3366;margin-bottom:12px;' }, ['VALID VOICE COMMANDS']));
+      const list = el('div', { style: 'display:flex;flex-direction:column;gap:12px;max-height:60vh;overflow-y:auto;' });
+      for (const [category, words] of Object.entries(vc)) {
+        list.append(el('div', { style: 'display:flex;flex-direction:column;gap:4px;' }, [
+          el('span', { style: 'font-weight:bold;color:#6FC8F0;font-size:14px;text-transform:uppercase;' }, [category]),
+          el('span', { style: 'color:#d6e6ef;font-size:13px;font-family:monospace;line-height:1.4;' }, [words])
+        ]));
+      }
+      modal.append(list);
+      
+      const closeBtn = el('button', { style: 'margin-top:12px;width:100%;padding:6px;background:none;border:1px solid #8fb0d0;color:#fff;border-radius:4px;cursor:pointer;' }, ['CLOSE']);
+      closeBtn.addEventListener('click', () => modal.remove());
+      modal.append(closeBtn);
+      
+      h.root.append(modal);
+    };
+    h.voiceBtn.addEventListener('click', clickHandler);
+    (h.voiceBtn as any)._click = clickHandler;
+  } else {
+    h.voiceBtn.style.display = 'none';
+  }
+
   prevHash = location.hash;
   history.replaceState(null, '', '#/' + [slug(opts.prodName), slug(opts.twistName)].filter(Boolean).join('/'));
   build(h.body, dispose);
@@ -106,6 +145,7 @@ export function openOverlay(
 const isEditorHash = (h: string | null): boolean => !!h && /^#\/[^/]+\/[^/]+/.test(h);
 
 export function close(): void {
+  document.getElementById('ed-voice-modal')?.remove();
   if (activeDisposer) {
     activeDisposer.dispose();
     activeDisposer = null;

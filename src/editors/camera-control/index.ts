@@ -8,6 +8,7 @@
 // scraping (M3): the routed camera lineage comes from ctx.sources, role gating
 // from ctx.can / requiredCaps.
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import { addStyles, qs } from '../../ui/dom.js';
 import { CSS } from './styles.js';
@@ -25,6 +26,7 @@ const plugin: EditorPlugin = {
   order: 6,
   match: (n) => /\bcam\b|camera/i.test(n),
   requiredCaps: ['shade'],
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     addStyles('cc-styles', CSS);
 
@@ -74,7 +76,16 @@ const plugin: EditorPlugin = {
     host.innerHTML = HTML;
 
     const scene = qs(host, '.cc-scene');
-    const subject = qs(host, '.cc-subject');
+    const subject = qs<HTMLCanvasElement>(host, '.cc-subject');
+    // The picture this camera shows is the routed source's faux signal (the person-
+    // in-a-room it's shooting); the frame loop paints + reframes it every tick.
+    const renderFeed = {
+      label: routed?.label ?? titleTxt,
+      color: routed?.color ?? ctx.production.color,
+      origin: routed?.origin,
+      media: routed?.media,
+      faulted: routed?.faulted,
+    };
     const smpte = qs<HTMLCanvasElement>(host, '.cc-smpte canvas');
     const smpteBox = qs(host, '.cc-smpte');
     const wf = qs<HTMLCanvasElement>(host, '.cc-wf');
@@ -179,7 +190,7 @@ const plugin: EditorPlugin = {
     // service in EditorServices, so the field renders for parity but is inert.
 
     const frame = makeFrame(cc, {
-      scene, subject, smpte, smpteBox, wf, osd, vec, tel, dvd,
+      subject, renderFeed, smpte, smpteBox, wf, osd, vec, tel, dvd,
       syncKnobs, placePuck, syncAxes, publishState,
     });
 

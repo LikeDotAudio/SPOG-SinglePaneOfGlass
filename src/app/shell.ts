@@ -18,6 +18,7 @@ import { initRouterView } from '../ui/console/router-view.js';
 import { initAcademy } from '../ui/console/academy.js';
 import { initUserMenu } from '../ui/console/user-menu.js';
 import { initChatDock } from '../ui/console/chat-dock.js';
+import { initVoiceDock } from '../ui/console/voice-dock.js';
 import { initChromeIcons } from '../ui/console/chrome-icons.js';
 import { initCaptainsLog } from '../ui/console/captains-log.js';
 import { initSourceFilter } from '../ui/console/source-filter.js';
@@ -106,6 +107,8 @@ export async function buildConsole(BUILD: BuildStamp): Promise<void> {
   initRouterView();
   // Production chat dock — bottom corner opposite the sources (the old 1990s slot).
   initChatDock();
+  // Voice command dock - sits next to the chat dock
+  initVoiceDock();
   // Remaining LCARS chrome. Order: log button (top of sources) → filter (below it)
   // → portals pool (kept last) → mission bar + edge pulse (body-level).
   initCaptainsLog();

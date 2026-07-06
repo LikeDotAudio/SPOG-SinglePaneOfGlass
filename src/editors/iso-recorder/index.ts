@@ -5,6 +5,7 @@
 // replaced by ctx.sources, falling back to ctx.twist.config?.inputs, then a
 // CAM N default — mirroring the legacy channelsFor(twist, config, 'CAM', 4).
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import type { ParamSpec } from '../../platform/mqtt/types.js';
 import { qs } from '../../ui/dom.js';
@@ -26,6 +27,7 @@ const plugin: EditorPlugin = {
   order: 1,
   match: (n) => /\biso\b|replay/i.test(n),
   requiredCaps: ['route'],
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     injectIsoRecorderStyles();
 

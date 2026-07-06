@@ -3,6 +3,7 @@
 // One of the "things" routed to a person: their prompter. A scrolling script with
 // speed / font / mirror controls and a title-safe reading area. Self-contained.
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import { el, addStyles } from '../../ui/dom.js';
 
@@ -44,8 +45,13 @@ const CSS = `
 .tp-shortcuts h4{margin:0 0 10px 0;color:#6FC8F0;font-size:16px;text-transform:uppercase;}
 .tp-shortcuts div{margin-bottom:6px;}
 .tp-wheel-col{background:#03060f;border:1px solid #1d2942;border-radius:10px;display:flex;flex-direction:column;align-items:center;padding:15px 0;width:80px;}
-.tp-wheel-container{flex:1;width:100%;display:flex;justify-content:center;align-items:center;}
-.tp-wheel{-webkit-appearance:slider-vertical;appearance:slider-vertical;width:60px;height:100%;cursor:grab;}
+.tp-pace-container { position:relative; flex:1; width:48px; background:#03060f; border:2px solid #1d2942; border-radius:8px; cursor:pointer; user-select:none; overflow:hidden; margin-bottom:10px; }
+.tp-wheel-bg { position:absolute; top:0; left:0; right:0; bottom:0; background-image:repeating-linear-gradient(transparent, transparent 18px, rgba(111,200,240,0.15) 18px, rgba(111,200,240,0.15) 20px); background-size:100% 20px; z-index:1; }
+.tp-pace-track { position:absolute; left:50%; width:8px; top:10px; bottom:10px; margin-left:-4px; background:rgba(29,41,66,0.5); border-radius:4px; z-index:2; }
+.tp-pace-fill { position:absolute; left:0; right:0; border-radius:4px; z-index:3; }
+.tp-pace-thumb { position:absolute; left:-8px; right:-8px; height:16px; margin-top:-8px; background:#fff; border:3px solid #6FC8F0; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.8); z-index:4; pointer-events:none; }
+.tp-pace-center { position:absolute; top:50%; left:5px; right:5px; height:2px; margin-top:-1px; background:#fff; opacity:0.3; z-index:2; }
+.tp-wheel-label { color:#6FC8F0; font:bold 18px monospace; margin-bottom:10px; text-shadow:0 2px 4px #000; }
 /* Reading line sits in the LOWER THIRD — near where a real teleprompter's glass
    folds out from the monitor base, so the presenter reads close to the lens. */
 .tp-mid{position:absolute;left:0;right:0;top:68%;height:2px;background:rgba(111,200,240,.35);pointer-events:none;}
@@ -58,17 +64,18 @@ const plugin: EditorPlugin = {
   title: 'PROMPTER · TELEPROMPTER',
   order: 9,
   match: (n) => /prompt/i.test(n),
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     host.tabIndex = 0; // Make host focusable for keyboard shortcuts
     addStyles('twist-editor-prompter', CSS);
-    const script = el('div', { class: 'tp-script', contenteditable: 'true', spellcheck: 'false' }) as HTMLDivElement;
+    const script = el('div', { class: 'tp-script', contentEditable: 'true', spellcheck: false }) as HTMLDivElement;
     const gutter = el('div', { class: 'tp-gutter' });
     const scriptContainer = el('div', { class: 'tp-script-container' }, [gutter, script]);
     
     const toolbar = el('div', { class: 'tp-toolbar' }, [
-       el('button', { class: 'tp-tool-btn', 'data-cmd': 'bold' }, ['B']),
-       el('button', { class: 'tp-tool-btn', 'data-cmd': 'italic', style: 'font-style:italic;' }, ['I']),
-       el('button', { class: 'tp-tool-btn', 'data-cmd': 'underline', style: 'text-decoration:underline;' }, ['U']),
+       el('button', { class: 'tp-tool-btn', dataset: { cmd: 'bold' } }, ['B']),
+       el('button', { class: 'tp-tool-btn', dataset: { cmd: 'italic' }, style: 'font-style:italic;' }, ['I']),
+       el('button', { class: 'tp-tool-btn', dataset: { cmd: 'underline' }, style: 'text-decoration:underline;' }, ['U']),
        el('input', { type: 'color', class: 'tp-tool-color', id: 'fg-color', title: 'Text Color', value: '#ff0000' }),
        el('input', { type: 'color', class: 'tp-tool-color', id: 'bg-color', title: 'Highlight Color', value: '#ffff00' })
     ]);
@@ -162,14 +169,51 @@ const plugin: EditorPlugin = {
     
     const speedIn = el('input', { type: 'range', min: '-160', max: '160', value: String(speed) }) as HTMLInputElement;
     const sizeIn = el('input', { type: 'range', min: '18', max: '64', value: String(size) }) as HTMLInputElement;
-    const wheelIn = el('input', { class: 'tp-wheel', type: 'range', min: '-160', max: '160', value: String(speed), orient: 'vertical' } as any) as HTMLInputElement;
 
-    const onSpeedChange = (v: number) => {
-      speed = v; speedIn.value = String(v); wheelIn.value = String(v); ctx.services.publishParam?.('speed', speed);
+    const wheelLabel = el('div', { class: 'tp-wheel-label' }, [String(speed)]);
+    const wheelBg = el('div', { class: 'tp-wheel-bg' });
+    const paceFill = el('div', { class: 'tp-pace-fill' });
+    const paceThumb = el('div', { class: 'tp-pace-thumb' });
+    const paceTrack = el('div', { class: 'tp-pace-track' }, [paceFill, paceThumb]);
+    const paceContainer = el('div', { class: 'tp-pace-container' }, [
+       wheelBg, el('div', { class: 'tp-pace-center' }), paceTrack
+    ]);
+
+    const updateWheelVisual = () => {
+       const pct = (speed + 160) / 320;
+       const top = (1 - pct) * 100;
+       paceThumb.style.top = `${top}%`;
+       if (speed >= 0) {
+          paceFill.style.top = `${top}%`;
+          paceFill.style.bottom = `50%`;
+          paceFill.style.background = '#6FC8F0';
+          paceFill.style.boxShadow = '0 0 10px #6FC8F0';
+       } else {
+          paceFill.style.top = `50%`;
+          paceFill.style.bottom = `${100 - top}%`;
+          paceFill.style.background = '#ff3366';
+          paceFill.style.boxShadow = '0 0 10px #ff3366';
+       }
+       wheelLabel.textContent = Math.round(speed).toString();
     };
 
+    const onSpeedChange = (v: number) => {
+      speed = v; speedIn.value = String(v); updateWheelVisual(); ctx.services.publishParam?.('speed', speed);
+    };
+
+    let isPaceDragging = false;
+    const updateSpeedFromEvent = (e: MouseEvent) => {
+       const rect = paceContainer.getBoundingClientRect();
+       const y = e.clientY - rect.top;
+       const pct = 1 - (y / rect.height);
+       const newSpeed = (pct * 320) - 160;
+       onSpeedChange(Math.max(-160, Math.min(160, newSpeed)));
+    };
+    paceContainer.addEventListener('mousedown', (e) => { isPaceDragging = true; updateSpeedFromEvent(e); });
+    window.addEventListener('mousemove', (e) => { if (isPaceDragging) updateSpeedFromEvent(e); });
+    window.addEventListener('mouseup', () => isPaceDragging = false);
+
     speedIn.addEventListener('input', () => onSpeedChange(+speedIn.value));
-    wheelIn.addEventListener('input', () => onSpeedChange(+wheelIn.value));
     sizeIn.addEventListener('input', () => { size = +sizeIn.value; setSize(); ctx.services.publishParam?.('size', size); }); 
 
     host.addEventListener('keydown', (e) => {
@@ -290,7 +334,8 @@ const plugin: EditorPlugin = {
 
     const wheelCol = el('div', { class: 'tp-wheel-col' }, [
       el('div', { style: 'text-align:center;color:#7e93b5;font:16px monospace;margin-top:10px;font-weight:bold;' }, ['Fwd']),
-      el('div', { class: 'tp-wheel-container' }, [wheelIn]),
+      wheelLabel,
+      paceContainer,
       el('div', { style: 'text-align:center;color:#7e93b5;font:16px monospace;margin-bottom:10px;font-weight:bold;' }, ['Rev']),
     ]);
 
@@ -340,7 +385,7 @@ const plugin: EditorPlugin = {
     ]);
     
     // Honour inbound writes from the bus / other consoles — apply WITHOUT re-publishing.
-    ctx.services.onParam?.('speed', (v) => { if (typeof v === 'number') { speed = v; speedIn.value = String(speed); wheelIn.value = String(speed); } });
+    ctx.services.onParam?.('speed', (v) => { if (typeof v === 'number') { speed = v; speedIn.value = String(speed); updateWheelVisual(); } });
     ctx.services.onParam?.('size', (v) => { if (typeof v === 'number') { size = v; sizeIn.value = String(size); setSize(); } });
     ctx.services.onParam?.('position', (v) => { if (typeof v === 'number') { y = v; prevY = v; applyTransform(); } });
     ctx.services.onParam?.('play', (v) => { running = !!v; reflectPlay(); });
@@ -370,9 +415,15 @@ const plugin: EditorPlugin = {
 
     y = stage.clientHeight || 300;
     prevY = y;
+    let bgY = 0;
     ctx.dispose.raf(() => {
       if (running) {
         y -= speed / 60;
+        bgY += (speed / 60) * 2;
+        if (bgY > 20) bgY -= 20;
+        else if (bgY < -20) bgY += 20;
+        wheelBg.style.backgroundPositionY = `${bgY}px`;
+        
         const stageH = stage.clientHeight || 300;
         if (y < -scroll.offsetHeight) {
           y = stageH;   // loop forward

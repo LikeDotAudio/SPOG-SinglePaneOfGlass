@@ -220,7 +220,7 @@
           }
         ]
       },
-      "tip": "Production switcher \u2014 3 M/E banks with re-entry, 24 inputs, keyers with DVE flight, M/E looks, scene registers. Drives tally."
+      "tip": "Production switcher — 3 M/E banks with re-entry, 24 inputs, keyers with DVE flight, M/E looks, scene registers. Drives tally."
     },
     {
       "name": "Multi Viewer 1",
@@ -472,6 +472,10 @@
     },
     {
       "name": "Signaling",
+      "accepts": "both"
+    },
+    {
+      "name": "PROMPTER",
       "accepts": "both"
     }
   ]

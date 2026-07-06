@@ -16,7 +16,7 @@ export const HTML = `
       <div class="cc-wrap">
         <div class="cc-glass">
           <div class="cc-video">
-            <div class="cc-scene"><div class="cc-subject"></div></div>
+            <div class="cc-scene"><canvas class="cc-subject"></canvas></div>
           </div>
           <div class="cc-smpte"><canvas></canvas><div class="cc-dvd"></div></div>
           <div class="cc-osd"></div>

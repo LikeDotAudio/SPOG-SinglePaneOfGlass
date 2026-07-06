@@ -8,6 +8,7 @@
 // Where the legacy render() called renderGridOfSiblings to tile every sibling
 // monitor, this uses ctx.siblings + ui/grid.ts gridCells — data-in, no scraping.
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin, Sibling } from '../types.js';
 import { gridCells } from '../../ui/grid.js';
 import { injectAudioMonitorStyles } from './styles.js';
@@ -19,6 +20,7 @@ const plugin: EditorPlugin = {
   order: 7,
   match: (n) => /audio\s*monitor|\bmonitor\b.*audio|\bAFV\b|confidence/i.test(n),
   requiredCaps: ['audio'],
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     injectAudioMonitorStyles();
     // ctx.siblings includes self; fall back to this twist if the host left it empty.

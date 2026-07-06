@@ -11,6 +11,7 @@
 // (ctx.services) — this editor only renders from ctx. A channel "bank" jump bar
 // pages the routed grouping 4 panels at a time (the legacy quad layout).
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin, EditorServices } from '../types.js';
 import type { Disposer } from '../../ui/timers.js';
 import type { ParamSpec } from '../../platform/mqtt/types.js';
@@ -96,6 +97,7 @@ const plugin: EditorPlugin = {
   order: 9,
   match: (n) => /stage\s*box|pre.?amp|input asset|mic input/i.test(n),
   requiredCaps: ['audio'],
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     injectStageBoxStyles();
     const channels = resolveChannels(ctx.sources, ctx.twist.config);

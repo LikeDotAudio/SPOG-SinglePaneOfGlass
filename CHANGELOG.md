@@ -2,6 +2,28 @@
 
 All notable changes to SPOG (Single Pane Of Glass) are recorded here.
 
+## [v106] — 2026-07-05
+
+### Added — Teleprompter & Matrix Upgrades
+- **Rich Text Prompter Editor**: The prompter script area is now a full `contenteditable` rich text engine. Presenters and operators can apply **Bold**, *Italic*, and <ins>Underline</ins> formatting, and customize text foreground and highlight background colors. All styles maintain perfect 1:1 sync with the on-air crawl. 
+- **HTML-Safe Automation Cues**: Even with rich text applied, meta-commands like `[GPO: X]` and `[STORY: Y]` remain fully intact and safely parsed out without interfering with text formatting.
+- **Visual Reading Indicators**: Added two bright blue inward-pointing arrows (`▶` and `◀`) to the reading line in the lower third, providing a clear visual target for the active script line.
+- **Focus Puller Pace Line**: Replaced the generic slider with a custom jog wheel graphical element. The track glows dynamically (blue for forward, red for reverse) from center. Background tick marks physically animate during playback, creating a mechanical illusion of the wheel rolling at the exact pace of the crawl.
+
+### Added — DVE Previsualization & Real-Time Anticipation
+- **Preview Move**: Added a "PREVIEW MOVE" button to the DVE Editor. Pressing it triggers a real-time previsualization tween of the active preset directly on the editor's stage.
+- **Anticipation Render**: Uses CSS transitions dynamically calculated against `preset.ms` so operators can test complex, combined X/Y/Z scaling flights from Keyframe A to Keyframe B exactly as they will look on the live production switcher.
+
+### Added — Faux-Signal Test Frames (routable "person-in-a-room")
+- **Deterministic faux signal** (`src/ui/faux-signal.ts`): every routed source now presents a self-identifying picture instead of generic bars — a seeded "person in a room" cartoon (skin/hair/shirt/room accent all derived from the source's name+colour, so a given source always looks the same and distinct sources look different), with a burned-in lower-third (source name · originating room), a desk mic for audio feeds, and a "NO SIGNAL" static slate for faulted feeds.
+- **Test-card surfaces render the faux signal**: the shared test-card module (`src/domain/test-card/`) now delegates its card painter to the faux signal, so the multiviewer wall's live tiles show each routed source's own picture.
+- **Per-destination MONITOR fixture** (`src/ui/console/dest-fixtures-monitor.ts`): every room now carries a live PROGRAM monitor that renders the faux signal of whatever source currently sits in the room's crosspoints — re-read from the DOM each frame, so dragging a source onto any twist lights the monitor with no room re-render. Shows an idle "NO SOURCE ROUTED" placeholder when empty and the NO SIGNAL slate when the room is OFFLINE.
+
+### Changed — Control Room & Floor Routing
+- **Control Room Prompters**: Added the `PROMPTER` twist to all 10 Control Rooms (Primary 1-5, Secondary 6-10), automatically outfitting every production gallery with a dedicated prompter editor interface.
+- **Generated Prompter Sources**: Configured dedicated Prompter Sources for each Control Room, pushing the control room's prompter script back onto the video routing bus.
+- **Camera Prompter Endpoints**: Added a dedicated "CAMERA PROMPTER" destination to all five studio floors, allowing operators to map any Control Room's prompter directly to the glass on the studio floor.
+
 ## [v105] — 2026-07-05
 
 ### Changed — ICON-face tile glyphs (`src/ui/icon-glyphs.ts`, `src/ui/icon-glyphs-chrome.ts`)

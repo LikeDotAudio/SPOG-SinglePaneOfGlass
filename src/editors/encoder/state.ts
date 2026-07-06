@@ -62,6 +62,7 @@ export const AUDIO: readonly Track[] = [
 export interface Stream {
   label: string;
   color: string;
+  origin?: string;
 }
 
 // Heuristic stand-in for the legacy .video/.audio class split (Feed carries no
@@ -72,7 +73,7 @@ export function deriveFeeds(ctx: EditorContext): { streams: Stream[]; tracks: Tr
   const sources = ctx.sources;
   let vids: Stream[] = sources
     .filter((s) => !AUDIO_RE.test(s.label))
-    .map((s) => ({ label: s.label, color: s.color }));
+    .map((s) => ({ label: s.label, color: s.color, origin: s.origin }));
   const auds = sources.filter((s) => AUDIO_RE.test(s.label));
 
   if (!vids.length) {

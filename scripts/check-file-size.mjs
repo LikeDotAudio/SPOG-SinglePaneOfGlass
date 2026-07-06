@@ -30,6 +30,7 @@ const ALLOWLIST = new Set([
   // files hurts more than the extra lines help.
   'src/editors/timer/engine.ts',
   'src/editors/prompter/index.ts',
+  'src/ui/console/voice-dock.ts',
 ]);
 
 function walk(dir, out) {

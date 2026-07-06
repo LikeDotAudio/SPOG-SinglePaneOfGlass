@@ -1,0 +1,12 @@
+{
+  "id": "cam-prompter-5",
+  "name": "CAMERA PROMPTER",
+  "color": "#C9A227",
+  "twists": [
+    {
+      "name": "Prompter Input",
+      "accepts": "video"
+    }
+  ],
+  "status": "OK"
+}

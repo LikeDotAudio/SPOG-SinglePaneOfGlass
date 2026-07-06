@@ -13,8 +13,9 @@
 // keyers.ts, panels.ts, mqtt-registry.ts and scene-editor.ts. The free-form
 // module canvas lives in dashboard.ts + layout-drawer.ts.
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin, EditorContext } from '../types.js';
-import type { DVEPreset, MEPreset, SceneDef } from '../../model/index.js';
+import type { DVESnapshot, MEPreset, SceneDef } from '../../model/index.js';
 import { el } from '../../ui/dom.js';
 import { tip } from '../../ui/tip.js';
 import { injectVisionMixerStyles } from './styles.js';
@@ -57,7 +58,7 @@ function render(host: HTMLElement, ctx: EditorContext): void {
   };
   let delegate = 0;                       // which M/E the surface controls
   let shift = false;                      // bus shift bank (shift12 layout)
-  let dvePresets: DVEPreset[] = [...def.dvePresets];
+  let dveSnapshots: DVESnapshot[] = [...def.dveSnapshots];
   let mePresets: MEPreset[] = [...def.mePresets];
   let scenes: SceneDef[] = [...def.scenes, ...loadUserScenes(ctx.twist.name)];
   const macroRecorder = new MacroRecorder(def.macros ?? []);
@@ -94,7 +95,7 @@ function render(host: HTMLElement, ctx: EditorContext): void {
   // One context object handed to every extracted builder. Reassignable scalars
   // are proxied via get/set so index.ts and the siblings mutate the same bindings.
   const surface: Surface = {
-    ctx, def, state, allLabels, flights, dvePresets, mePresets, scenes, macroRecorder,
+    ctx, def, state, allLabels, flights, dveSnapshots, mePresets, scenes, macroRecorder,
     publish, rawPublish,
     me: () => me(),
     sync: () => sync(),
@@ -178,17 +179,17 @@ function render(host: HTMLElement, ctx: EditorContext): void {
 
   // ---- DVE editor drawer -----------------------------------------------------------
   const dveDrawer = buildDveEditor({
-    presets: () => dvePresets,
+    snapshots: () => dveSnapshots,
     onPreview: (kf) => {
       const key = `${delegate}:${dveTargetKeyer}`;
-      flights.set(key, { preset: { id: '_preview', name: '', a: kf, b: kf, ms: 0 }, t0: performance.now() });
+      flights.set(key, { a: kf, snapshot: { id: '_preview', name: '', pose: kf, ms: 0 }, t0: performance.now() });
       const k = me().keyers[dveTargetKeyer];
       if (k && !k.on) { k.on = true; rebuildKeyers(); sync(); }
     },
-    onPlay: (p) => flights.set(`${delegate}:${dveTargetKeyer}`, { preset: p, t0: performance.now() }),
+    onPlay: (p, currentKf) => flights.set(`${delegate}:${dveTargetKeyer}`, { a: currentKf, snapshot: p, t0: performance.now() }),
     onSave: (p) => {
-      const i = dvePresets.findIndex((x) => x.id === p.id);
-      if (i >= 0) dvePresets[i] = p; else dvePresets.push(p);
+      const i = dveSnapshots.findIndex((x) => x.id === p.id);
+      if (i >= 0) dveSnapshots[i] = p; else dveSnapshots.push(p);
     },
   });
   const dveSec = el('div', { class: 'vm-sec', style: 'flex: 1; max-width: 400px;' }, [

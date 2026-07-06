@@ -31,7 +31,7 @@ export function buildLooks(s: Surface): {
         b.addEventListener('click', () => {
           applyPreset(s.me(), p, def);
           for (const [ki, k] of s.me().keyers.entries()) {
-            if (k.on && k.dve) s.flights.set(`${s.delegate}:${ki}`, { preset: s.dvePresets.find((x) => x.id === k.dve) ?? s.dvePresets[0]!, t0: performance.now() });
+            if (k.on && k.dve) s.flights.set(`${s.delegate}:${ki}`, { a: s.flights.get(`${s.delegate}:${ki}`)?.snapshot.pose ?? s.dveSnapshots[0]!.pose, snapshot: s.dveSnapshots.find((x) => x.id === k.dve) ?? s.dveSnapshots[0]!, t0: performance.now() });
           }
           s.rebuildKeyers(); s.sync();
         });

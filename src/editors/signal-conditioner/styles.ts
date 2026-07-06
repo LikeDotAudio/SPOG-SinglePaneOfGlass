@@ -35,8 +35,7 @@ export const CSS = `
 .sc-proc-controls{flex:1 1 260px;min-width:0;display:flex;flex-direction:column;gap:12px;justify-content:center;}
 .sc-preview{position:relative;flex:0 0 auto;aspect-ratio:1/1;width:230px;max-width:60vw;border-radius:8px;
   border:1px solid #1d2942;overflow:hidden;}
-.sc-bars{position:absolute;inset:0;
-  background:linear-gradient(90deg,#bfbfbf 0 14.28%,#bfbf00 14.28% 28.57%,#00bfbf 28.57% 42.85%,#00bf00 42.85% 57.14%,#bf00bf 57.14% 71.42%,#bf0000 71.42% 85.71%,#0000bf 85.71% 100%);}
+.sc-bars{position:absolute;inset:0;display:block;width:100%;height:100%;background:#0a1326;}
 .sc-scope{position:absolute;inset:0;width:100%;height:100%;}
 .sc-presets{display:flex;flex-wrap:wrap;gap:11px;}
 .sc-preset{font:bold 13px sans-serif;letter-spacing:1.5px;text-transform:uppercase;padding:13px 22px;border:none;border-radius:14px;background:#16233d;color:#bcd3ee;cursor:pointer;transition:filter .15s;}

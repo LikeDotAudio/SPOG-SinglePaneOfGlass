@@ -16,6 +16,7 @@
 // modules (windows/layouts/paint/styles); index keeps the face registry, toolbar,
 // seed/MQTT wiring and the rAF glue.
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import { el, addStyles } from '../../ui/dom.js';
 import {
@@ -50,6 +51,7 @@ const plugin: EditorPlugin = {
   order: 8,
   blurb: 'Broadcast clock bench — spawn, drag-move, resize and close clock + date windows on a canvas; each carries its own world time zone (auto-detected local + a full UTC-offset catalogue), resolution (HH:MM → :SS → +frames) and face (digital, LED ring, analog, flip, Big Ben, Clasio, Time-Extreme, Cat).',
   match: (n) => /\bclock\b/i.test(n),
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     addStyles('twist-editor-clock', CSS);
     const dpr = Math.min(window.devicePixelRatio || 1, 3);

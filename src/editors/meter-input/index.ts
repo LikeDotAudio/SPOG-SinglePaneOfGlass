@@ -12,6 +12,7 @@
 // The card DOM, layout presets, hover-help, hover probes and the edit detector
 // live in sibling modules (cards / presets / help / hover-probes / edit-detector).
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import { el, qs } from '../../ui/dom.js';
 import { createLoudnessTracker, drawLoudnessPlot } from '../../ui/loudness.js';
@@ -38,6 +39,7 @@ const plugin: EditorPlugin = {
   title: 'METER INPUT · REAL-VIDEO TEST TOOLS',
   order: 10,
   match: (n) => /meter\s*input/i.test(n),
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     injectMeterInputStyles();
 
@@ -97,7 +99,7 @@ const plugin: EditorPlugin = {
 
     // Wire the control bar (presets · SENS · layout inspector · source buttons);
     // it returns setStat so the RAF can still surface source-status warnings.
-    const setStat = wireControls({ host, li, editDetector, applyPreset, cardMap, sens, tb });
+    const setStat = wireControls({ host, li, editDetector, applyPreset, cardMap, sens, tb, dispose: ctx.dispose });
 
     const peak: PeakState = { l: 0, r: 0 };
     const vu = { l: -60, r: -60 };   // ballistic-smoothed dBFS for the analog needles

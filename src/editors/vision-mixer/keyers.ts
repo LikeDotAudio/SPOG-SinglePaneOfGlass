@@ -36,12 +36,12 @@ export function createKeyers(s: Surface, keyerRow: HTMLElement): () => void {
 
       const dveSel = el('select', { class: 'vm-sel' }) as HTMLSelectElement;
       dveSel.append(el('option', { value: '' }, ['DVE · NONE']));
-      for (const p of s.dvePresets) dveSel.append(el('option', { value: p.id }, [p.name]));
+      for (const p of s.dveSnapshots) dveSel.append(el('option', { value: p.id }, [p.name]));
       dveSel.value = k.dve ?? '';
       dveSel.addEventListener('change', () => {
         if (dveSel.value) k.dve = dveSel.value; else delete k.dve;
         s.publish(`me.${s.delegate + 1}.key.${ki + 1}.dve`, dveSel.value || 'none');
-        if (k.dve) s.flights.set(`${s.delegate}:${ki}`, { preset: s.dvePresets.find((p) => p.id === k.dve)!, t0: performance.now() });
+        if (k.dve) s.flights.set(`${s.delegate}:${ki}`, { a: s.flights.get(`${s.delegate}:${ki}`)?.snapshot.pose ?? s.dveSnapshots[0]!.pose, snapshot: s.dveSnapshots.find((p) => p.id === k.dve)!, t0: performance.now() });
         s.sync();
       });
 
@@ -68,7 +68,7 @@ export function createKeyers(s: Surface, keyerRow: HTMLElement): () => void {
       b.addEventListener('click', () => {
         if (held) return;
         k.on = !k.on;
-        if (k.on && k.dve) s.flights.set(`${s.delegate}:${ki}`, { preset: s.dvePresets.find((p) => p.id === k.dve) ?? s.dvePresets[0]!, t0: performance.now() });
+        if (k.on && k.dve) s.flights.set(`${s.delegate}:${ki}`, { a: s.flights.get(`${s.delegate}:${ki}`)?.snapshot.pose ?? s.dveSnapshots[0]!.pose, snapshot: s.dveSnapshots.find((p) => p.id === k.dve) ?? s.dveSnapshots[0]!, t0: performance.now() });
         s.publish(`me.${s.delegate + 1}.key.${ki + 1}.on`, k.on);
         s.sync();
       });

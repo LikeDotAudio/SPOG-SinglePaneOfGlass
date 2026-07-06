@@ -5,6 +5,7 @@
 // a camera frustum, and per-fixture tally glow. Self-contained EditorPlugin: the
 // render() reads only the typed context and runs its 60fps loop via ctx.dispose.
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import { renderWysiwyg } from './view.js';
 
@@ -14,6 +15,7 @@ const plugin: EditorPlugin = {
   order: 13,
   match: (n) => /wysiwyg|pre.?viz|visuali[sz]er/i.test(n),
   requiredCaps: ['shade'],
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     renderWysiwyg(host, ctx);
   },

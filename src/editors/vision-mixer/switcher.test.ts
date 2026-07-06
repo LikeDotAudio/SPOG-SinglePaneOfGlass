@@ -21,7 +21,7 @@ describe('schema', () => {
     expect(def.mes).toBe(3);
     expect(def.keyersPerMe).toBe(4);
     expect(def.dsks.length).toBeGreaterThanOrEqual(2);
-    expect(def.dvePresets.length).toBeGreaterThan(0);
+    expect(def.dveSnapshots.length).toBeGreaterThan(0);
     expect(def.scenes.length).toBeGreaterThan(0);
   });
 });
@@ -89,9 +89,10 @@ describe('DVE math', () => {
     expect(mid.scale).toBe(75);
   });
 
-  it('poseAt settles on B after ms (and instantly for ms=0)', () => {
-    const p = { id: 'p', name: 'P', a: FULL, b: { ...FULL, x: 40 }, ms: 100 };
-    expect(poseAt(p, 0, 1000).x).toBe(40);
-    expect(poseAt({ ...p, ms: 0 }, 0, 0).x).toBe(40);
+  it('poseAt settles on Snapshot after ms (and instantly for ms=0)', () => {
+    const s = { id: 'test', name: 'Test', pose: { x: 40, y: 0, z: 0, scale: 100, rotX: 0, rotY: 0, rotZ: 0 }, ms: 1000 };
+    const a = { x: 0, y: 0, z: 0, scale: 100, rotX: 0, rotY: 0, rotZ: 0 };
+    expect(poseAt(a, s, 0, 1000).x).toBe(40);
+    expect(poseAt(a, { ...s, ms: 0 }, 0, 0).x).toBe(40);
   });
 });

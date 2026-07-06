@@ -6,7 +6,7 @@
 // The sim renders a pose as a CSS 3D transform on a keyer's picture-in-picture
 // chip — sub-pixel filtering courtesy of the compositor.
 
-import type { DVEKeyframe, DVEPreset } from '../../model/index.js';
+import type { DVEKeyframe, DVESnapshot } from '../../model/index.js';
 import { el } from '../../ui/dom.js';
 import { tip } from '../../ui/tip.js';
 import { FULL } from './schema.js';
@@ -23,11 +23,12 @@ export function lerpKf(a: DVEKeyframe, b: DVEKeyframe, t: number): DVEKeyframe {
   };
 }
 
-/** The pose at wall-time `now` for a preset recalled at `t0` (settles on B). */
-export function poseAt(p: DVEPreset, t0: number, now: number): DVEKeyframe {
-  if (p.ms <= 0) return p.b;
-  const t = Math.max(0, Math.min(1, (now - t0) / p.ms));
-  return lerpKf(p.a, p.b, easeInOut(t));
+/** The pose at wall-time `now` tweening from pose `a` to `snapshot` recalled at `t0`. */
+export function poseAt(a: DVEKeyframe, snapshot: DVESnapshot, t0: number, now: number): DVEKeyframe {
+  const ms = snapshot.ms ?? 0;
+  if (ms <= 0) return snapshot.pose;
+  const t = Math.max(0, Math.min(1, (now - t0) / ms));
+  return lerpKf(a, snapshot.pose, easeInOut(t));
 }
 
 /** Pose → CSS transform. Z pushes back (scales down + perspective via rotate). */
@@ -58,45 +59,43 @@ const AXES: ReadonlyArray<{ key: keyof DVEKeyframe; label: string; min: number; 
 import { buildDVEStage } from './dve/stage.js';
 
 export interface DveEditorOpts {
-  presets(): DVEPreset[];                    // live preset library
+  snapshots(): DVESnapshot[];                    // live snapshot library
   onPreview(kf: DVEKeyframe): void;          // live-follow the sliders
-  onPlay(preset: DVEPreset): void;           // run A→B on the delegated channel
-  onSave(preset: DVEPreset): void;           // add/replace in the library
+  onPlay(snapshot: DVESnapshot, currentKf: DVEKeyframe): void;  // run current→snapshot on the delegated channel
+  onSave(snapshot: DVESnapshot): void;           // add/replace in the library
 }
 
-/** Build the DVE editor drawer. Edits keyframe A or B of a working copy; PLAY
- *  tweens A→B live on the delegated keyer; SAVE AS stores a named preset. */
+/** Build the DVE editor drawer. Edits the live current pose; PLAY
+ *  latches current and tweens to snapshot; SAVE AS stores a named snapshot. */
 export function buildDveEditor(opts: DveEditorOpts): HTMLElement {
-  let work: DVEPreset = { ...opts.presets()[0]! , a: { ...opts.presets()[0]!.a }, b: { ...opts.presets()[0]!.b } };
-  let editing: 'a' | 'b' = 'b';
+  let work: DVESnapshot = { ...opts.snapshots()[0]!, pose: { ...opts.snapshots()[0]!.pose } };
+  let currentPose: DVEKeyframe = { ...work.pose };
 
   const root = el('div', { class: 'vm-drawer vm-dve' });
   const sel = el('select', { class: 'vm-sel' }) as HTMLSelectElement;
   const rebuildSel = (): void => {
-    sel.replaceChildren(...opts.presets().map((p) => el('option', { value: p.id }, [p.name])));
+    sel.replaceChildren(...opts.snapshots().map((p) => el('option', { value: p.id }, [p.name])));
     sel.value = work.id;
   };
   sel.addEventListener('change', () => {
-    const p = opts.presets().find((x) => x.id === sel.value);
-    if (p) { work = { ...p, a: { ...p.a }, b: { ...p.b } }; paint(); opts.onPreview(work[editing]); }
+    const p = opts.snapshots().find((x) => x.id === sel.value);
+    if (p) { 
+      work = { ...p, pose: { ...p.pose } }; 
+      currentPose = { ...p.pose };
+      paint(); 
+      opts.onPreview(currentPose); 
+    }
   });
-  tip(sel, { title: 'DVE PRESET', lead: 'A named A→B transform move; recall tweens the picture between the two keyframes.' });
-
-  const abBtns = (['a', 'b'] as const).map((k) => {
-    const b = el('button', { class: 'vm-tbtn vm-ab', type: 'button' }, [`KF ${k.toUpperCase()}`]);
-    b.addEventListener('click', () => { editing = k; paint(); opts.onPreview(work[editing]); });
-    tip(b, { title: `KEYFRAME ${k.toUpperCase()}`, lead: k === 'a' ? 'The move’s START pose (off-screen / origin).' : 'The move’s END pose (where the picture settles).' });
-    return b;
-  });
+  tip(sel, { title: 'DVE SNAPSHOT', lead: 'A named 3D pose. Recalling it automatically animates the picture from its current position.' });
 
   const sliders = AXES.map((ax) => {
     const range = el('input', { class: 'vm-range', type: 'range', min: String(ax.min), max: String(ax.max) }) as HTMLInputElement;
     const val = el('span', { class: 'vm-rangeval' });
     range.addEventListener('input', () => {
-      (work[editing] as any)[ax.key] = +range.value;
+      (currentPose as any)[ax.key] = +range.value;
       val.textContent = range.value;
-      stage.paint(work, editing);
-      opts.onPreview(work[editing]);
+      stage.paint(currentPose);
+      opts.onPreview(currentPose);
     });
     tip(range, { title: ax.label, lead: ax.lead });
     return { ax, range, val, row: el('div', { class: 'vm-axis' }, [el('span', { class: 'vm-axislab' }, [ax.label]), range, val]) };
@@ -104,32 +103,37 @@ export function buildDveEditor(opts: DveEditorOpts): HTMLElement {
 
   const ms = el('input', { class: 'vm-num', type: 'number', min: '0', max: '5000', step: '50' }) as HTMLInputElement;
   ms.addEventListener('input', () => { work.ms = Math.max(0, +ms.value || 0); });
-  tip(ms, { title: 'DURATION', lead: 'A→B move time in milliseconds. 0 = snap straight to B.' });
+  tip(ms, { title: 'DURATION', lead: 'Auto-animation time in milliseconds. 0 = snap straight to pose.' });
 
   const play = el('button', { class: 'vm-tbtn take', type: 'button' }, ['▶ PLAY']);
-  play.addEventListener('click', () => opts.onPlay({ ...work, a: { ...work.a }, b: { ...work.b } }));
-  tip(play, { title: 'PLAY', lead: 'Run the move live on the delegated keyer — fly the picture A→B.' });
+  play.addEventListener('click', () => {
+    const currentKf = { ...currentPose };
+    opts.onPlay({ ...work, pose: { ...work.pose } }, currentKf);
+    // After play, the current pose *is* the work pose
+    currentPose = { ...work.pose };
+    paint();
+  });
+  tip(play, { title: 'PLAY', lead: 'Run the move live on the delegated keyer — fly the picture to this snapshot.' });
 
   const save = el('button', { class: 'vm-tbtn', type: 'button' }, ['SAVE AS…']);
   save.addEventListener('click', () => {
-    const name = (prompt('Save DVE preset as:', work.name) || '').trim();
+    const name = (prompt('Save DVE snapshot as:', work.name) || '').trim();
     if (!name) return;
     const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    opts.onSave({ ...work, id, name, a: { ...work.a }, b: { ...work.b } });
-    work = { ...work, id, name };
+    opts.onSave({ ...work, id, name, pose: { ...currentPose } });
+    work = { ...work, id, name, pose: { ...currentPose } };
     rebuildSel();
   });
-  tip(save, { title: 'SAVE PRESET', lead: 'Store this A→B move in the production’s DVE library.' });
+  tip(save, { title: 'SAVE SNAPSHOT', lead: 'Store this 3D pose in the production’s DVE library.' });
 
   const reset = el('button', { class: 'vm-tbtn', type: 'button' }, ['RESET']);
-  reset.addEventListener('click', () => { work[editing] = { ...FULL }; paint(); opts.onPreview(work[editing]); });
-  tip(reset, { title: 'RESET', lead: 'Return this keyframe to full-screen identity.' });
+  reset.addEventListener('click', () => { currentPose = { ...FULL }; paint(); opts.onPreview(currentPose); });
+  tip(reset, { title: 'RESET', lead: 'Return to full-screen identity.' });
 
   const stage = buildDVEStage({
-    preset: work,
-    editing,
+    pose: currentPose,
     onChange: (kf) => {
-      work[editing] = kf;
+      currentPose = kf;
       opts.onPreview(kf);
       paintSliders();
     }
@@ -137,24 +141,23 @@ export function buildDveEditor(opts: DveEditorOpts): HTMLElement {
 
   function paintSliders(): void {
     for (const s of sliders) {
-      const v = Math.round((work[editing] as any)[s.ax.key]);
+      const v = Math.round((currentPose as any)[s.ax.key]);
       s.range.value = String(v);
       s.val.textContent = String(v);
     }
   }
 
   function paint(): void {
-    abBtns.forEach((b, i) => b.classList.toggle('sel', (i === 0) === (editing === 'a')));
     paintSliders();
-    ms.value = String(work.ms);
+    ms.value = String(work.ms ?? 0);
     rebuildSel();
-    stage.paint(work, editing);
+    stage.paint(currentPose);
   }
 
   root.append(
     el('div', { class: 'vm-drawerhead' }, [
-      el('span', { class: 'ed-h vm-h' }, ['DVE EDITOR']),
-      sel, ...abBtns,
+      el('span', { class: 'ed-h vm-h' }, ['DVE SNAPSHOTS']),
+      sel,
       el('span', { class: 'vm-axislab' }, ['MS']), ms,
       play, save, reset,
     ]),

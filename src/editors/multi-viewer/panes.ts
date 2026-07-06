@@ -17,6 +17,8 @@ export interface Win {
   /** An AUDIO GROUP pane: one multiviewer window carrying n channel VU meters
    *  (a routed stagebox/audio bundle occupies ONE pane, never one per channel). */
   channels?: string[];
+  /** Device lineage ("Floor — Room — Device") — feeds the faux-signal room caption. */
+  origin?: string;
 }
 
 export const next = (t: Tally): Tally => (t === 'off' ? 'pgm' : t === 'pgm' ? 'pvw' : 'off');

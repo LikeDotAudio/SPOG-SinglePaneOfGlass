@@ -16,7 +16,7 @@ const CSS = `
 .enc-mez .gold{position:absolute;right:6px;top:5px;font:bold 10px 'Courier New',monospace;color:#ffd400;}
 .enc-streams{display:flex;flex-direction:column;gap:8px;}
 .enc-strm{display:flex;gap:8px;align-items:center;background:#03060f;border:1px solid #1d2942;border-radius:8px;padding:6px;}
-.enc-strm .pic{width:40px;height:40px;border-radius:5px;flex:0 0 auto;background:linear-gradient(135deg,#23406b,#0a1322);animation:encPan 9s ease-in-out infinite alternate;}
+.enc-strm .pic{width:40px;height:40px;border-radius:5px;flex:0 0 auto;display:block;background:#0a1322;}
 .enc-strm .nm{font:bold 11px sans-serif;color:#cfe6ff;letter-spacing:1px;} .enc-strm .nm small{display:block;color:#7e93b5;font-size:9px;letter-spacing:1px;font-weight:normal;}
 .enc-shead{grid-column:1 / -1;font:bold 10px 'Courier New',monospace;color:#6FC8F0;letter-spacing:1px;margin-top:8px;padding-top:6px;border-top:1px solid #1d2942;}
 .enc-aud{display:flex;flex-direction:column;gap:7px;margin-top:10px;}

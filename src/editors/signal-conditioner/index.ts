@@ -10,8 +10,10 @@
 // house colour bars via CSS filters, and every control is advertised as an R/W
 // MQTT param (audit CR.6) so an external controller can drive it too.
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import { el, addStyles } from '../../ui/dom.js';
+import { drawFauxSignal } from '../../ui/faux-signal.js';
 import { CSS } from './styles.js';
 import { drawOverlay } from './proc.js';
 
@@ -55,6 +57,7 @@ const plugin: EditorPlugin = {
   title: 'SIGNAL CONDITIONER · FRAME-SYNC / DELAY / PROC-AMP',
   order: 12,
   match: (n) => /\bremote\b|conditioner/i.test(n),
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     addStyles(CSS_ID, CSS);
     const s: CondState = { ...DEFAULTS };
@@ -96,9 +99,11 @@ const plugin: EditorPlugin = {
     const [bRow, bIn, bVal] = slider('Black', -50, 50, 1);
     const [sRow, sIn, sVal] = slider('Chroma / Sat', 0, 200, 1);
     const [hRow, hIn, hVal] = slider('Hue', -180, 180, 1);
-    // 1:1 preview: colour bars (which take the CSS proc-amp filter) with an RGB
-    // OVERLAY scope drawn on top — the R/G/B levels of the (proc-amped) bars.
-    const previewBars = el('div', { class: 'sc-bars' });
+    // 1:1 preview: the FAUX SIGNAL of the routed remote feed — the person-in-a-room
+    // this source presents — which takes the CSS proc-amp filter (so you see the
+    // conditioning applied to the actual received picture), with an RGB OVERLAY
+    // scope on top reading the R/G/B levels of the (proc-amped) reference bars.
+    const previewBars = el('canvas', { class: 'sc-bars' });
     const previewScope = el('canvas', { class: 'sc-scope' });
     const preview = el('div', { class: 'sc-preview' }, [previewBars, previewScope]);
     const procCard = el('div', { class: 'sc-card sc-wide', style: '--hc:#64c8a0' }, [
@@ -123,6 +128,14 @@ const plugin: EditorPlugin = {
       el('div', { class: 'sc-grid' }, [refCard, delayCard, procCard, presetCard]),
     ]);
     host.append(root);
+
+    // Paint the received signal once (the person-in-a-room the routed source
+    // presents). The proc-amp is applied over it via a live CSS filter in sync();
+    // the drawing itself doesn't change with the controls, so it's painted here.
+    // Deferred one frame so the canvas has its laid-out box — else drawFauxSignal
+    // falls back to the default 300×150 backing store and paints soft/stretched.
+    const inFeed = ctx.sources[0] ?? { label: 'REMOTE IN', color: ctx.production.color };
+    requestAnimationFrame(() => drawFauxSignal(previewBars, inFeed));
 
     // Advertise every control as a read/write param (audit CR.6 full R/W config).
     ctx.services.advertiseParams?.([

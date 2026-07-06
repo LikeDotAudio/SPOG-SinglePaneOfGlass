@@ -1,6 +1,7 @@
 // src/editors/intercom — INTERCOM · KEY PANEL editor package (legacy
 // js/editors/intercom.js). Single default export: the EditorPlugin manifest.
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import { renderIntercom } from './view.js';
 
@@ -10,6 +11,7 @@ const plugin: EditorPlugin = {
   order: 5,
   match: (n) => /intercom|comm/i.test(n),
   requiredCaps: ['comms'],
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     renderIntercom(host, ctx);
   },

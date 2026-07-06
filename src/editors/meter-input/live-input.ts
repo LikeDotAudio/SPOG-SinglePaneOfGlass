@@ -13,6 +13,7 @@
 // Secure-context only (https or http://localhost): getDisplayMedia + canvas pixel
 // reads require it — which the deployed https site and `python3 start.py` both are.
 import { drawTestPattern } from './test-pattern.js';
+import { patternById } from '../../domain/tsg/index.js';
 
 export type SourceMode = 'bars' | 'stream' | 'media';
 
@@ -32,6 +33,9 @@ export interface LiveInput {
   captureTab(): Promise<MediaStream>;
   useMedia(url: string, remote: boolean): Promise<void>;
   useBars(): void;
+  /** Choose which TSG pattern the offline generator paints (null = SMPTE bars). */
+  setTsgPattern(id: string | null): void;
+  tsgPattern(): string | null;
   grab(t: number): boolean;
   paint(cv: HTMLCanvasElement): void;   // blit the current analysed frame to a visible canvas
   analyze(): FrameData | null;
@@ -59,6 +63,7 @@ export function createLiveInput(AW = 256, AH = 144): LiveInput {
 
   let mode: SourceMode = 'bars';
   let tainted = false;
+  let tsgId: string | null = null;   // when set, the offline generator paints this TSG pattern
 
   // --- audio graph (lazy) ---
   let actx: AudioContext | null = null;
@@ -169,7 +174,7 @@ export function createLiveInput(AW = 256, AH = 144): LiveInput {
   // --- per-frame video ---
   function grab(t: number): boolean {
     if (!octx) return false;
-    if (mode === 'bars') { if (gctx) drawTestPattern(gctx, AW, AH); octx.drawImage(gen, 0, 0, AW, AH); ensureTone(); updateTone(t); return true; }
+    if (mode === 'bars') { if (gctx) { if (tsgId) patternById(tsgId).draw(gctx, AW, AH, t); else drawTestPattern(gctx, AW, AH); } octx.drawImage(gen, 0, 0, AW, AH); ensureTone(); updateTone(t); return true; }
     if (video.readyState < 2) return false;
     try { octx.drawImage(video, 0, 0, AW, AH); return true; } catch { return false; }
   }
@@ -220,6 +225,7 @@ export function createLiveInput(AW = 256, AH = 144): LiveInput {
   return {
     video, mode: () => mode, isTainted: () => tainted,
     captureTab, useMedia, useBars, stop, grab, paint, analyze, timeData, timeDataL, timeDataR,
+    setTsgPattern: (id) => { tsgId = id; }, tsgPattern: () => tsgId,
     rmsL: () => rmsOf(anL, fL), rmsR: () => rmsOf(anR, fR),
   };
 }

@@ -2,6 +2,7 @@
 // Re-integrates the original CMDP circular fader UI into the center,
 // with Left/Right POVs and Height (Z-axis) control via the wheel (potentiometers).
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import { el } from '../../ui/dom.js';
 import type { ParamSpec } from '../../platform/mqtt/types.js';
@@ -16,6 +17,7 @@ const plugin: EditorPlugin = {
   order: 5,
   match: (n) => /audio\s*position|positioner|\bCMDP\b|surround\s*pan/i.test(n),
   requiredCaps: ['audio'],
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     injectAudioPositionerStyles();
     const { groups, chans } = buildGroups(ctx);

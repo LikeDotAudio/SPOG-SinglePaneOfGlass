@@ -40,7 +40,13 @@ const CLOCK_NODE_CSS = `
   position:relative;font-variant-numeric:tabular-nums;}
 .signal-node.timer-source::before{
   content:'⏲';position:absolute;left:8px;top:50%;transform:translateY(-50%);
-  font-size:14px;line-height:1;opacity:.9;pointer-events:none;}`;
+  font-size:14px;line-height:1;opacity:.9;pointer-events:none;}
+.signal-node.tsg-source{
+  border-radius:4px !important;padding-left:28px;text-align:left;letter-spacing:.5px;
+  position:relative;font-variant-numeric:tabular-nums;}
+.signal-node.tsg-source::before{
+  content:'▦';position:absolute;left:8px;top:50%;transform:translateY(-50%);
+  font-size:13px;line-height:1;opacity:.9;pointer-events:none;}`;
 
 // ---- VIDEO pool -------------------------------------------------------------
 /** Build `count` camera multiplex boxes (video + 4 audio + camera-control) into grid. */

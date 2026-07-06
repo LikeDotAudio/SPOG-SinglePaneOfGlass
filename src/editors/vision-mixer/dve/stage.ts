@@ -1,18 +1,16 @@
 import { el } from '../../../ui/dom.js';
-import type { DVEKeyframe, DVEPreset } from '../../../model/index.js';
+import type { DVEKeyframe } from '../../../model/index.js';
 import { applyPose } from '../dve.js';
 
 export interface StageOpts {
-  preset: DVEPreset;
-  editing: 'a' | 'b';
+  pose: DVEKeyframe;
   onChange: (kf: DVEKeyframe) => void;
 }
 
 export function buildDVEStage(opts: StageOpts) {
   const root = el('div', { class: 'vm-dve-stage' });
   const container = el('div', { class: 'vm-dve-frame' });
-  const ghost = el('div', { class: 'vm-pip ghost' }, ['A']);
-  const solid = el('div', { class: 'vm-pip solid' });
+  const solid = el('div', { class: 'vm-pip solid armed' });
   
   // Create 4 corner scale handles
   const corners = ['tl', 'tr', 'bl', 'br'].map(pos => {
@@ -22,10 +20,10 @@ export function buildDVEStage(opts: StageOpts) {
   });
 
   // Move body
-  const body = el('div', { class: 'vm-move-body' }, ['B (LIVE)']);
+  const body = el('div', { class: 'vm-move-body' }, ['POSE']);
   solid.append(body);
 
-  container.append(ghost, solid);
+  container.append(solid);
   root.append(container);
 
   let activeTarget: 'move' | 'tl' | 'tr' | 'bl' | 'br' | null = null;
@@ -41,7 +39,7 @@ export function buildDVEStage(opts: StageOpts) {
 
     startX = e.clientX;
     startY = e.clientY;
-    kfRef = opts.preset[opts.editing];
+    kfRef = opts.pose;
     kfStart = { x: kfRef.x, y: kfRef.y, scale: kfRef.scale };
     root.setPointerCapture(e.pointerId);
     e.preventDefault();
@@ -86,31 +84,13 @@ export function buildDVEStage(opts: StageOpts) {
     root.releasePointerCapture(e.pointerId);
   });
 
-  function paint(preset: DVEPreset, editing: 'a' | 'b') {
-    opts.preset = preset;
-    opts.editing = editing;
-    applyPose(ghost, preset.a);
-    applyPose(solid, preset.b);
-    
-    if (editing === 'a') {
-      ghost.classList.add('armed');
-      solid.classList.remove('armed');
-      solid.style.pointerEvents = 'none';
-      ghost.style.pointerEvents = 'auto';
-      // To edit A, we swap the handle mounts to A
-      ghost.append(...corners, body);
-      body.textContent = 'A (START)';
-    } else {
-      solid.classList.add('armed');
-      ghost.classList.remove('armed');
-      ghost.style.pointerEvents = 'none';
-      solid.style.pointerEvents = 'auto';
-      solid.append(...corners, body);
-      body.textContent = 'B (LIVE)';
-    }
+  function paint(pose: DVEKeyframe) {
+    opts.pose = pose;
+    applyPose(solid, pose);
+    solid.style.pointerEvents = 'auto';
   }
 
-  paint(opts.preset, opts.editing);
+  paint(opts.pose);
 
   return { el: root, paint };
 }

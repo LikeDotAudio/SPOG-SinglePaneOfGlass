@@ -14,6 +14,7 @@
 // or a twist is literally named "Chronos". Self-contained: controllers are seeded
 // from the routed feed labels and driven off the browser clock via rAF.
 
+import { VOICE_COMMANDS } from './VOICE.js';
 import type { EditorPlugin } from '../types.js';
 import { el, addStyles, ctx2d } from '../../ui/dom.js';
 import type { SegFont, SegColor } from '../../ui/seven-seg.js';
@@ -39,6 +40,7 @@ const plugin: EditorPlugin = {
   order: 7,
   blurb: 'Chronos graphic set — count-up chronometers, a count-down egg timer and local time, each rendered as a digital LED read-out, a classic analog stopwatch or a wind-up egg timer (per-card picker).',
   match: (n) => /chrono/i.test(n),
+  voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     addStyles('twist-editor-chronos', CSS);
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
