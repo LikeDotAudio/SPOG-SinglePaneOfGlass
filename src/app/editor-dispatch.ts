@@ -8,67 +8,13 @@
 import { pluginFor } from '../editors/registry.js';
 import { openOverlay, slug } from '../platform/overlay.js';
 import { buildContext } from './context.js';
-import type { EditorServices } from '../editors/types.js';
+import { twistServices } from './editor-services.js';
 import type { Production, TwistConfig, TipSpec, Hex } from '../model/index.js';
 import { el } from '../ui/dom.js';
 import { expectationTip } from '../ui/tip.js';
 import { loadAllDestinations } from '../ui/console/footer.js';
 import { applyScope } from '../ui/console/auth-panel.js';
-import { getBus } from '../platform/mqtt/index.js';
-import { twistTopic, slug as topicSlug } from '../platform/mqtt/topics.js';
 import { BLURBS } from './blurbs.js';
-
-/** Cross-editor services (M1): replaces the legacy window.openStageBox global. */
-const services: EditorServices = {
-  openStageBox(name, color, channels) {
-    // The real stagebox-input editor (preamp bench), not a bare channel list —
-    // same pattern as openWirelessMic below. Channels ride in via config.inputs.
-    const plugin = pluginFor('Stage Box');
-    if (!plugin) return;
-    openOverlay({ title: plugin.title, color, prodName: 'System', twistName: name, voiceCommands: plugin.voiceCommands }, (body, dispose) => {
-      const ctx: any = {
-        twist: { name, config: { name, inputs: channels } },
-        sources: [],
-        production: { name: 'System', color },
-        siblings: [],
-        can: () => true,
-        services: twistServices('System', name),
-        dispose,
-      };
-      plugin.render(body, ctx);
-    });
-  },
-  openWirelessMic(name, color) {
-    const plugin = pluginFor('wireless');
-    if (!plugin) return;
-    openOverlay({ title: plugin.title, color, prodName: 'System', twistName: name, voiceCommands: plugin.voiceCommands }, (body, dispose) => {
-      const ctx: any = {
-        twist: { name, config: { type: 'wireless-mic' } },
-        sources: [],
-        production: { name: 'System', color },
-        siblings: [],
-        can: () => true,
-        services: twistServices('System', name),
-        dispose
-      };
-      plugin.render(body, ctx);
-    });
-  },
-};
-
-/** Services scoped to one twist: the base services + a MQTT param bridge (audit §4.5)
- *  bound to THIS twist's topic (rooms/<prod>/twists/<twist>/params/<param>). */
-function twistServices(prodDisplayName: string, twistName: string): EditorServices {
-  const base = twistTopic(prodDisplayName, twistName);   // rooms/<prod>/twists/<twist>
-  const bus = getBus();
-  const paramTopic = (p: string): string => `${base}/params/${topicSlug(p)}`;
-  return {
-    ...services,
-    advertiseParams(params) { bus.publishConfig(`${base}/config`, { kind: 'twist', name: twistName, params }); },
-    publishParam(pname, value, opts) { bus.publishValue(paramTopic(pname), value, { throttle: opts?.throttle ?? true }); },
-    onParam(pname, cb) { return bus.subscribe(paramTopic(pname), (_t, p) => cb((p as { value?: unknown } | null)?.value ?? p)); },
-  };
-}
 
 /** A twist element in the console was clicked → open its dispatched editor. */
 export function openEditorForTwist(twistEl: HTMLElement): void {
@@ -171,7 +117,9 @@ function synthTwistFor(rep: HTMLElement, name: string): HTMLElement {
 /** Open the editor named by a #/<prod>/<twist> deep link (lazy-loads destinations if needed). */
 export function openFromHash(): void {
   if (document.querySelector('.ed-overlay.open')) return;   // already open
-  const m = (location.hash || '').match(/^#\/([^/]+)\/([^/]+)$/);
+  // Strip a deep-link query (e.g. …/meter-input?TSG=ebubars&LAYOUT=audio) before
+  // matching prod/twist — the opened editor reads the query off location.hash itself.
+  const m = (location.hash || '').split('?')[0]!.match(/^#\/([^/]+)\/([^/]+)$/);
   const prodSlug = m?.[1], twistSlug = m?.[2];
   if (!prodSlug || !twistSlug) return;
   const tryOpen = (): boolean => {

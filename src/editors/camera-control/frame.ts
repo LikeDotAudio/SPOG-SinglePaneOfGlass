@@ -6,7 +6,7 @@ import { clamp } from './state.js';
 import type { CameraConsole } from './state.js';
 import { drawSMPTE, stepDVD } from './bars.js';
 import { updateMaps } from './maps.js';
-import { drawParade, drawVectorscope } from '../../ui/scopes.js';
+import { drawLiveScopes } from './scopes-live.js';
 import { drawFauxSignal, type FauxSource } from '../../ui/faux-signal.js';
 
 /** The robotics keys a fly-to interpolation eases between. */
@@ -72,19 +72,23 @@ export function makeFrame(cc: CameraConsole, deps: FrameDeps): () => void {
       if (fly.t >= 1) cc.fly = null;
     }
     // Paint the faux signal (person-in-a-room) the camera is shooting, then FRAME it
-    // with the live pose: zoom/dolly = scale, pan = X sweep, tilt/ped = Y sweep. The
-    // baseline scale over-fills so a pan/tilt never reveals the empty scene edge.
+    // with the live pose: zoom = scale, pan = X sweep, tilt/ped = Y sweep, and DOLLY
+    // = a lateral crab that slides the person over left / right. The baseline scale
+    // over-fills so a pan/tilt/dolly never reveals the empty scene edge.
     drawFauxSignal(subject, renderFeed, ui.t * 1000);
-    const zs = 1.3 + s.zoom * 1.5 + s.dolly * 0.35;
-    const tx = (s.pan - 0.5) * -28;
-    const ty = (s.tilt - 0.5) * -20 + (s.ped - 0.5) * -12;
+    const zs = 1.6 + s.zoom * 1.5;
+    const tx = (s.pan - 0.5) * -26 + (s.dolly - 0.5) * 34;   // dolly slides the person L↔R
+    // tilt UP / pedestal UP frame the person LOWER in shot — the side-elevation preview
+    // reads s.tilt/s.ped directly and is already correct, so only these picture mappings
+    // flip (pan + dolly are untouched).
+    const ty = (s.tilt - 0.5) * 20 + (s.ped - 0.5) * 12;
     subject.style.transform = `scale(${zs.toFixed(2)}) translate(${tx.toFixed(1)}%, ${ty.toFixed(1)}%)`;
     if (ui.bars) {
       drawSMPTE(smpte);
       stepDVD(dvd, smpteBox, cc.dvdState);
     }
-    drawParade(wf, s, ui.bars);
-    drawVectorscope(vec, s, ui.bars);
+    // The waveform + vectorscope read the ACTUAL framed picture (person included).
+    drawLiveScopes(subject, wf, vec);
     updateMaps(cc.body, s);
     const focal = Math.round(8 + s.zoom * 280);
     const fstop = (1.8 + (1 - s.iris) * 14).toFixed(1);

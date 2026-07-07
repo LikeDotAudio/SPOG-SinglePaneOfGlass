@@ -44,9 +44,13 @@ export function buildJoystick(cc: CameraConsole): { placePuck: () => void; syncA
     cc.ui.drag = false;
     stick.style.cursor = 'grab';
   }; // frame loop springs vel→0
+  // A stray text selection (an accidental drag across a label) otherwise swallows the
+  // pointer events and freezes the controls — clear it the instant anything is grabbed.
+  const dropSelection = (): void => { const sel = window.getSelection(); if (sel && !sel.isCollapsed) sel.removeAllRanges(); };
+  cc.body.addEventListener('mousedown', dropSelection);
   stick.addEventListener('mousedown', (e) => down(e.clientX, e.clientY));
   window.addEventListener('mousemove', (e) => {
-    if (cc.ui.drag) setVel(e.clientX, e.clientY);
+    if (cc.ui.drag) { dropSelection(); setVel(e.clientX, e.clientY); }
   });
   window.addEventListener('mouseup', up);
   stick.addEventListener(

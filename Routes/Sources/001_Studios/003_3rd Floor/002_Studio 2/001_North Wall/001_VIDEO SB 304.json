@@ -1,0 +1,11 @@
+{
+  "id": "video-stagebox-304",
+  "name": "VIDEO SB 304",
+  "prefix": "V304-",
+  "count": 8,
+  "extraClass": "video-st3",
+  "color": "#87EEFF",
+  "floor": "3rd Floor",
+  "level": 300,
+  "status": "OK"
+}

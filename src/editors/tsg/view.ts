@@ -10,9 +10,9 @@ import { addStyles, el } from '../../ui/dom.js';
 import type { EditorContext } from '../types.js';
 import { CSS } from './styles.js';
 import { buildTsgGallery } from '../../ui/tsg-gallery.js';
-import { drawTsg, patternById, patternForLabel, type TsgPattern } from '../../domain/tsg/index.js';
+import { drawTsg, patternById, patternForLabel, tsgKey, type TsgPattern } from '../../domain/tsg/index.js';
 
-const keyFor = (ctx: EditorContext): string => `tsg:${ctx.production.name}:${ctx.twist.name}`;
+const keyFor = (ctx: EditorContext): string => tsgKey(ctx.production.name, ctx.twist.name);
 
 /** Resolve the pattern to show first: saved selection → routed feed label → default. */
 function seedPattern(ctx: EditorContext): TsgPattern {

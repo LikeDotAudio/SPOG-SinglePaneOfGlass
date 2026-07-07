@@ -1,120 +1,90 @@
-// src/ui/console/router-view-grid — builds the crosspoint <table> and handles the
-// click (make/break route, fold group) + hover (row/column highlight) gestures for
-// the 1990s router-view. Split out of router-view.ts (200-line rule). Every part
-// takes the shared RVState by reference so it reads/writes the same live grid state.
+// src/ui/console/router-view-grid — builds the 3-layer crosspoint <table> and handles
+// the click (make/break route, fold a container at any level) + hover gestures. The
+// grouping is planned purely in router-view-tree; the HTML is built in
+// router-view-render; this file gathers the axis leaves, wires state and events.
 import { patchPrefs } from '../../platform/prefs.js';
 import { placeSourceInTwist } from './matrix.js';
 import { updateTwistVisuals } from './helix.js';
-import {
-  SEP, firstLine, gatherSenderNodes, gatherReceivers, gatherLinks, typeDot, splitParent,
-  type RowLeaf, type ColLeaf, type RVState,
-} from './router-view-gather.js';
+import { buildAxisPlan, type PlanLeaf } from './router-view-tree.js';
+import { theadHtml, rowHeaderHtml } from './router-view-render.js';
+import { planSalvo, runSalvo } from './router-view-salvo.js';
+import { SEP, firstLine, gatherSenderNodes, gatherLinks, type RVState } from './router-view-gather.js';
 
-// Collapse choices are seat memory — persisted on every toggle.
+type Ref = HTMLElement | null;
+
 export function saveCollapsed(st: RVState): void {
-  patchPrefs({ ui: { routerCollapsed: { prods: [...st.collapsedProds], origins: [...st.collapsedOrigins] } } });
+  patchPrefs({ ui: { routerCollapsed: { row: [...st.rowCollapsed], col: [...st.colCollapsed] } } });
+}
+
+const segsOf = (s: string): string[] => s.split(' — ').map((x) => x.trim()).filter(Boolean);
+
+/** Rows = source feeds. Origin path (Studio → Wall → Box) + feed label. */
+function rowLeaves(st: RVState, cS: Set<string>): Array<PlanLeaf<Ref>> {
+  const sf = st.fs.value.trim().toLowerCase();
+  const match = (o: string, l: string): boolean => !sf || o.toLowerCase().includes(sf) || l.toLowerCase().includes(sf);
+  const out: Array<PlanLeaf<Ref>> = [];
+  const seen = new Set<string>();
+  const add = (origin: string, label: string, node: Ref): void => {
+    const k = origin + SEP + label;
+    if (seen.has(k) || !label) return;
+    if (!(st.showAllSrc || cS.has(k)) || !match(origin, label)) return;
+    seen.add(k);
+    out.push({ segs: segsOf(origin), leaf: label, id: [origin, label], ref: node });
+  };
+  gatherSenderNodes().forEach((labels, origin) => labels.forEach((node, label) => add(origin, label, node)));
+  cS.forEach((k) => { const i = k.indexOf(SEP); add(k.slice(0, i), k.slice(i + 1), null); });   // routed-but-unrendered
+  return out;
+}
+
+/** Columns = destination twists. Facility → Floor → Room path (Room = production). */
+function colLeaves(st: RVState, cR: Set<string>): Array<PlanLeaf<Ref>> {
+  const rf = st.fr.value.trim().toLowerCase();
+  const match = (p: string, t: string): boolean => !rf || p.toLowerCase().includes(rf) || t.toLowerCase().includes(rf);
+  const out: Array<PlanLeaf<Ref>> = [];
+  document.querySelectorAll<HTMLElement>('.twist-container').forEach((tw) => {
+    const prod = tw.dataset.prodName || (tw.closest('.program-row')?.querySelector<HTMLElement>('.program-title')?.innerText.trim() ?? 'UNKNOWN');
+    const twist = tw.querySelector<HTMLElement>('.twist-title')?.innerText.trim() ?? 'TWIST';
+    if (!(st.showAllDst || cR.has(prod + SEP + twist)) || !match(prod, twist)) return;
+    const room = prod.split(' — ').pop()?.trim() || prod;
+    const segs = [tw.dataset.prodCat || '', tw.dataset.prodFloor || '', room].filter(Boolean);
+    out.push({ segs, leaf: twist, id: [prod, twist], ref: tw });
+  });
+  return out;
 }
 
 export function buildGrid(st: RVState): void {
-  const sf = st.fs.value.trim().toLowerCase(), rf = st.fr.value.trim().toLowerCase();
-  const sMatch = (o: string, l: string): boolean => !sf || o.toLowerCase().includes(sf) || l.toLowerCase().includes(sf);
-  const rMatch = (p: string, t: string): boolean => !rf || p.toLowerCase().includes(rf) || t.toLowerCase().includes(rf);
-
-  const senderMap = gatherSenderNodes();
-  const recvMap = gatherReceivers();
   const { cross, cS, cR } = gatherLinks();
   st.crossSet = cross;
+  st.rowPlan = buildAxisPlan(rowLeaves(st, cS), st.rowCollapsed, 'r:');
+  st.colPlan = buildAxisPlan(colLeaves(st, cR), st.colCollapsed, 'c:');
+  const rows = st.rowPlan.items, cols = st.colPlan.items;
 
-  cS.forEach((k) => {
-    const [o, l] = k.split(SEP) as [string, string];
-    if (!senderMap.has(o)) senderMap.set(o, new Map());
-    if (!senderMap.get(o)!.has(l)) senderMap.get(o)!.set(l, null);
-  });
-
-  st.colLeaves = [];
-  const colGroups: Array<{ prod: string; parent: string; prodLeaf: string; span: number }> = [];
-  recvMap.forEach((twists, prod) => {
-    const keep = [...twists].filter(([t]) => (st.showAllDst || cR.has(prod + SEP + t)) && rMatch(prod, t));
-    if (!keep.length) return;
-    const [parent, prodLeaf] = splitParent(prod);
-    if (st.collapsedProds.has(prod)) {
-      st.colLeaves.push({ prod, parent, group: true, twists: keep.map(([t]) => t), els: keep.map(([, e]) => e) });
-      colGroups.push({ prod, parent, prodLeaf, span: 1 });
-    } else {
-      keep.forEach(([t, e]) => st.colLeaves.push({ prod, parent, twist: t, twists: [t], el: e }));
-      colGroups.push({ prod, parent, prodLeaf, span: keep.length });
-    }
-  });
-  const colParents: Array<{ parent: string; span: number }> = [];
-  colGroups.forEach((g) => { const par = g.parent || 'PRODUCTIONS'; const last = colParents[colParents.length - 1]; if (last && last.parent === par) last.span += g.span; else colParents.push({ parent: par, span: g.span }); });
-
-  st.rowLeaves = [];
-  const rowGroups: Array<{ origin: string; parent: string; boxLeaf: string; start: number; end: number; connected: boolean }> = [];
-  senderMap.forEach((labels, origin) => {
-    const keep = [...labels].filter(([l]) => (st.showAllSrc || cS.has(origin + SEP + l)) && sMatch(origin, l));
-    if (!keep.length) return;
-    const [parent, boxLeaf] = splitParent(origin);
-    const idxStart = st.rowLeaves.length;
-    if (st.collapsedOrigins.has(origin)) {
-      st.rowLeaves.push({ origin, parent, group: true, labels: keep.map(([l]) => l), nodes: keep.map(([, n]) => n) });
-    } else {
-      keep.forEach(([l, n]) => st.rowLeaves.push({ origin, parent, label: l, labels: [l], node: n }));
-    }
-    rowGroups.push({ origin, parent, boxLeaf, start: idxStart, end: st.rowLeaves.length, connected: keep.some(([l]) => cS.has(origin + SEP + l)) });
-  });
-  const rowParents: Array<{ parent: string; start: number; end: number }> = [];
-  rowGroups.forEach((g) => { const par = g.parent || 'SOURCES'; const last = rowParents[rowParents.length - 1]; if (last && last.parent === par) last.end = g.end; else rowParents.push({ parent: par, start: g.start, end: g.end }); });
-
-  const litAt = (ri: number, ci: number): boolean => {
-    const r = st.rowLeaves[ri], c = st.colLeaves[ci];
-    if (!r || !c) return false;
-    for (const l of (r.group ? r.labels : [r.label ?? ''])) for (const t of c.twists)
-      if (st.crossSet.has([r.origin, l, c.prod, t].join(SEP))) return true;
-    return false;
-  };
-
-  st.body.innerHTML = '';
-  if (!st.rowLeaves.length || !st.colLeaves.length) {
-    st.body.innerHTML = `<div class="rv-msg">${(!st.rowLeaves.length && !st.colLeaves.length)
+  if (!rows.length || !cols.length) {
+    st.body.innerHTML = `<div class="rv-msg">${!rows.length && !cols.length
       ? 'NOTHING TO SHOW — enable ALL SOURCES / ALL DESTINATIONS, or make some routes.'
-      : !st.rowLeaves.length ? 'NO SENDERS — enable “ALL SOURCES”.' : 'NO RECEIVERS — enable “ALL DESTINATIONS”.'}</div>`;
+      : !rows.length ? 'NO SENDERS — enable “ALL SOURCES”.' : 'NO RECEIVERS — enable “ALL DESTINATIONS”.'}</div>`;
     return;
   }
-
+  const lit = (ri: number, ci: number): boolean => {
+    for (const [o, l] of rows[ri]!.ids) for (const [p, t] of cols[ci]!.ids) if (cross.has([o, l, p, t].join(SEP))) return true;
+    return false;
+  };
+  let body = '';
+  rows.forEach((r, ri) => {
+    body += '<tr>' + rowHeaderHtml(r, ri, st.rowPlan!);
+    cols.forEach((c, ci) => {
+      const grp = r.agg || c.agg;
+      body += `<td class="rv-cell${lit(ri, ci) ? ' on' : ''}${grp ? ' grp' : ''}" data-r="${ri}" data-c="${ci}"></td>`;
+    });
+    body += '</tr>';
+  });
   const tbl = document.createElement('table');
   tbl.className = 'rv-grid';
-  let h1 = `<tr><th class="rv-corner" rowspan="3" colspan="3">SRC \\ DST</th>`;
-  colParents.forEach((g) => { h1 += `<th class="rv-pparenthead" colspan="${g.span}">${g.parent}</th>`; });
-  h1 += '</tr><tr>';
-  colGroups.forEach((g) => { h1 += `<th class="rv-prodhead" colspan="${g.span}" data-prod="${encodeURIComponent(g.prod)}">${st.collapsedProds.has(g.prod) ? '▸' : '▾'} ${g.prodLeaf}</th>`; });
-  h1 += '</tr><tr>';
-  st.colLeaves.forEach((c) => { h1 += c.group ? `<th class="rv-twisthead grp">ALL ${c.twists.length}</th>` : `<th class="rv-twisthead">${c.twist}</th>`; });
-  h1 += '</tr>';
-  const thead = document.createElement('thead'); thead.innerHTML = h1; tbl.appendChild(thead);
-
-  let html = '';
-  rowParents.forEach((pg) => {
-    for (let ri = pg.start; ri < pg.end; ri++) {
-      const g = rowGroups.find((x) => ri >= x.start && ri < x.end);
-      const r = st.rowLeaves[ri];
-      if (!g || !r) continue;
-      const off = !r.group && !cS.has(g.origin + SEP + r.label);
-      html += `<tr class="${off ? 'rv-row-off' : ''}">`;
-      if (ri === pg.start) html += `<td class="rv-rparenthead" rowspan="${pg.end - pg.start}">${pg.parent}</td>`;
-      if (ri === g.start) html += `<td class="rv-originhead" rowspan="${g.end - g.start}" data-origin="${encodeURIComponent(g.origin)}">${st.collapsedOrigins.has(g.origin) ? '▸' : '▾'} ${g.boxLeaf}</td>`;
-      html += r.group ? `<td class="rv-feedhead grp">ALL ${r.labels.length} FEEDS</td>` : `<td class="rv-feedhead">${typeDot(r.node, r.label ?? '')} ${r.label}</td>`;
-      st.colLeaves.forEach((c, ci) => {
-        const lit = litAt(ri, ci), grp = r.group || c.group;
-        html += `<td class="rv-cell${lit ? ' on' : ''}${grp ? ' grp' : ''}" data-r="${ri}" data-c="${ci}"></td>`;
-      });
-      html += '</tr>';
-    }
-  });
-  const tbody = document.createElement('tbody'); tbody.innerHTML = html; tbl.appendChild(tbody);
+  tbl.innerHTML = `<thead>${theadHtml(st.colPlan)}</thead><tbody>${body}</tbody>`;
+  st.body.innerHTML = '';
   st.body.appendChild(tbl);
-
   const countEl = st.overlay?.querySelector<HTMLElement>('.rv-count');
-  if (countEl) countEl.textContent = `${st.crossSet.size} ROUTES · ${st.rowLeaves.length}×${st.colLeaves.length}`;
+  if (countEl) countEl.textContent = `${cross.size} ROUTES · ${rows.length}×${cols.length}`;
 }
 
 function findDropped(twistEl: HTMLElement, origin: string, label: string): HTMLElement | null {
@@ -122,45 +92,53 @@ function findDropped(twistEl: HTMLElement, origin: string, label: string): HTMLE
   return [...dz.querySelectorAll<HTMLElement>('.signal-node')].find((n) => {
     if (n.classList.contains('dropped-group')) return false;
     if (firstLine(n) !== label) return false;
-    const orig = n.dataset.origin || firstLine(n);
-    return orig === origin || !origin;
+    const o = n.dataset.origin || firstLine(n);
+    return o === origin || !origin;
   }) ?? null;
-}
-function makeRoute(s: RowLeaf, r: ColLeaf): boolean {
-  if (!s.node || !r.el) return false;
-  return placeSourceInTwist(r.el, s.node);
-}
-function breakRoute(s: RowLeaf, r: ColLeaf): boolean {
-  if (!r.el) return false;
-  const node = findDropped(r.el, s.origin, s.label ?? '');
-  if (!node) return false;
-  const kids = node.closest('.dropped-group-children');
-  node.remove();
-  if (kids && !kids.querySelector('.signal-node')) { const grp = kids.closest('.dropped-group'); if (grp) grp.remove(); }
-  return true;
 }
 
 export function onBodyClick(st: RVState, e: Event): void {
   const target = e.target as HTMLElement;
-  const ph = target.closest<HTMLElement>('.rv-prodhead');
-  if (ph?.dataset.prod) { const p = decodeURIComponent(ph.dataset.prod); st.collapsedProds.has(p) ? st.collapsedProds.delete(p) : st.collapsedProds.add(p); saveCollapsed(st); buildGrid(st); return; }
-  const oh = target.closest<HTMLElement>('.rv-originhead');
-  if (oh?.dataset.origin) { const o = decodeURIComponent(oh.dataset.origin); st.collapsedOrigins.has(o) ? st.collapsedOrigins.delete(o) : st.collapsedOrigins.add(o); saveCollapsed(st); buildGrid(st); return; }
+  const head = target.closest<HTMLElement>('[data-collapse]');
+  if (head?.dataset.collapse) {
+    const key = head.dataset.collapse;
+    const set = key.startsWith('r:') ? st.rowCollapsed : st.colCollapsed;
+    set.has(key) ? set.delete(key) : set.add(key);
+    saveCollapsed(st); buildGrid(st); return;
+  }
   const cell = target.closest<HTMLElement>('.rv-cell');
-  if (!cell || cell.classList.contains('grp')) return;
-  const s = st.rowLeaves[Number(cell.dataset.r)], r = st.colLeaves[Number(cell.dataset.c)];
-  if (!s || !r) return;
-  let ok: boolean;
-  if (cell.classList.contains('on')) ok = breakRoute(s, r);
-  else { ok = makeRoute(s, r); if (!ok) { cell.classList.add('bad'); setTimeout(() => cell.classList.remove('bad'), 250); } }
-  if (ok) { if (r.el) updateTwistVisuals(r.el); buildGrid(st); }
+  if (!cell) return;
+  const r = st.rowPlan?.items[Number(cell.dataset.r)], c = st.colPlan?.items[Number(cell.dataset.c)];
+  if (!r || !c) return;
+  // A group×group crosspoint runs a SALVO — wire every matching feed of the row group
+  // into the col group's twists (container→container routing).
+  if (cell.classList.contains('grp')) {
+    const pairs = planSalvo(r.ids, c.ids);
+    if (!pairs.length) return;
+    const twists = new Set(pairs.map((p) => p.el)).size;
+    if (!confirm(`Salvo — connect ${pairs.length} feed(s) into ${twists} twist(s)?`)) return;
+    const { made, touched } = runSalvo(pairs);
+    touched.forEach((el) => updateTwistVisuals(el));
+    buildGrid(st);
+    if (made < pairs.length) setTimeout(() => alert(`Salvo: ${made} of ${pairs.length} routed (caps/accepts blocked the rest).`), 0);
+    return;
+  }
+  if (!c.ref) return;
+  let ok = false;
+  if (cell.classList.contains('on')) {
+    const node = findDropped(c.ref, r.ids[0]![0], r.ids[0]![1]);
+    if (node) { const kids = node.closest('.dropped-group-children'); node.remove(); if (kids && !kids.querySelector('.signal-node')) kids.closest('.dropped-group')?.remove(); ok = true; }
+  } else if (r.ref) {
+    ok = placeSourceInTwist(c.ref, r.ref);
+    if (!ok) { cell.classList.add('bad'); setTimeout(() => cell.classList.remove('bad'), 250); }
+  }
+  if (ok) { updateTwistVisuals(c.ref); buildGrid(st); }
 }
 
 export function clearHl(st: RVState): void { st.hlNodes.forEach((n) => n.classList.remove('rv-hl')); st.hlNodes = []; }
 export function onBodyOver(st: RVState, e: Event): void {
   const cell = (e.target as HTMLElement).closest<HTMLElement>('.rv-cell');
-  if (!cell) { clearHl(st); return; }
-  const r = cell.dataset.r, c = cell.dataset.c;
   clearHl(st);
-  st.body.querySelectorAll<HTMLElement>(`.rv-cell[data-r="${r}"], .rv-cell[data-c="${c}"]`).forEach((n) => { n.classList.add('rv-hl'); st.hlNodes.push(n); });
+  if (!cell) return;
+  st.body.querySelectorAll<HTMLElement>(`.rv-cell[data-r="${cell.dataset.r}"], .rv-cell[data-c="${cell.dataset.c}"]`).forEach((n) => { n.classList.add('rv-hl'); st.hlNodes.push(n); });
 }

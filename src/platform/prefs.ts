@@ -13,7 +13,7 @@
 // compares against the retained SPOG/seats/<seat>/prefs copy. `seat` is the
 // STABLE identity the bus's per-boot sessionId is not.
 
-export interface RouterCollapsed { prods: string[]; origins: string[] }
+export interface RouterCollapsed { row: string[]; col: string[] }
 export interface UiPrefs {
   destTab?: string;
   openGroups?: string[];

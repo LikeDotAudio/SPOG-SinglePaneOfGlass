@@ -114,5 +114,24 @@ export function wireControls(deps: ControlDeps): SetStat {
       .catch((e: Error) => setStat('load failed: ' + e.message, true));
   });
 
+  // ── Deep-link params: #/…/meter-input?TSG=<id|bars>&LAYOUT=<preset> opens the
+  //    bench on a specific test signal + layout, so a URL can be shipped with the
+  //    exact source pre-selected (e.g. …?TSG=nit1000&LAYOUT=video). ──
+  const q = new URLSearchParams(location.hash.split('?')[1] || '');
+  const tsgParam = q.get('TSG');
+  if (tsgParam) {
+    li.useBars(); editDetector.reset();
+    if (/^(bars|smpte|none)$/i.test(tsgParam)) {
+      li.setTsgPattern(null); bBars.classList.add('on'); bTsg.classList.remove('on');
+      setStat('source: test pattern (SMPTE colour bars)');
+    } else {
+      const p = patternById(tsgParam);
+      li.setTsgPattern(p.id); bBars.classList.remove('on'); bTsg.classList.add('on');
+      setStat(`source: TSG · ${p.name} (${p.group})`);
+    }
+  }
+  const layoutParam = (q.get('LAYOUT') || '').toLowerCase();
+  if (layoutParam && presetBtns.some(([, n]) => n === layoutParam)) selectPreset(layoutParam);
+
   return setStat;
 }

@@ -2,17 +2,18 @@
 // Split out of router-view.ts (200-line rule). These functions read the live
 // console DOM to gather senders (rows), receivers (columns) and the existing
 // crosspoint links; they hold no state and are unit-testable in isolation.
-// Also the shared type home: RowLeaf / ColLeaf / RVState + the SEP key delimiter.
+// Also the shared type home: RVState + the SEP key delimiter (grouping now lives in
+// router-view-tree; the axis plans are built in router-view-grid).
 import { loadAllDestinations } from './footer.js';
 
 export const SEP = '␟';
 
-export interface RowLeaf { origin: string; parent: string; group?: boolean; label?: string; labels: string[]; node?: HTMLElement | null; nodes?: Array<HTMLElement | null> }
-export interface ColLeaf { prod: string; parent: string; group?: boolean; twist?: string; twists: string[]; el?: HTMLElement; els?: HTMLElement[] }
+import type { AxisPlan } from './router-view-tree.js';
 
 // The shared, mutable grid state. router-view.ts constructs one of these and
 // threads it (by reference) through the gather/grid parts so every part reads
-// and writes the same live state — collapse Sets, DOM refs and the current grid.
+// and writes the same live state — collapse Sets (per-level node keys), DOM refs
+// and the current axis plans.
 export interface RVState {
   overlay: HTMLElement | null;
   fs: HTMLInputElement;
@@ -24,10 +25,11 @@ export interface RVState {
   showAllDst: boolean;
   prevHash: string | null;
   syncing: boolean;
-  collapsedProds: Set<string>;
-  collapsedOrigins: Set<string>;
-  rowLeaves: RowLeaf[];
-  colLeaves: ColLeaf[];
+  /** Collapsed node keys per axis ("r:"/"c:" prefixed segment paths). */
+  rowCollapsed: Set<string>;
+  colCollapsed: Set<string>;
+  rowPlan: AxisPlan<HTMLElement | null> | null;
+  colPlan: AxisPlan<HTMLElement | null> | null;
   crossSet: Set<string>;
   hlNodes: HTMLElement[];
 }

@@ -24,6 +24,8 @@ export interface Production {
   name: string;
   color?: Hex;
   parentName?: string;
+  /** The top Destinations category (Facility level) — Control Rooms / Floors / … */
+  category?: string;
   status?: Status;
   /** Room/floor-room/person-level hover tip — what this production expects of an op. */
   tip?: TipSpec;

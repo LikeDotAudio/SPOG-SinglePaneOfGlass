@@ -1,0 +1,11 @@
+{
+  "id": "video-stagebox-208",
+  "name": "VIDEO SB 208",
+  "prefix": "V208-",
+  "count": 8,
+  "extraClass": "video-st2",
+  "color": "#3786FF",
+  "floor": "2nd Floor",
+  "level": 200,
+  "status": "OK"
+}

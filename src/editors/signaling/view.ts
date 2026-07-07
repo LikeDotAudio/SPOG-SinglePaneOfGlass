@@ -14,6 +14,7 @@ import {
   type Trig,
 } from './state.js';
 import { wireSignalingParams } from './mqtt.js';
+import { mountStudioTsg } from './tsg-frame.js';
 
 // A trigger's label → snake_case MQTT param name ('GPI 1' → 'gpi_1',
 // 'SCTE-35 Ad Cue' → 'scte_35_ad_cue'). Triggers are momentary GPI/SCTE pulses.
@@ -35,6 +36,12 @@ export function renderSignaling(host: HTMLElement, ctx: EditorContext): void {
           <div class="sg-card"><h4>On-Air Light</h4>
             <div class="sg-onlight" style="text-align:center;font:900 14px sans-serif;letter-spacing:2px;padding:18px;border-radius:10px;">DOOR LIGHT</div>
           </div>
+          <div class="sg-card"><h4>Studio Test Signal</h4>
+            <div class="sg-tsg" title="Studio test pattern — tap to choose the Test Signal Generator output" style="cursor:pointer;border:2px solid #2c4a6e;border-radius:10px;overflow:hidden;">
+              <canvas class="sg-tsg-cvs" style="display:block;width:100%;aspect-ratio:16/9;background:#000;"></canvas>
+              <div class="sg-tsg-cap" style="font:700 10px/1 sans-serif;letter-spacing:1px;color:#9fb6cc;padding:6px 8px;background:rgba(6,12,22,.85);">▦ <span class="sg-tsg-name">TEST SIGNAL</span> · TAP TO CONFIGURE ↗</div>
+            </div>
+          </div>
         </div>
 
         <div class="sg-card sg-bus"><h4>Tally Bus · Switcher Program / Preview</h4>
@@ -52,6 +59,9 @@ export function renderSignaling(host: HTMLElement, ctx: EditorContext): void {
   const onair = qs<HTMLElement>(host, '.sg-onair');
   const onlight = qs<HTMLElement>(host, '.sg-onlight');
   const logEl = qs<HTMLElement>(host, '.sg-log');
+
+  // The studio TEST SIGNAL frame (live preview + tap-to-open the TSG editor).
+  mountStudioTsg(host, ctx);
 
   function log(msg: string): void {
     ui.log.unshift(msg);

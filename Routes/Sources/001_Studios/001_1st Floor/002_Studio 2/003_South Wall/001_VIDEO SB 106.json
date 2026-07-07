@@ -1,0 +1,11 @@
+{
+  "id": "video-stagebox-106",
+  "name": "VIDEO SB 106",
+  "prefix": "V106-",
+  "count": 8,
+  "extraClass": "video-st1",
+  "color": "#FF9C00",
+  "floor": "1st Floor",
+  "level": 100,
+  "status": "OK"
+}

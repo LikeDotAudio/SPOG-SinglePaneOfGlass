@@ -62,21 +62,24 @@ export async function listDirectory(url: string): Promise<Listing> {
     return out;
   };
 
-  // 1) Manifest (preferred).
+  // 1) Manifest (preferred). A DRAFTED index.json (authoring / spreadsheet import)
+  //    wins over disk, so newly-authored folders/files render with no backend —
+  //    parity with fetchJSON's draft overlay (else listDirectory would bypass it).
   try {
-    const res = await fetch(url + 'index.json', { cache: 'no-store' });
-    if (res.ok) {
-      const manifest = JSON.parse(await res.text()) as Manifest;
-      if (Array.isArray(manifest)) {
-        for (const entry of manifest) {
-          if (typeof entry !== 'string' || !entry) continue;
-          const isDir = entry.endsWith('/');
-          const name = entry.replace(/\/$/, '');
-          const href = encodeURIComponent(name) + (isDir ? '/' : '');
-          add(name, isDir, href);
-        }
-        return sortAndReturn();
+    let manifest = getDraft<Manifest>(url + 'index.json');
+    if (!Array.isArray(manifest)) {
+      const res = await fetch(url + 'index.json', { cache: 'no-store' });
+      if (res.ok) { const parsed = JSON.parse(await res.text()) as unknown; if (Array.isArray(parsed)) manifest = parsed as Manifest; }
+    }
+    if (Array.isArray(manifest)) {
+      for (const entry of manifest) {
+        if (typeof entry !== 'string' || !entry) continue;
+        const isDir = entry.endsWith('/');
+        const name = entry.replace(/\/$/, '');
+        const href = encodeURIComponent(name) + (isDir ? '/' : '');
+        add(name, isDir, href);
       }
+      return sortAndReturn();
     }
   } catch {
     /* No manifest / not JSON — fall back to autoindex below. */

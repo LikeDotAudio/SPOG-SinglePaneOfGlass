@@ -42,6 +42,9 @@ const RULES: Array<[RegExp, string]> = [
   [/\bifb\b|earpiece|foldback|headphone/i, '🎧'],
   [/aud(io)?\s*monitor|monitor.*aud|\bspeaker\b/i, '🕪'],
   [/intercom|talkback|comms?/i, '☎'],
+  // Studios hold BOTH video stage boxes (cameras) and audio stage boxes (mics), so
+  // the pool + each studio reads as a combined camera+microphone icon.
+  [/studio/i, '🎥🎙'],
   [/multi ?view|monitor|video ?wall|\bmv\b/i, '▦'],
   [/vision|switch|video ?mix|\bcut\b|\bme\b|m\/e/i, '◈'],
   [/sound|audio|mic|\bmix(er)?\b|sfx/i, '♪'],

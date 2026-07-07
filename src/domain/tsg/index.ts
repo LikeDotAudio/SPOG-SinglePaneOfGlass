@@ -4,10 +4,21 @@
 // `pattern.draw(g,W,H,t)` painters can be called directly for an offscreen buffer
 // (e.g. the meter-input analysis canvas). See docs/Audit/Test-Frame-Routing-Audit.md.
 
-import { patternById } from './catalog.js';
+import { patternById, DEFAULT_TSG } from './catalog.js';
+import type { TsgPattern } from './types.js';
 
 export * from './types.js';
 export { PATTERNS, DEFAULT_TSG, patternById, patternForLabel, byGroup } from './catalog.js';
+
+/** The localStorage key a twist's chosen TSG pattern is persisted under. Shared by
+ *  the TSG editor (writer) and the SIGNALING studio frame (reader). */
+export const tsgKey = (prod: string, twist: string): string => `tsg:${prod}:${twist}`;
+
+/** The pattern last chosen for a (room, twist), or the default. */
+export function tsgFor(prod: string, twist: string): TsgPattern {
+  try { const id = localStorage.getItem(tsgKey(prod, twist)); if (id) return patternById(id); } catch { /* ignore */ }
+  return DEFAULT_TSG;
+}
 
 /** Paint pattern `id` onto a visible canvas, sizing the backing store to its CSS box
  *  (DPR-aware) — the same contract as ui/faux-signal.drawFauxSignal. `t` (ms) drives

@@ -59,8 +59,9 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
     // ride to the editor on the twist element and feed ui/tip's expectation tip.
     const prodTipAttr = pgm.tip ? ` data-prod-tip='${JSON.stringify(pgm.tip).replace(/'/g, '&#39;')}'` : '';
     const prodFloorAttr = pgm.parentName ? ` data-prod-floor="${pgm.parentName.replace(/"/g, '&quot;')}"` : '';
+    const prodCatAttr = pgm.category ? ` data-prod-cat="${pgm.category.replace(/"/g, '&quot;')}"` : '';
     const capAttr = plugin && plugin.requiredCaps ? ` data-cap="${plugin.requiredCaps.join(' ')}"` : '';
-    const prodAttrs = `data-prod-id="${pgm.id}" data-prod-name="${(titleText || '').replace(/"/g, '&quot;')}"${prodTipAttr}${prodFloorAttr}${capAttr}`;
+    const prodAttrs = `data-prod-id="${pgm.id}" data-prod-name="${(titleText || '').replace(/"/g, '&quot;')}"${prodTipAttr}${prodFloorAttr}${prodCatAttr}${capAttr}`;
     const matrixId = `${pgm.id}-${name.replace(/\s+/g, '-').toLowerCase()}`;
     const twistHtml = `
       <div class="twist-container${isSmall ? ' monitor-twist' : ''}" data-twist-index="${ti}" ${cfgAttr} ${prodAttrs} style="--lcars-color: ${lcars}; ${sizing}">

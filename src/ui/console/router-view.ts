@@ -14,8 +14,9 @@
 import { addStyles } from '../dom.js';
 import { getPrefs } from '../../platform/prefs.js';
 import { RV_CSS } from './router-view-styles.js';
-import { gatherSenderNodes, gatherReceivers, loadAllSources, loadAllDest, type RVState } from './router-view-gather.js';
+import { gatherSenderNodes, loadAllSources, loadAllDest, type RVState } from './router-view-gather.js';
 import { buildGrid, saveCollapsed, onBodyClick, onBodyOver, clearHl } from './router-view-grid.js';
+import { exportWorkbook, exportCsv, importWorkbook } from './router-io.js';
 
 const ROUTE = '#/1990s';
 
@@ -33,9 +34,9 @@ export function initRouterView(): void {
     tgSrc: undefined as unknown as HTMLElement,
     tgDst: undefined as unknown as HTMLElement,
     showAllSrc: false, showAllDst: false, prevHash: null, syncing: false,
-    collapsedProds: new Set<string>(rc?.prods ?? []),
-    collapsedOrigins: new Set<string>(rc?.origins ?? []),
-    rowLeaves: [], colLeaves: [], crossSet: new Set<string>(), hlNodes: [],
+    rowCollapsed: new Set<string>(rc?.row ?? []),
+    colCollapsed: new Set<string>(rc?.col ?? []),
+    rowPlan: null, colPlan: null, crossSet: new Set<string>(), hlNodes: [],
   };
 
   function buildHash(): string {
@@ -59,10 +60,15 @@ export function initRouterView(): void {
     st.tgDst.classList.toggle('on', dst); st.tgDst.textContent = dst ? '✓ ALL DESTINATIONS' : 'ALL DESTINATIONS';
     if (src) await loadAllSources();
     if (dst) await loadAllDest();
-    st.collapsedOrigins.clear();
-    if (src) [...gatherSenderNodes().keys()].forEach((o) => st.collapsedOrigins.add(o));
-    st.collapsedProds.clear();
-    if (dst) [...gatherReceivers().keys()].forEach((p) => st.collapsedProds.add(p));
+    // Collapse to the TOP layer (Studio / Facility) when showing everything, so the
+    // grid opens as a compact overview the op drills into.
+    st.rowCollapsed.clear();
+    if (src) [...gatherSenderNodes().keys()].forEach((o) => st.rowCollapsed.add('r:' + (o.split(' — ')[0]?.trim() || o)));
+    st.colCollapsed.clear();
+    if (dst) document.querySelectorAll<HTMLElement>('.twist-container').forEach((tw) => {
+      const cat = tw.dataset.prodCat || (tw.dataset.prodName || '').split(' — ')[0]?.trim();
+      if (cat) st.colCollapsed.add('c:' + cat);
+    });
     saveCollapsed(st);
   }
 
@@ -80,8 +86,12 @@ export function initRouterView(): void {
           <input data-freceiver placeholder="find receiver…">
           <button class="rv-tg" data-tgsrc>ALL SOURCES</button>
           <button class="rv-tg" data-tgdst>ALL DESTINATIONS</button>
+          <button class="rv-tg" data-export title="Export Sources + Destinations as hierarchical JSON (parents nested)">⭳ EXPORT JSON</button>
+          <button class="rv-tg" data-csv title="Export each tab as a CSV">⭳ CSV</button>
+          <button class="rv-tg" data-import title="Import JSON (or legacy .xml/.csv) and apply its routes + new devices">⭱ IMPORT</button>
+          <input type="file" data-importfile accept=".json,.xml,.csv,application/json,text/csv,application/xml" style="display:none">
           <span class="rv-count"></span>
-          <span class="rv-help">click a crosspoint to make/break a route · click a group header to fold</span>
+          <span class="rv-help">click a crosspoint to make/break · a group cell to SALVO · a header to fold</span>
         </div>
         <div class="rv-body"></div>
       </div>`;
@@ -99,6 +109,21 @@ export function initRouterView(): void {
     st.body.addEventListener('click', (e) => onBodyClick(st, e));
     st.body.addEventListener('mouseover', (e) => onBodyOver(st, e));
     st.body.addEventListener('mouseleave', () => clearHl(st));
+    // Import / export the whole grid as a two‑tab workbook (see router-io).
+    overlay.querySelector('[data-export]')?.addEventListener('click', () => { void exportWorkbook(); });
+    overlay.querySelector('[data-csv]')?.addEventListener('click', () => { void exportCsv(); });
+    const fileInput = overlay.querySelector<HTMLInputElement>('[data-importfile]');
+    overlay.querySelector('[data-import]')?.addEventListener('click', () => fileInput?.click());
+    fileInput?.addEventListener('change', () => { void (async () => {
+      const f = fileInput.files?.[0]; if (!f) return;
+      const mode = confirm('Replace ALL current routes to match the file?\n\nOK = Replace · Cancel = Merge (add only)') ? 'replace' : 'merge';
+      try {
+        const s = await importWorkbook(await f.text(), mode);
+        buildGrid(st);
+        alert(`Import complete.\n\n${s.created} new device(s) created\n${s.added} route(s) added\n${s.removed} removed\n${s.rejected.length} rejected (caps/accepts)\n${s.unmatched.length} unmatched device(s).`);
+      } catch (err) { alert('Import failed: ' + (err as Error).message); }
+      fileInput.value = '';
+    })(); });
     overlay.querySelector('.rv-x')?.addEventListener('click', close);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && st.overlay?.classList.contains('open')) close(); });
     return overlay;

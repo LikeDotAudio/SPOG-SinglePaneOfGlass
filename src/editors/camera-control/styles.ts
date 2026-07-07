@@ -2,7 +2,8 @@
 // Ported verbatim from js/editors/camera/styles.js so visuals match 1:1.
 
 export const CSS = `
-.cc-wrap{display:grid;grid-template-columns:minmax(0,1fr) 580px;grid-template-rows:minmax(0,1fr) auto;gap:12px;height:100%;}
+.cc-wrap{display:grid;grid-template-columns:minmax(0,1fr) 580px;grid-template-rows:minmax(0,1fr) auto;gap:12px;height:100%;
+  user-select:none;-webkit-user-select:none;-moz-user-select:none;}
 
 /* ---- the glass (everything overlaid) ---- */
 .cc-glass{grid-column:1;grid-row:1;position:relative;background:#03060f;border:1px solid #1d2942;border-radius:12px;overflow:hidden;min-height:320px;}
