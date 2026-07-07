@@ -39,6 +39,9 @@ import { GLYPHS } from './icon-glyphs.js';
 const TOKENS: Record<string, [token: string, fallback: string]> = {
   'sound':        ['--sig-audio', '#FF9C63'],
   'video':        ['--sig-video', '#CC99CC'],
+  'studios':      ['--sig-video', '#CC99CC'],
+  'wireless':     ['--sig-audio', '#FF9C63'],
+  'remotes':      ['--state-onair', '#ffaa00'],
   'streams':      ['--sig-program', '#646DCC'],
   'play':         ['--state-ok', '#39d98a'],
   'prod':         ['--state-onair', '#ffaa00'],

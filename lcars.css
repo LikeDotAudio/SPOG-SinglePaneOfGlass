@@ -320,9 +320,9 @@
            runs off the right edge. Reverse each group's label↔body and its tab row,
            and mirror the label's rounded cap to face the other way. */
         html[data-chirality="right"] .lcars-group      { flex-direction: row-reverse; }
-        /* Leaf tabs stack vertically in BOTH hands (footer.ts column-reverse) —
-           row-reverse here would flatten the stack back into a horizontal sprawl. */
-        html[data-chirality="right"] .lcars-group-tabs { flex-direction: column-reverse; }
+        /* Leaf tabs stack vertically in BOTH hands, in alphanumeric order (tab 1 at
+           the TOP) — plain `column` (not row-reverse, which would flatten the stack). */
+        html[data-chirality="right"] .lcars-group-tabs { flex-direction: column; }
         html[data-chirality="right"] .lcars-group-body { align-items: flex-end; }
         html[data-chirality="right"] .lcars-group-label { border-radius: 4px 16px 16px 4px; }
 

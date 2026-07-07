@@ -20,15 +20,25 @@ function fit(cv: HTMLCanvasElement): [number, number] {
 }
 function bg(b: Uint8ClampedArray): void { for (let i = 0; i < b.length; i += 4) { b[i] = 6; b[i + 1] = 11; b[i + 2] = 18; b[i + 3] = 255; } }
 
-/** RGB parade waveform: image column → scope X; channel value → IRE (Y); density = brightness. */
+/** RGB PARADE: three side-by-side panels (R | G | B). In each panel, image column → X,
+ *  that channel's value → IRE (Y), density → brightness — the classic broadcast look, so
+ *  the waveform is unmistakably the camera picture. */
 function parade(cv: HTMLCanvasElement, data: Uint8ClampedArray): void {
   const [W, H] = fit(cv); const g = cv.getContext('2d'); if (!g) return;
   const img = g.createImageData(W, H), b = img.data; bg(b);
-  for (let k = 0; k <= 4; k++) { const y = ((1 - k / 4) * (H - 1)) | 0; for (let x = 0; x < W; x++) { const q = (y * W + x) * 4; b[q] = 26; b[q + 1] = 44; b[q + 2] = 62; } }
-  const add = (sx: number, val: number, ch: number): void => { const sy = ((1 - val / 255) * (H - 1)) | 0; const q = (sy * W + (sx | 0)) * 4; b[q + ch] = Math.min(255, (b[q + ch] ?? 0) + 72); };
+  const secW = W / 3;
+  // IRE gridlines (all panels) + panel dividers.
+  for (let k = 0; k <= 4; k++) { const y = ((1 - k / 4) * (H - 1)) | 0; for (let x = 0; x < W; x++) { const q = (y * W + x) * 4; b[q] = 22; b[q + 1] = 38; b[q + 2] = 54; } }
+  for (let s = 1; s < 3; s++) { const x = (s * secW) | 0; for (let y = 0; y < H; y++) { const q = (y * W + x) * 4; b[q] = 30; b[q + 1] = 46; b[q + 2] = 66; } }
   for (let y = 0; y < OH; y++) for (let x = 0; x < OW; x++) {
-    const p = (y * OW + x) * 4, sx = (x / OW) * (W - 1);
-    add(sx, data[p]!, 0); add(sx, data[p + 1]!, 1); add(sx, data[p + 2]!, 2);
+    const p = (y * OW + x) * 4, col = (x / OW) * (secW - 1);
+    for (let ch = 0; ch < 3; ch++) {
+      const val = data[p + ch]!;
+      const sx = (ch * secW + col) | 0, sy = ((1 - val / 255) * (H - 1)) | 0;
+      const q = (sy * W + sx) * 4;
+      b[q + ch] = Math.min(255, (b[q + ch] ?? 0) + 100);      // tint each panel by its channel
+      b[q + 3] = 255;
+    }
   }
   g.putImageData(img, 0, 0);
 }

@@ -11,6 +11,7 @@
 // from/to); helpers, rendering, types, styles, and bus wiring live in chat-dock-* siblings.
 
 import { addStyles } from '../dom.js';
+import { launchDock } from './launch-dock.js';
 import { logAction } from './captains-log.js';
 import { getBus } from '../../platform/mqtt/index.js';
 import { idbGetAll, idbDelete } from '../../platform/store-idb.js';
@@ -58,7 +59,10 @@ export function initChatDock(): void {
       <textarea class="cd-text" placeholder="Message…" rows="1"></textarea>
       <button class="cd-send" title="Send">▸</button>
     </div>`;
-  document.body.append(launch, panel);
+  // Both the chat + voice launchers live in one shared flex dock so they are ALWAYS
+  // side by side (independent fixed offsets otherwise drift apart / overlap the footer).
+  launchDock().append(launch);
+  document.body.append(panel);
 
   const selFrom = panel.querySelector<HTMLSelectElement>('.cd-from')!;
   const selTo = panel.querySelector<HTMLSelectElement>('.cd-to')!;

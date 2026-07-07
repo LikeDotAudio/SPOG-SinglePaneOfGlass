@@ -135,5 +135,32 @@ export const GLYPHS: Record<string, string> = {
     <circle cx="256" cy="256" r="34" stroke="none">
       <animate attributeName="opacity" values="1;.5;1" dur="2.4s" begin="0s" repeatCount="indefinite"/>
       <animate attributeName="r" values="34;48;34" dur="2.4s" begin="0s" repeatCount="indefinite" calcMode="spline" keySplines=".3 0 .2 1;.4 0 .6 1"/></circle>`,
+  // Studios hold both video stage boxes (cameras) and audio stage boxes (mics) →
+  // a combined camera + microphone tile with a blinking record tally.
+  'studios': `
+    <rect x="96" y="214" width="176" height="128" rx="22" stroke="none"/>
+    <path d="M 96 250 l -56 -34 v 96 l 56 -34 z" stroke="none"/>
+    <circle cx="184" cy="278" r="40" fill="none" stroke-width="14"/>
+    <circle cx="184" cy="278" r="12" fill="#ff4444" stroke="none"><animate attributeName="opacity" values="1;.2;1" dur="1.1s" repeatCount="indefinite"/></circle>
+    <rect x="330" y="150" width="64" height="116" rx="32" stroke="none"/>
+    <path d="M 306 244 a 56 56 0 0 0 112 0" fill="none" stroke-width="14" stroke-linecap="round"/>
+    <line x1="362" y1="300" x2="362" y2="338" stroke-width="14" stroke-linecap="round"/>
+    <line x1="326" y1="352" x2="398" y2="352" stroke-width="14" stroke-linecap="round"/>`,
+  // Wireless — a mic capsule radiating RF on both sides.
+  'wireless': `
+    <rect x="222" y="150" width="68" height="150" rx="34" stroke="none"/>
+    <line x1="256" y1="300" x2="256" y2="360" stroke-width="16" stroke-linecap="round"/>
+    <line x1="212" y1="374" x2="300" y2="374" stroke-width="16" stroke-linecap="round"/>
+    <path d="M 330 176 a 118 118 0 0 1 0 148" fill="none" stroke-width="16" stroke-linecap="round" opacity=".8"><animate attributeName="opacity" values=".8;.2;.8" dur="1.6s" repeatCount="indefinite"/></path>
+    <path d="M 372 140 a 176 176 0 0 1 0 220" fill="none" stroke-width="16" stroke-linecap="round" opacity=".5"><animate attributeName="opacity" values=".5;.1;.5" dur="1.6s" begin=".3s" repeatCount="indefinite"/></path>
+    <path d="M 182 176 a 118 118 0 0 0 0 148" fill="none" stroke-width="16" stroke-linecap="round" opacity=".8"><animate attributeName="opacity" values=".8;.2;.8" dur="1.6s" repeatCount="indefinite"/></path>
+    <path d="M 140 140 a 176 176 0 0 0 0 220" fill="none" stroke-width="16" stroke-linecap="round" opacity=".5"><animate attributeName="opacity" values=".5;.1;.5" dur="1.6s" begin=".3s" repeatCount="indefinite"/></path>`,
+  // Remotes — an uplink antenna sending ping waves.
+  'remotes': `
+    <rect x="196" y="356" width="120" height="26" rx="10" stroke="none"/>
+    <line x1="256" y1="356" x2="256" y2="238" stroke-width="20" stroke-linecap="round"/>
+    <circle cx="256" cy="214" r="28" stroke="none"/>
+    <path d="M 180 208 a 110 110 0 0 1 152 0" fill="none" stroke-width="16" stroke-linecap="round" opacity=".85"><animate attributeName="opacity" values=".85;.2;.85" dur="1.5s" repeatCount="indefinite"/></path>
+    <path d="M 146 170 a 160 160 0 0 1 220 0" fill="none" stroke-width="16" stroke-linecap="round" opacity=".5"><animate attributeName="opacity" values=".5;.1;.5" dur="1.5s" begin=".3s" repeatCount="indefinite"/></path>`,
   ...CHROME_GLYPHS,
 };

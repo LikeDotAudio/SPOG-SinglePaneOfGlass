@@ -1,4 +1,5 @@
 import { addStyles, el } from '../dom.js';
+import { launchDock } from './launch-dock.js';
 import { getBus } from '../../platform/mqtt/index.js';
 
 const CSS = `
@@ -99,7 +100,8 @@ export function initVoiceDock(): void {
        </div>
     </div>
   `;
-  document.body.append(launch, panel);
+  launchDock().append(launch);   // shared flex dock — voice + chat always side by side
+  document.body.append(panel);
 
   const micBtn = panel.querySelector<HTMLElement>('.vd-mic-btn')!;
   const statusText = panel.querySelector<HTMLElement>('.vd-status')!;
