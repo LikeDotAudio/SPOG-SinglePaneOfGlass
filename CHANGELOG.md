@@ -13,7 +13,13 @@ All notable changes to SPOG (Single Pane Of Glass) are recorded here.
 - **Sick Bay Alert UI**: The SICK BAY footer tab now flashes with a dedicated, CSS-driven red pulse animation (`#ff3333`) and drop-shadow when active, improving alert visibility.
 - **Resource Booking**: Added soft-booking fields (`bookedBy`, `inUseBy`, `scheduledUntil`, `allowSharedComms`) to destination configurations to integrate resource management with the production schedule.
 
+### Added — Security & Strategy (Enterprise Turnaround)
+- **Node.js API Gateway (Phase 1)**: Scaffolded a new backend authority (`server/index.ts`) that intercepts static file requests and applies true backend data filtering based on an `X-Role` header, proving out robust security beyond client-side DOM hiding.
+- **Dual-Licensing Model (Phase 4)**: Added `LICENSE.md` outlining a new commercialization structure that legally uncaps the Total Addressable Market while preserving open, non-commercial use.
+- **Turnaround Strategy**: Committed `TURNAROUND_STRATEGY.md` outlining the four-phase plan to graduate SPOG into an enterprise-ready broadcast management platform.
+
 ### Changed — Layout & Manifest Refinements
+- **Repository Cleanup**: De-cluttered the root directory by moving all deployment, configuration, and utility scripts (`deploy.py`, `.env`, build scripts) into a dedicated `SETUP/` directory.
 - **Sources Panel Priority**: "People" is now explicitly anchored as the very first source pool in the left-hand rail.
 - **Gang Grid Full Width**: Source listings inside the gang grid now display at full width (`1fr`) rather than squeezed.
 - **Manifest Sync**: Unified folder names across `Routes/Destinations/index.json` and `Routes/Sources/index.json` to use singular terminology (e.g., `Control Room`, `Encoder`, `Studio`) ensuring accurate mapping to the actual data directories.
