@@ -121,6 +121,9 @@ export function createTwistBus(): TwistBus {
     client.on('error', (e) => dbg('error', e));
     client.on('message', async (topic: string, payload: Uint8Array) => {
       let parsed: unknown = await decryptAndDecode(payload);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('mqtt-raw-message', { detail: { topic, payload } }));
+      }
       const rel = topic.startsWith(`${SPOG_ROOT}/`) ? topic.slice(SPOG_ROOT.length + 1) : topic;
       // Cache before the echo check (empty retained payload = tombstone → evict).
       if (payload.length === 0 || parsed === null) lastValue.delete(rel);

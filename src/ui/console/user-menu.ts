@@ -16,6 +16,7 @@
 import { addStyles } from '../dom.js';
 import { exportSeat, importSeat, type SeatExport } from '../../platform/prefs.js';
 import { tileDataUrl } from '../icon-tiles.js';
+import { toggleCryptoDecoder } from './crypto-decoder.js';
 
 const UM_CSS = `
 .um-btn{display:block;z-index:1000;background:#3FC1C9;color:#06202a;border:none;
@@ -74,7 +75,8 @@ function seatRow(): HTMLElement {
   row.className = 'um-seat';
   row.innerHTML = `MY SEAT
     <button data-um-export title="Download every preference, layout and draft on this seat (.spog)">EXPORT</button>
-    <button data-um-import title="Restore a .spog seat file (reloads the console)">IMPORT</button>`;
+    <button data-um-import title="Restore a .spog seat file (reloads the console)">IMPORT</button>
+    <button data-um-crypto title="Open the Magic Decoder Ring for Protobuf and MQTT payload diagnosis">DECODER</button>`;
   row.querySelector('[data-um-export]')?.addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(exportSeat(), null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -96,6 +98,7 @@ function seatRow(): HTMLElement {
     });
     input.click();
   });
+  row.querySelector('[data-um-crypto]')?.addEventListener('click', toggleCryptoDecoder);
   return row;
 }
 

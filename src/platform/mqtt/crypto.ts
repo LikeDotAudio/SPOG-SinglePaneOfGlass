@@ -94,3 +94,20 @@ export async function decryptAndDecode(bytes: Uint8Array): Promise<any> {
     return null;
   }
 }
+
+export async function debugDecryptAndDecode(bytes: Uint8Array): Promise<{ rawProtoJSON: any, decodedPayload: any, error?: string }> {
+  try {
+    const key = await getKey();
+    const iv = bytes.slice(0, 12);
+    const ciphertext = bytes.slice(12);
+    const decryptedBuffer = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+    const wrapper = spog.PayloadWrapper.decode(new Uint8Array(decryptedBuffer));
+    
+    // Create a plain JSON representation of the Protobuf AST
+    const rawProtoJSON = spog.PayloadWrapper.toJSON(wrapper);
+    const decodedPayload = await decryptAndDecode(bytes);
+    return { rawProtoJSON, decodedPayload };
+  } catch (e) {
+    return { rawProtoJSON: null, decodedPayload: null, error: String(e) };
+  }
+}
