@@ -35,6 +35,9 @@ const ALLOWLIST = new Set([
   'src/ui/console/chat-dock.ts',
   'src/editors/encoder/index.ts',
   'src/editors/signal-conditioner/index.ts',
+  'src/platform/mqtt/schema.js',
+  'src/platform/mqtt/schema.d.ts',
+  'src/ui/console/dest-fixtures-counters.ts',
 ]);
 
 function walk(dir, out) {
