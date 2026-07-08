@@ -1,0 +1,54 @@
+name: Deploy Production
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Build & Deploy to Production
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history needed for incremental deploy diffing
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Install Python Dependencies
+        run: pip install paho-mqtt
+
+      - name: Typecheck and Test
+        run: |
+          npm run typecheck
+          npm run test -- --run
+
+      - name: Inject FTP Credentials
+        run: |
+          echo "FTP_HOST=${{ secrets.FTP_HOST }}" >> .env
+          echo "FTP_USER=${{ secrets.FTP_USER }}" >> .env
+          echo "FTP_PASS=${{ secrets.FTP_PASS }}" >> .env
+
+      - name: Execute Zero-Downtime Deploy
+        env:
+          TWIST_MQTT_HOST: test.mosquitto.org
+          TWIST_MQTT_PORT: 8080
+        run: |
+          # Use --fresh to full-sync and clear dead files
+          python3 SETUP/deploy.py --fresh

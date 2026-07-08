@@ -1,0 +1,56 @@
+name: Deploy Sandbox
+
+on:
+  push:
+    branches:
+      - sandbox
+      - develop
+  pull_request:
+    branches:
+      - sandbox
+      - develop
+
+jobs:
+  deploy:
+    name: Build & Deploy to Sandbox
+    runs-on: ubuntu-latest
+    environment: sandbox
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Install Python Dependencies
+        run: pip install paho-mqtt
+
+      - name: Inject FTP Credentials
+        run: |
+          # The sandbox uses a distinct set of secrets or a different target path
+          echo "FTP_HOST=${{ secrets.SANDBOX_FTP_HOST }}" >> .env
+          echo "FTP_USER=${{ secrets.SANDBOX_FTP_USER }}" >> .env
+          echo "FTP_PASS=${{ secrets.SANDBOX_FTP_PASS }}" >> .env
+
+      - name: Execute Sandbox Deploy
+        env:
+          TWIST_MQTT_HOST: test.mosquitto.org
+          TWIST_MQTT_PORT: 8080
+        run: |
+          # Use side-by-side mode (--next) if we want to preview without replacing index.htm
+          # Or full replace if the sandbox is purely dedicated. We use --all to ensure all routes sync.
+          python3 SETUP/deploy.py --all
