@@ -28,7 +28,7 @@ function resolveUrl(rawHost: string, port: number): string | null {
   if (!v || v === 'off' || v === '0') return null;
   if (/^wss?:\/\//i.test(v)) return v;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  return (v.includes(':') || v.includes('/')) ? `${proto}://${v}` : `${proto}://${v}:${port || 8080}`;
+  return (v.includes(':') || v.includes('/')) ? `${proto}://${v}` : `${proto}://${v}:${port || 8081}`;
 }
 
 export function initMqttTree(bus: TwistBus): void {
@@ -174,7 +174,7 @@ export function initMqttTree(bus: TwistBus): void {
   // PUBLISHING bus adopts it on the next boot and starts advertising the tree, then
   // reloads. Disable clears the host. Both mirror the old settings popover.
   const persist = (): void => setBrokerConfig({
-    host: hostInput.value, port: Number(portInput.value) || 8080,
+    host: hostInput.value, port: Number(portInput.value) || 8081,
     username: userInput.value, password: passInput.value,
   });
   bGo.addEventListener('click', () => { persist(); location.reload(); });

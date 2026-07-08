@@ -4,11 +4,11 @@
 // `?mqtt=`/localStorage/compiled-default URL resolver. Pure of the bus; the
 // connection layer (client.ts) consumes these to open the socket.
 
-const DEFAULT_PORT = 8080;
+const DEFAULT_PORT = 8081;
 // Compiled default host. Baked to the house broker so MQTT is live out of the box;
 // override per-session with `?mqtt=<host[:port]>` (matches comMQTT's `?mqtt=`
 // convention), by setting localStorage.twistMqtt, or via the connection form.
-const DEFAULT_HOST = 'test.mosquitto.org:8080/ws';
+const DEFAULT_HOST = 'test.mosquitto.org:8081/ws';
 
 const LS_KEY = 'twistMqtt';
 const LS_PORT = 'twistMqttPort', LS_USER = 'twistMqttUser', LS_PASS = 'twistMqttPass';
