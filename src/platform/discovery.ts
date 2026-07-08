@@ -17,11 +17,7 @@ export interface Listing {
   files: Entry[];
 }
 
-const API_BASE = 'http://localhost:3000/api/v1/routes/';
-const getApiUrl = (url: string) => {
-  if (url.startsWith('Routes/')) return API_BASE + url.substring(7);
-  return url;
-};
+const getApiUrl = (url: string) => url;
 
 const getRoleHeader = (): Record<string, string> => {
   const token = localStorage.getItem('spog_jwt');
