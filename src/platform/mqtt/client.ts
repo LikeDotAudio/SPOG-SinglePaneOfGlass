@@ -11,6 +11,7 @@
 import type { TwistBus, ConfigMsg, ValueMsg } from './types.js';
 import { getBrokerConfig, resolveBrokerUrl } from './config.js';
 import { loadMqtt, type MqttClient } from './mqtt-load.js';
+import { encodeAndEncrypt, decryptAndDecode } from './crypto.js';
 
 // Re-exported so consumers (barrel index.ts) keep importing broker config from
 // client.js after the config/loader extraction — public bus API is unchanged.
@@ -76,10 +77,11 @@ export function createTwistBus(): TwistBus {
   let rateTimer: ReturnType<typeof setInterval> | null = null;
   const rateTopic = `${SPOG_ROOT}/system/rate/${sessionId.split(':')[0]}`;
 
-  const send = (topic: string, payload: string, retain = true): void => {
+  const send = async (topic: string, payload: any, retain = true): Promise<void> => {
     if (!client) return;                       // mqtt.js buffers pre-connect and flushes on connect
     try { 
-      client.publish(topic, payload, { retain, qos: 0 }); 
+      const ciphertext = await encodeAndEncrypt(payload);
+      client.publish(topic, ciphertext as any, { retain, qos: 0 }); 
       messageCounter++;
     } catch (e) { dbg('publish failed', topic, e); }
   };
@@ -103,11 +105,11 @@ export function createTwistBus(): TwistBus {
       connected = true;
       dbg('connected', sessionId);
       client!.subscribe(`${SPOG_ROOT}/#`, { qos: 0 });
-      const beat = (): void => send(presenceTopic, JSON.stringify({ active: true, full_id: sessionId, ts: Date.now() }));
+      const beat = (): void => { send(presenceTopic, { active: true, full_id: sessionId, ts: Date.now() }); };
       beat();
       heartbeat = setInterval(beat, 1000);
       rateTimer = setInterval(() => {
-        send(rateTopic, JSON.stringify({ messagesPerMinute: messageCounter, ts: Date.now(), full_id: sessionId }), false);
+        send(rateTopic, { messagesPerMinute: messageCounter, ts: Date.now(), full_id: sessionId }, false);
         messageCounter = 0;
       }, 60000);
       clearTimeout(readyTimer);
@@ -117,9 +119,8 @@ export function createTwistBus(): TwistBus {
     client.on('close', () => { connected = false; });
     client.on('offline', () => { connected = false; });
     client.on('error', (e) => dbg('error', e));
-    client.on('message', (topic: string, payload: Uint8Array) => {
-      let parsed: unknown;
-      try { parsed = JSON.parse(new TextDecoder().decode(payload)); } catch { parsed = null; }
+    client.on('message', async (topic: string, payload: Uint8Array) => {
+      let parsed: unknown = await decryptAndDecode(payload);
       const rel = topic.startsWith(`${SPOG_ROOT}/`) ? topic.slice(SPOG_ROOT.length + 1) : topic;
       // Cache before the echo check (empty retained payload = tombstone → evict).
       if (payload.length === 0 || parsed === null) lastValue.delete(rel);
@@ -137,17 +138,16 @@ export function createTwistBus(): TwistBus {
 
     publishConfig(suffix, msg): void {
       const full_id = sessionId;
-      send(full(`${suffix}`), JSON.stringify({ ...msg, full_id } satisfies ConfigMsg));
+      send(full(`${suffix}`), { ...msg, full_id } satisfies ConfigMsg);
     },
 
     publishValue<T>(suffix: string, value: T, opts?: { throttle?: boolean }): void {
       const topic = full(suffix);
-      const payload = JSON.stringify({ value, ts: Date.now(), full_id: sessionId } satisfies ValueMsg<T>);
-      send(topic, payload);
+      send(topic, { value, ts: Date.now(), full_id: sessionId } satisfies ValueMsg<T>);
     },
 
     publishRaw(suffix, payload, opts): void {
-      send(full(suffix), typeof payload === 'string' ? payload : JSON.stringify(payload), opts?.retain ?? true);
+      send(full(suffix), payload, opts?.retain ?? true);
     },
 
     subscribe(filter, cb): () => void {
@@ -170,7 +170,7 @@ export function createTwistBus(): TwistBus {
       if (rateTimer) clearInterval(rateTimer);
       subs.clear();
       if (client) {
-        send(presenceTopic, JSON.stringify({ active: false, full_id: sessionId }));
+        send(presenceTopic, { active: false, full_id: sessionId });
         try { client.end(true); } catch { /* ignore */ }
       }
     },
