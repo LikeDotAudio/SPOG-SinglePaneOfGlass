@@ -11,8 +11,8 @@ import type { TwistBus } from '../../platform/mqtt/types.js';
 interface BuildStamp { buildId?: { short?: string; full?: string }; routesHash?: string; ts?: number }
 
 const BW_CSS = `
-.app-version.stale{background:#7a1f2a;color:#ffe;cursor:pointer;animation:bw-pulse 1.2s infinite;}
-@keyframes bw-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,60,60,.55);}50%{box-shadow:0 0 10px 3px rgba(255,60,60,.55);}}
+.app-version.stale{background:rgb(244, 144, 44);color:#ffe;cursor:pointer;animation:bw-pulse 1.2s infinite;}
+@keyframes bw-pulse{0%,100%{box-shadow:0 0 0 0 rgba(244,144,44,.55);}50%{box-shadow:0 0 10px 3px rgba(244,144,44,.55);}}
 `;
 
 export function initBuildWatch(bus: TwistBus, running: { short: string; full: string; ts?: number }): void {

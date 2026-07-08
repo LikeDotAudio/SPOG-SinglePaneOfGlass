@@ -23,8 +23,8 @@ const UM_CSS = `
   padding:9px 16px;margin-bottom:10px;border-radius:18px 6px 6px 18px;cursor:pointer;
   box-shadow:inset 6px 0 0 #2a8b91;text-align:left;white-space:nowrap;}
 .um-btn:hover{background:#7fe3e9;color:#000;}
-.um-btn.stale{animation:um-pulse 1.2s infinite;background:#7a1f2a;color:#ffe;}
-@keyframes um-pulse{0%,100%{box-shadow:inset 6px 0 0 #4a0f16,0 0 0 0 rgba(255,60,60,.5);}50%{box-shadow:inset 6px 0 0 #4a0f16,0 0 12px 3px rgba(255,60,60,.5);}}
+.um-btn.stale{animation:um-pulse 1.2s infinite;background:rgb(244, 144, 44);color:#ffe;}
+@keyframes um-pulse{0%,100%{box-shadow:inset 6px 0 0 #b36314,0 0 0 0 rgba(244,144,44,.5);}50%{box-shadow:inset 6px 0 0 #b36314,0 0 12px 3px rgba(244,144,44,.5);}}
 .um-panel{position:fixed;z-index:2650;display:none;flex-direction:column;gap:7px;padding:12px;
   min-width:250px;background:#0a0f1e;border:1px solid #24304e;border-radius:14px;
   box-shadow:0 14px 44px rgba(0,0,0,.7);font-family:Arial,Helvetica,sans-serif;}
