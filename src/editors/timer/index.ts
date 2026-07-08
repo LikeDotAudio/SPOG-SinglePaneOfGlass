@@ -19,6 +19,8 @@ import { formatValue } from '../../domain/timer-core/index.js';
 import { CSS } from './styles.js';
 import { buildWallClock } from './wall-clock.js';
 import { buildPanel, buildFunctionsDrawer } from './panel.js';
+import { getBus } from '../../platform/mqtt/index.js';
+import { timeSync } from '../../platform/time-sync.js';
 
 const plugin: EditorPlugin = {
   id: 'timer',
@@ -29,6 +31,7 @@ const plugin: EditorPlugin = {
   voiceCommands: VOICE_COMMANDS,
   render(host, ctx) {
     addStyles('twist-editor-timer', CSS);
+    timeSync.init();
 
     const engine = new TimerEngine({
       onChange: () => publish(),
@@ -134,6 +137,26 @@ const plugin: EditorPlugin = {
       ctx.services.publishParam?.('value.B', fmt('B'));
       ctx.services.publishParam?.('run.A', S.channels.A.running, { throttle: false });
       ctx.services.publishParam?.('run.B', S.channels.B.running, { throttle: false });
+      
+      if (ctx.production.id) {
+        timeSync.claimMaster();
+        getBus().publishValue(`destinations/${ctx.production.id}/counters_timer`, {
+          A: { running: S.channels.A.running, valueFrames: S.channels.A.value, fps: S.fps, unix: timeSync.now(), direction: S.channels.A.direction },
+          B: { running: S.channels.B.running, valueFrames: S.channels.B.value, fps: S.fps, unix: timeSync.now(), direction: S.channels.B.direction }
+        }, { retain: true });
+      }
+    }
+
+    if (ctx.production.id) {
+      getBus().subscribe(`destinations/${ctx.production.id}/counters_timer`, (v: any) => {
+        if (v && v.A && v.B) {
+          const dt = Math.abs(v.A.unix - timeSync.now());
+          if (dt < 300) return; // Prevent local echo loop
+          S.channels.A.running = v.A.running; S.channels.A.value = v.A.valueFrames;
+          S.channels.B.running = v.B.running; S.channels.B.value = v.B.valueFrames;
+          engine['changed'](null);
+        }
+      });
     }
 
     function renderGlobal(): void {

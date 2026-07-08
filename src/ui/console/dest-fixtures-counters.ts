@@ -11,39 +11,49 @@
 import { el, ctx2d } from '../dom.js';
 import { animate, card, dpr, hms, readout } from './dest-fixtures-shared.js';
 import type { Production } from '../../model/index.js';
+import { getBus } from '../../platform/mqtt/index.js';
+import { timeSync } from '../../platform/time-sync.js';
 
 interface CState { running: boolean; base: number; startedAt: number; }
 // A + B are the dual counters; S is the standalone stopwatch's own count.
-const COUNTER_KEY = 'spog.counters.v1';
 const counterStore = new Map<string, { A: CState; B: CState; S: CState }>();
 const mkC = (): CState => ({ running: false, base: 0, startedAt: 0 });
-let countersLoaded = false;
-function loadCounters(): void {
-  if (countersLoaded) return;
-  countersLoaded = true;
-  try {
-    const raw = localStorage.getItem(COUNTER_KEY);
-    if (!raw) return;
-    for (const [id, trio] of Object.entries(JSON.parse(raw) as Record<string, { A: CState; B: CState; S: CState }>)) {
-      if (trio && trio.A && trio.B && trio.S) counterStore.set(id, trio);
-    }
-  } catch { /* malformed → fresh counters */ }
-}
-function saveCounters(): void {
-  try { localStorage.setItem(COUNTER_KEY, JSON.stringify(Object.fromEntries(counterStore))); } catch { /* ignore */ }
-}
-function countersOf(id: string): { A: CState; B: CState; S: CState } {
-  loadCounters();
+
+function countersOf(id: string): { A: CState; B: CState; S: CState; T?: any } {
+  timeSync.init();
   let s = counterStore.get(id);
-  if (!s) { s = { A: mkC(), B: mkC(), S: mkC() }; counterStore.set(id, s); }
+  if (!s) { 
+    s = { A: mkC(), B: mkC(), S: mkC() }; 
+    counterStore.set(id, s);
+    const bus = getBus();
+    bus.subscribe(`destinations/${id}/counters`, (v: any) => {
+      if (v && v.A && v.B && v.S) {
+        Object.assign(s!.A, v.A);
+        Object.assign(s!.B, v.B);
+        Object.assign(s!.S, v.S);
+      }
+    });
+    bus.subscribe(`destinations/${id}/counters_timer`, (v: any) => {
+      if (v) (s as any).T = v;
+    });
+  }
   return s;
 }
-const cMs = (s: CState): number => s.base + (s.running ? Date.now() - s.startedAt : 0);
+
+function syncCounters(id: string): void {
+  const s = counterStore.get(id);
+  if (s) {
+    timeSync.claimMaster();
+    getBus().publishValue(`destinations/${id}/counters`, s, { retain: true });
+  }
+}
+
+const cMs = (s: CState): number => s.base + (s.running ? timeSync.now() - s.startedAt : 0);
 
 // An old-time mechanical stopwatch (the chronos stopwatch display, shrunk to a
 // fixture control) driving its OWN count: chrome bezel, white dial, magenta second
 // sweep. The TOP crown starts/stops it; the SIDE pusher resets it. `k` scales it.
-function stopwatchCtl(s: CState, offline: boolean, k = 1): HTMLCanvasElement {
+function stopwatchCtl(destId: string, s: CState, offline: boolean, k = 1): HTMLCanvasElement {
   const TAU = Math.PI * 2;
   const W = Math.round(56 * k), H = Math.round(54 * k);
   const cvs = el('canvas', { class: 'dfx-watch' });
@@ -116,11 +126,11 @@ function stopwatchCtl(s: CState, offline: boolean, k = 1): HTMLCanvasElement {
       Math.hypot(e.offsetX - k.x, e.offsetY - k.y) <= Math.max(k.size * 2.4, 8);
     if (hit(knobAt(angTop, topSize))) {
       if (s.running) { s.base = cMs(s); s.running = false; }
-      else { s.startedAt = Date.now(); s.running = true; }
-      saveCounters();
+      else { s.startedAt = timeSync.now(); s.running = true; }
+      syncCounters(destId);
     } else if (hit(knobAt(angSide, sideSize))) {
-      s.base = 0; s.startedAt = Date.now();
-      saveCounters();
+      s.base = 0; s.startedAt = timeSync.now();
+      syncCounters(destId);
     }
   });
   return cvs;
@@ -135,16 +145,55 @@ function counterRow(destId: string, id: 'A' | 'B', openEdit: () => void, offline
   cvs.addEventListener('click', openEdit);
   const run = el('button', { class: 'dfx-mini' }, ['▶']);
   const rst = el('button', { class: 'dfx-mini' }, ['↺']);
-  const sync = (): void => { run.textContent = s.running ? '‖' : '▶'; run.classList.toggle('run', s.running); };
+  const sync = (): void => { 
+    const tSync = (countersOf(destId) as any).T?.[id];
+    const isRun = tSync ? tSync.running : s.running;
+    run.textContent = isRun ? '‖' : '▶'; 
+    run.classList.toggle('run', isRun); 
+  };
   run.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (s.running) { s.base = cMs(s); s.running = false; } else { s.startedAt = Date.now(); s.running = true; }
-    saveCounters();
+    const tSync = (countersOf(destId) as any).T?.[id];
+    if (tSync) {
+      tSync.running = !tSync.running;
+      tSync.unix = timeSync.now();
+      timeSync.claimMaster();
+      getBus().publishValue(`destinations/${destId}/counters_timer`, (countersOf(destId) as any).T, { retain: true });
+    } else {
+      if (s.running) { s.base = cMs(s); s.running = false; } else { s.startedAt = timeSync.now(); s.running = true; }
+      syncCounters(destId);
+    }
     sync();
   });
-  rst.addEventListener('click', (e) => { e.stopPropagation(); s.base = 0; s.startedAt = Date.now(); saveCounters(); });
+  rst.addEventListener('click', (e) => { 
+    e.stopPropagation(); 
+    const tSync = (countersOf(destId) as any).T?.[id];
+    if (tSync) {
+      tSync.valueFrames = 0; tSync.unix = timeSync.now();
+      timeSync.claimMaster();
+      getBus().publishValue(`destinations/${destId}/counters_timer`, (countersOf(destId) as any).T, { retain: true });
+    } else {
+      s.base = 0; s.startedAt = timeSync.now(); syncCounters(destId); 
+    }
+  });
   let last = '';
-  animate(cvs, () => { const str = hms(cMs(s)); if (str !== last) { last = str; draw(str); } });
+  animate(cvs, () => { 
+    const tSync = (countersOf(destId) as any).T?.[id];
+    let str = '';
+    if (tSync) {
+       const elapsedMs = tSync.running ? timeSync.now() - tSync.unix : 0;
+       let frames = tSync.valueFrames;
+       if (tSync.direction === 'down') frames -= Math.floor(elapsedMs / 1000 * tSync.fps);
+       else frames += Math.floor(elapsedMs / 1000 * tSync.fps);
+       if (frames < 0) frames = 0;
+       const totalS = Math.floor(frames / tSync.fps);
+       const h = Math.floor(totalS / 3600), m = Math.floor((totalS % 3600) / 60), sc = totalS % 60;
+       str = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sc.toString().padStart(2,'0')}`;
+    } else {
+       str = hms(cMs(s)); 
+    }
+    if (str !== last) { last = str; draw(str); } 
+  });
   sync();
   return el('div', { class: 'dfx-crow' }, [el('span', { class: 'dfx-clab' }, [id]), cvs, el('div', { class: 'dfx-mrow' }, [run, rst])]);
 }
@@ -154,7 +203,7 @@ function counterRow(destId: string, id: 'A' | 'B', openEdit: () => void, offline
 function stopwatchCol(destId: string, offline: boolean): HTMLElement {
   const s = countersOf(destId).S;
   return el('div', { class: 'dfx-swcol' }, [
-    stopwatchCtl(s, offline, 2.1),
+    stopwatchCtl(destId, s, offline, 2.1),
     el('span', { class: 'dfx-wlab' }, ['top crown start/stop · side pusher reset']),
   ]);
 }

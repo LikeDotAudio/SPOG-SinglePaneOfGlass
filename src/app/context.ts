@@ -114,7 +114,7 @@ export function buildContext(
     sources: routed.length ? routed : resolveSources(config, color),
     // `tip`/`floor` are the JSON-authored hover tips (room/person-level tip and the
     // floor/category this room sits under) — resolved by the host, surfaced by ui/tip.
-    production: { name: prod.name, color, tip: prod.tip, floor: prod.parentName },
+    production: { id: prod.id, name: prod.name, color, tip: prod.tip, floor: prod.parentName },
     siblings,
     can,
     services,

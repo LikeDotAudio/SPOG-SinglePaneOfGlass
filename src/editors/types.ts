@@ -26,7 +26,7 @@ export interface EditorContext {
   sources: Feed[];
   /** The owning production/room; `tip` + `floor` are the JSON-authored hover tips
       (room/person-level tip, and the floor/category this room sits under). */
-  production: { name: string; color: Hex; tip?: TipSpec; floor?: string };
+  production: { id: string; name: string; color: Hex; tip?: TipSpec; floor?: string };
   /** Same-kind siblings in this production (includes this twist), for grid editors. */
   siblings: ReadonlyArray<Sibling>;
   /** Role gate — true if the current operator holds the capability. */
