@@ -28,6 +28,17 @@ app.post('/api/v1/auth/login', (req, res) => {
   res.json({ token });
 });
 
+// Public Changelog endpoint
+app.get('/api/v1/changelog', async (req, res) => {
+  const fullPath = path.join(PROJECT_ROOT, 'CHANGELOG.md');
+  try {
+    const content = await fs.readFile(fullPath, 'utf-8');
+    res.type('text/plain').send(content);
+  } catch (error) {
+    res.status(404).send('Not Found');
+  }
+});
+
 // Real JWT authentication middleware
 const jwtAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const authHeader = req.headers['authorization'];

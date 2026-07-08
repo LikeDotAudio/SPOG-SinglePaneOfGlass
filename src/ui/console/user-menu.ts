@@ -146,6 +146,18 @@ export function initUserMenu(): void {
   const creditRow = document.querySelector('.credit-row');
   if (creditRow && creditRow.childElementCount === 0) creditRow.remove();
 
+  const changelogRow = (): HTMLElement => {
+    const row = document.createElement('div');
+    row.className = 'um-seat';
+    row.innerHTML = `UPDATES
+      <button data-um-changelog title="View the public changelog">CHANGELOG</button>`;
+    row.querySelector('[data-um-changelog]')?.addEventListener('click', () => {
+      window.open('http://localhost:3000/api/v1/changelog', '_blank');
+    });
+    return row;
+  };
+
+  panel.appendChild(changelogRow());
   panel.appendChild(seatRow());
   document.body.appendChild(panel);
 

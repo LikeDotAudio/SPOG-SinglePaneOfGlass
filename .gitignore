@@ -13,3 +13,4 @@ vite.config.*.timestamp-*
 docs/Audit\ /
 
 .crawler/
+docs/
