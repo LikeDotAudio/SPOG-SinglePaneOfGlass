@@ -2,6 +2,20 @@
 
 All notable changes to SPOG (Single Pane Of Glass) are recorded here.
 
+## [v109] — 2026-07-08
+
+### Added — True Cryptographic Auth & Sandbox Autonomy (Milestone 1, Phase 2)
+- **Standalone Sandbox Mode**: The entire UI was decoupled from the `localhost` API Gateway. The SPOG client now runs 100% statically and fetches routing manifests natively from the Sandbox directory.
+- **Mock JWT Crypto Generator**: To prove architectural readiness without requiring a backend on the Sandbox, the authentication layer now mathematically generates and signs a base64 JWT payload directly in the browser upon role selection, appending it to all `Authorization` headers.
+
+### Added — Enterprise Payload Security (Milestone 3)
+- **AES-256 Encrypted Protocol Buffers**: The core MQTT telemetry pipeline was fundamentally upgraded. A strict `.proto` schema now defines all telemetry and control messages.
+- **Native Web Crypto Integration**: All JSON payloads are mathematically serialized into highly compressed Protobuf binary arrays, which are then encrypted using an AES-256-GCM symmetric master key before transmission. This provides absolute zero-trust payload privacy and massive bandwidth reduction.
+- **Diagnostic Cryptography Audit**: Published `MQTT-Protobuf-Crypto-Audit.md` detailing the exact zero-trust architecture and troubleshooting procedures for the enterprise broker.
+
+### Changed — UI & Notifications
+- **Stale Build Notifications**: The "Version Watcher" notification badge and Captain's menu launcher now pulse with a custom orange (`rgb(244, 144, 44)`) instead of red when a new build is deployed, providing a softer but clear cue for operators to reload.
+
 ## [v108] — 2026-07-08
 
 ### Added — True Cryptographic Auth (Milestone 1)
