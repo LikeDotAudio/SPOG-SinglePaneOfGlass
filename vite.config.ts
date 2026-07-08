@@ -10,8 +10,9 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 function buildId(): { short: string; full: string } {
   const iso = new Date().toISOString();
   const date = iso.slice(0, 10), hm = iso.slice(11, 16);
-  let ver = '';
-  try { ver = readFileSync('CHANGELOG.md', 'utf8').match(/##\s*\[(v\d+)\]/)?.[1] ?? ''; } catch { /* no changelog */ }
+  const dateStr = date.replace(/-/g, '');
+  const timeStr = hm.replace(':', '');
+  const ver = `${dateStr}.${timeStr}`;
   let hash = '', dirty = false;
   const git = (a: string): string => execSync(a, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
   try { hash = git('git rev-parse --short HEAD'); } catch { /* not a repo */ }
@@ -23,8 +24,8 @@ function buildId(): { short: string; full: string } {
       .some((l) => l.trim() && !/vite\.config\.[jt]s\.timestamp-/.test(l));
   } catch { /* ignore */ }
   return {
-    short: [ver, `${date} ${hm}Z`].filter(Boolean).join(' · '),
-    full: [ver, `${date} ${hm} UTC`, hash && `git ${hash}${dirty ? ' (uncommitted)' : ''}`].filter(Boolean).join(' · '),
+    short: ver,
+    full: [ver, hash && `git ${hash}${dirty ? ' (uncommitted)' : ''}`].filter(Boolean).join(' · '),
   };
 }
 
