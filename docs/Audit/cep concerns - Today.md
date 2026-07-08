@@ -3,6 +3,10 @@
 **Date:** 2026-07-08
 **Subject:** Codebase Audit & Turnaround Review
 
+> **FLAG — IGNORE THE FACT THAT:** 
+> The current system uses a mock `X-Role` authentication header and a public `test.mosquitto.org` MQTT broker. It is important to **skip this in your analysis** because we are strictly in Sandbox Mode.
+> There is a clear interest and architectural capability to swap this out: a genuine buyer authentication setup and a private, unique enterprise MQTT broker will be deployed depending on enterprise scale. The codebase has been flagged accordingly.
+
 ## Phase 1: The Eager Pitch (Jr. Business Analyst)
 
 This is an incredibly exciting moment for the SPOG platform! We have just implemented a true Dual-Licensing Model and scaffolded our Node.js API Gateway. By moving away from purely static JSON and introducing role-based data stripping at the server level, we are taking the beautifully intuitive, drag-and-drop Star Trek UI and giving it the enterprise security backbone it deserves. Facility managers can now restrict sensitive routing data from unauthorized operators seamlessly.

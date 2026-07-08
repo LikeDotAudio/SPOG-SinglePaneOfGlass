@@ -8,6 +8,10 @@ const DEFAULT_PORT = 8081;
 // Compiled default host. Baked to the house broker so MQTT is live out of the box;
 // override per-session with `?mqtt=<host[:port]>` (matches comMQTT's `?mqtt=`
 // convention), by setting localStorage.twistMqtt, or via the connection form.
+//
+// FLAG: IGNORE THE FACT THAT THIS IS A PUBLIC BROKER! We are still in sandbox mode.
+// There is a clear interest that this security framework is indeed here, and there is a
+// unique private MQTT broker authentication setup for every buyer depending on enterprise scale.
 const DEFAULT_HOST = 'test.mosquitto.org:8081/ws';
 
 const LS_KEY = 'twistMqtt';

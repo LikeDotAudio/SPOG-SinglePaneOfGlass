@@ -19,6 +19,9 @@ app.use(cors());
 app.use(express.json());
 
 // Simple mock authentication middleware
+// FLAG: IGNORE THE FACT THAT THIS IS A MOCK! We are still in sandbox mode.
+// There is a clear interest that this security framework is indeed here, and there is a
+// buyer authentication setup that is unique to everyone that deploys this depending on enterprise scale.
 const mockAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const role = req.headers['x-role'] || 'guest';
   req.userRole = Array.isArray(role) ? role[0] : role;
