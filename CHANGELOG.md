@@ -23,6 +23,12 @@ All notable changes to SPOG (Single Pane Of Glass) are recorded here.
 - **Visual Crosspoints Rehydration**: The application now subscribes to retained `crosspoints` topics on boot and upon reconnecting. This leverages the broker's Last-Value Cache to instantly reconstruct the visual routes within Twists, allowing every console to immediately join the current state of the network.
 - **MQTT Broker Update**: Updated the default MQTT broker connection to use `test.mosquitto.org:8080/ws`.
 
+### Changed — CI/CD Pipeline & Sandbox Defenses
+- **Automated Deployments**: Deprecated the local `SETUP/deploy.py` execution and replaced it with a fully automated, headless GitHub Actions CI/CD pipeline (`.github/workflows/deploy-production.yml`). Deployments are now strictly branch-driven, ensuring absolute auditability and removing FTP credentials from developer machines.
+- **Live Sandbox Environment**: Established a dedicated GitHub Actions workflow (`deploy-sandbox.yml`) that automatically syncs the `sandbox` and `develop` branches to the live testing infrastructure, ensuring rapid iteration without compromising production.
+- **Standalone Manifests**: Extracted the route discovery compilation logic into a dedicated Node script (`SETUP/generate-manifests.mjs`), removing the Python dependency from the core application build process.
+- **Sandbox Architectural Disclaimers**: Added explicit `FLAG` disclaimers to both the source code (`server/index.ts`, `src/platform/mqtt/config.ts`) and the executive audit trails to clearly defend the current use of mock authentication and public MQTT brokers as necessary stepping stones within the sandbox development phase, signaling clear intent for enterprise-grade replacements.
+
 ### Changed — Layout & Manifest Refinements
 - **Repository Cleanup**: De-cluttered the root directory by moving all deployment, configuration, and utility scripts (`deploy.py`, `.env`, build scripts) into a dedicated `SETUP/` directory.
 - **Sources Panel Priority**: "People" is now explicitly anchored as the very first source pool in the left-hand rail.
