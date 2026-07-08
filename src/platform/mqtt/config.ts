@@ -4,15 +4,15 @@
 // `?mqtt=`/localStorage/compiled-default URL resolver. Pure of the bus; the
 // connection layer (client.ts) consumes these to open the socket.
 
-const DEFAULT_PORT = 9001;
+const DEFAULT_PORT = 8080;
 // Compiled default host. Baked to the house broker so MQTT is live out of the box;
 // override per-session with `?mqtt=<host[:port]>` (matches comMQTT's `?mqtt=`
 // convention), by setting localStorage.twistMqtt, or via the connection form.
-const DEFAULT_HOST = '44.44.44.163';
+const DEFAULT_HOST = 'test.mosquitto.org:8080/ws';
 
 const LS_KEY = 'twistMqtt';
 const LS_PORT = 'twistMqttPort', LS_USER = 'twistMqttUser', LS_PASS = 'twistMqttPass';
-const DEFAULT_USER = 'guest', DEFAULT_PASS = 'guest';
+const DEFAULT_USER = '', DEFAULT_PASS = '';
 
 const lsGet = (k: string, d: string): string => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 
@@ -62,5 +62,9 @@ export function resolveBrokerUrl(): string | null {
   if (/^wss?:\/\//i.test(raw)) return raw;
   const proto = (typeof location !== 'undefined' && location.protocol === 'https:') ? 'wss' : 'ws';
   const port = Number(lsGet(LS_PORT, String(DEFAULT_PORT))) || DEFAULT_PORT;
-  return raw.includes(':') ? `${proto}://${raw}` : `${proto}://${raw}:${port}`;
+  if (raw.includes(':') || raw.includes('/')) {
+    // If it already has a port or a path, assume the user provided the full host spec
+    return `${proto}://${raw}`;
+  }
+  return `${proto}://${raw}:${port}`;
 }
