@@ -76,7 +76,8 @@ function seatRow(): HTMLElement {
   row.innerHTML = `MY SEAT
     <button data-um-export title="Download every preference, layout and draft on this seat (.spog)">EXPORT</button>
     <button data-um-import title="Restore a .spog seat file (reloads the console)">IMPORT</button>
-    <button data-um-crypto title="Open the Magic Decoder Ring for Protobuf and MQTT payload diagnosis">DECODER</button>`;
+    <button data-um-crypto title="Open the Magic Decoder Ring for Protobuf and MQTT payload diagnosis">DECODER</button>
+    <button data-um-purge title="Wipe all local settings, drafts, and service worker caches, then hard reload" style="background:#b32d2d;color:#fff;">PURGE</button>`;
   row.querySelector('[data-um-export]')?.addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(exportSeat(), null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -99,6 +100,22 @@ function seatRow(): HTMLElement {
     input.click();
   });
   row.querySelector('[data-um-crypto]')?.addEventListener('click', toggleCryptoDecoder);
+  row.querySelector('[data-um-purge]')?.addEventListener('click', async () => {
+    if (!confirm('This will permanently delete all unexported layouts, preferences, and cached application files. The console will perform a full factory reset. Continue?')) return;
+    localStorage.clear();
+    sessionStorage.clear();
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const r of regs) await r.unregister();
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        for (const k of keys) await caches.delete(k);
+      }
+    } catch { /* ignore cache errors */ }
+    location.reload();
+  });
   return row;
 }
 
