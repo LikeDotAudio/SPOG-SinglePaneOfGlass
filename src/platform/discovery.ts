@@ -17,6 +17,15 @@ export interface Listing {
   files: Entry[];
 }
 
+const API_BASE = 'http://localhost:3000/api/v1/routes/';
+const getApiUrl = (url: string) => {
+  if (url.startsWith('Routes/')) return API_BASE + url.substring(7);
+  return url;
+};
+
+// Simple mock auth role from local storage or default to 'guest'
+const getRoleHeader = () => ({ 'X-Role': localStorage.getItem('spog_role') || 'guest' });
+
 export async function fetchJSON<T = unknown>(url: string): Promise<T | null> {
   // Authoring overlay (audit §7): a drafted file wins over disk, so edits persist
   // and re-render with no backend. No draft → identical to the original fetch.
@@ -25,7 +34,7 @@ export async function fetchJSON<T = unknown>(url: string): Promise<T | null> {
   try {
     // no-store bypasses a stale browser cache (e.g. an empty copy cached before
     // the file existed), which otherwise yields "Unexpected end of JSON input".
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetch(getApiUrl(url), { cache: 'no-store', headers: getRoleHeader() });
     if (!res.ok) {
       console.warn(`fetchJSON: HTTP ${res.status} for ${url}`);
       return null;
@@ -68,7 +77,7 @@ export async function listDirectory(url: string): Promise<Listing> {
   try {
     let manifest = getDraft<Manifest>(url + 'index.json');
     if (!Array.isArray(manifest)) {
-      const res = await fetch(url + 'index.json', { cache: 'no-store' });
+      const res = await fetch(getApiUrl(url + 'index.json'), { cache: 'no-store', headers: getRoleHeader() });
       if (res.ok) { const parsed = JSON.parse(await res.text()) as unknown; if (Array.isArray(parsed)) manifest = parsed as Manifest; }
     }
     if (Array.isArray(manifest)) {
@@ -87,7 +96,7 @@ export async function listDirectory(url: string): Promise<Listing> {
 
   // 2) Autoindex HTML fallback.
   try {
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetch(getApiUrl(url), { cache: 'no-store', headers: getRoleHeader() });
     if (!res.ok) return sortAndReturn();
     const html = await res.text();
     const doc = new DOMParser().parseFromString(html, 'text/html');
