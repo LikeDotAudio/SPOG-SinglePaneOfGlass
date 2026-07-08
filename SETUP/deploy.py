@@ -60,7 +60,9 @@ from deploy.mqtt_stamp import publish_build_stamp
 
 
 def main():
-    project_dir = os.path.dirname(os.path.abspath(__file__))
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_dir = os.path.dirname(script_dir)
+    sys.path.insert(0, script_dir) # ensure it finds the deploy module
     args = sys.argv[1:]
     fresh = '--fresh' in args
     force_all = fresh or any(a in ('--all', '-a', 'full') for a in args)
