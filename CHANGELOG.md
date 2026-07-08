@@ -18,6 +18,11 @@ All notable changes to SPOG (Single Pane Of Glass) are recorded here.
 - **Dual-Licensing Model (Phase 4)**: Added `LICENSE.md` outlining a new commercialization structure that legally uncaps the Total Addressable Market while preserving open, non-commercial use.
 - **Turnaround Strategy**: Committed `TURNAROUND_STRATEGY.md` outlining the four-phase plan to graduate SPOG into an enterprise-ready broadcast management platform.
 
+### Added — Network Synchronization & State Hydration
+- **Captain's Log Network Sync**: The Captain's Log now subscribes to the MQTT `log/latest` topic, ensuring that routing decisions and layout edits made by any operator instantly sync and populate the logs of all other active consoles. Network-sourced log entries are safely marked as read-only.
+- **Visual Crosspoints Rehydration**: The application now subscribes to retained `crosspoints` topics on boot and upon reconnecting. This leverages the broker's Last-Value Cache to instantly reconstruct the visual routes within Twists, allowing every console to immediately join the current state of the network.
+- **MQTT Broker Update**: Updated the default MQTT broker connection to use `test.mosquitto.org:8080/ws`.
+
 ### Changed — Layout & Manifest Refinements
 - **Repository Cleanup**: De-cluttered the root directory by moving all deployment, configuration, and utility scripts (`deploy.py`, `.env`, build scripts) into a dedicated `SETUP/` directory.
 - **Sources Panel Priority**: "People" is now explicitly anchored as the very first source pool in the left-hand rail.
