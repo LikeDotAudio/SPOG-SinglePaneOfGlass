@@ -2,6 +2,20 @@
 
 All notable changes to SPOG (Single Pane Of Glass) are recorded here.
 
+## [v107] — 2026-07-08
+
+### Added — People Manager & Crew Guide
+- **People Manager Overlay**: A dedicated interactive guide breaking down the crew into categories (Hosts, Co-Hosts, Panelists, etc.) and displaying individual profiles. Accessible via the **"ℹ️ MGR"** button on the PEOPLE group in the Destinations footer tab.
+- **In-App Authoring for People**: The People Manager includes full authoring capabilities backed by the local `routes-store`. Operators can quickly add new people to a category using a template or hover over existing talent to edit their titles via a prompt. All changes instantly persist as drafts and update the manifest automatically.
+
+### Added — Sick Bay Diagnostics & Booking
+- **Sick Bay Interaction**: Clicking an offline or troubled destination in Sick Bay now directly navigates to its declaration and displays a live diagnostic PROGRAM monitor below it.
+- **Resource Booking**: Added soft-booking fields (`bookedBy`, `inUseBy`, `scheduledUntil`, `allowSharedComms`) to destination configurations to integrate resource management with the production schedule.
+
+### Changed — Layout Refinements
+- **Sources Panel Priority**: "People" is now explicitly anchored as the very first source pool in the left-hand rail.
+- **Gang Grid Full Width**: Source listings inside the gang grid now display at full width (`1fr`) rather than squeezed.
+
 ## [v106] — 2026-07-05
 
 ### Added — Teleprompter & Matrix Upgrades

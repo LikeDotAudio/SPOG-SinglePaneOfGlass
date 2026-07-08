@@ -10,7 +10,9 @@ import { el } from '../ui/dom.js';
 import { renderSourcesPanel } from '../ui/sources/panel.js';
 import { wireSourceNodes } from '../ui/sources/interact.js';
 import { Footer, loadAllDestinations, restoreFooterState } from '../ui/console/footer.js';
-import { buildDestinations } from '../ui/console/destinations.js';
+import { buildDestinations, addDestinationTree } from '../ui/console/destinations.js';
+import { DEST_GROUP_COLORS, rgbAt } from '../ui/palette.js';
+import { initSickBay } from '../ui/console/sick-bay.js';
 import { initClock } from '../ui/console/clock.js';
 import { showSchedule } from '../ui/console/schedule.js';
 import { initAuthPanel } from '../ui/console/auth-panel.js';
@@ -34,6 +36,7 @@ import { initSeatSync } from '../platform/seat-sync.js';
 import { initBuildWatch } from '../ui/console/build-watch.js';
 import { initMqttTree } from '../ui/console/mqtt-tree.js';
 import { onRoleChange } from '../platform/auth.js';
+import { showPeopleManager } from '../ui/console/people-manager.js';
 import { openEditorForTwist } from './editor-dispatch.js';
 
 /** The Vite-injected build stamp (see main.ts / vite.config.ts). */
@@ -92,8 +95,26 @@ export async function buildConsole(BUILD: BuildStamp): Promise<void> {
   ])]));
 
   Footer.init(footer.querySelector('#production-tabs') as HTMLElement, content);
+
+  const peopleColor = rgbAt(DEST_GROUP_COLORS, 5); // Fallback color
+  const peopleGroup = Footer.addGroup('PEOPLE', { color: peopleColor, collapsed: true });
+  if (peopleGroup) {
+    const mgrIcon = document.createElement('span');
+    mgrIcon.innerHTML = 'ℹ️ MGR';
+    mgrIcon.style.cssText = 'margin-left:8px; font-size:10px; cursor:pointer; color:#d8b4e2; background:#2c1a3b; padding:2px 5px; border-radius:4px; font-weight:bold;';
+    mgrIcon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showPeopleManager();
+    });
+    peopleGroup.labelEl.querySelector('span')?.appendChild(mgrIcon);
+  }
+  const peoplePromise = addDestinationTree('Routes/People/', peopleGroup, peopleColor, undefined, openEditorForTwist, 'People');
+
+  await initSickBay(); // Creates SICK BAY group next (to the right of PEOPLE)
+
   await Promise.all([
     renderSourcesPanel(ingress, () => wireSourceNodes(ingress)).then(() => wireSourceNodes(ingress)),
+    peoplePromise,
     buildDestinations(openEditorForTwist),
   ]);
   // Seat memory: re-open the remembered groups + destination tab (a deep-link

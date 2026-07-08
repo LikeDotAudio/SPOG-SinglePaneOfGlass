@@ -125,16 +125,14 @@ export async function renderSourcesPanel(panel: HTMLElement, onRendered?: Render
   // `icons/` holds the ICON-face tiles, not a source category (deploy.py keeps it
   // out of the manifests too — this guard covers a stale/hand-built index.json).
   const dirs = allDirs.filter((d) => !/^\.?icons?\/?$/i.test(stripOrder(d.name)));
-  const built = dirs.map((cat, i) => {
-    const color = paletteAt(SOURCE_POOL_COLORS, i);
+  const peopleContent = buildSuperPool(panel, 'People', paletteAt(SOURCE_POOL_COLORS, 0));
+  const built = [{ content: peopleContent, url: 'Routes/People/' }];
+
+  dirs.forEach((cat, i) => {
+    const color = paletteAt(SOURCE_POOL_COLORS, i + 1);
     const content = buildSuperPool(panel, cat.name, color);
-    return { content, url: 'Routes/Sources/' + cat.href };
+    built.push({ content, url: 'Routes/Sources/' + cat.href });
   });
-  // People are ONE unified model (source + destination in a single file); the
-  // sources panel projects the `source{}` feeds from the canonical Routes/People
-  // tree. The destinations console projects `kit{}` from the SAME files.
-  const peopleContent = buildSuperPool(panel, 'People', paletteAt(SOURCE_POOL_COLORS, built.length));
-  built.push({ content: peopleContent, url: 'Routes/People/' });
   const first = built[0];
   if (first) {
     first.content.style.display = '';

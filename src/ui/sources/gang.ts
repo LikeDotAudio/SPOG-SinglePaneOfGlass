@@ -10,7 +10,7 @@ import { fillVideoCameras } from './pools.js';
 
 const GANG_CSS = `
 .gang-cap{font-size:10px;font-weight:bold;letter-spacing:2px;color:#9fb6cc;margin:2px 0 4px 4px;text-transform:uppercase;}
-.gang-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:4px;margin:0 0 10px;align-items:start;}
+.gang-grid{display:grid;grid-template-columns:1fr;gap:4px;margin:0 0 10px;align-items:start;}
 .signal-node.gang-cell{border-radius:3px;padding:0;cursor:grab;display:flex;align-items:center;
     justify-content:center;min-height:34px;background:rgba(0,0,0,.55);}
 .signal-node.gang-cell .multiplex-header{font-size:13px;font-weight:bold;letter-spacing:1px;padding:9px 2px;width:100%;text-align:center;}

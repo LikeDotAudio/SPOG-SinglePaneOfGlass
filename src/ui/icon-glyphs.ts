@@ -162,5 +162,10 @@ export const GLYPHS: Record<string, string> = {
     <circle cx="256" cy="214" r="28" stroke="none"/>
     <path d="M 180 208 a 110 110 0 0 1 152 0" fill="none" stroke-width="16" stroke-linecap="round" opacity=".85"><animate attributeName="opacity" values=".85;.2;.85" dur="1.5s" repeatCount="indefinite"/></path>
     <path d="M 146 170 a 160 160 0 0 1 220 0" fill="none" stroke-width="16" stroke-linecap="round" opacity=".5"><animate attributeName="opacity" values=".5;.1;.5" dur="1.5s" begin=".3s" repeatCount="indefinite"/></path>`,
+  'sick-bay': `
+    <rect x="220" y="140" width="72" height="232" rx="16" stroke="none"/>
+    <rect x="140" y="220" width="232" height="72" rx="16" stroke="none"/>
+    <circle cx="256" cy="256" r="48" fill="#ff4444" stroke="none">
+      <animate attributeName="opacity" values="1;.2;1" dur="1.1s" repeatCount="indefinite"/></circle>`,
   ...CHROME_GLYPHS,
 };

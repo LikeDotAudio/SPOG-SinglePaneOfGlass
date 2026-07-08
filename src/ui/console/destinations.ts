@@ -64,9 +64,4 @@ export async function buildDestinations(openEditor?: OpenEditor): Promise<void> 
     // advertise pass, which has always walked with the category as parent.
     return addDestinationTree('Routes/Destinations/' + cat.href, catGroup, colorRgb, stripOrder(cat.name), openEditor, stripOrder(cat.name));
   }));
-  // People: ONE unified model — the destinations console projects `kit{}` twists
-  // from the canonical Routes/People tree (same files the sources panel reads).
-  const pColor = rgbAt(DEST_GROUP_COLORS, destDir.dirs.length);
-  const peopleGroup = Footer.addGroup('PEOPLE', { color: pColor, collapsed: true });
-  await addDestinationTree('Routes/People/', peopleGroup, pColor, undefined, openEditor, 'People');
 }

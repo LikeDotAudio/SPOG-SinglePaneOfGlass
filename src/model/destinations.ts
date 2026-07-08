@@ -9,6 +9,10 @@ export interface TwistConfig {
   accepts?: Accepts;
   inputs?: string[];
   monitor?: boolean;
+  bookedBy?: string | null;  // Identifies the control room holding the reservation
+  inUseBy?: string[];        // Array of control rooms currently monitoring
+  scheduledUntil?: number | null; // Unix timestamp for when the booking expires
+  allowSharedComms?: boolean; // Override flag for party line scenarios
   row?: string;
   maxVideo?: number;
   maxAudio?: number;

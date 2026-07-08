@@ -65,6 +65,7 @@ const TOKENS: Record<string, [token: string, fallback: string]> = {
   'log-out':      ['--state-alarm', '#ff3b3b'],
   'menu':         ['--sig-program', '#646DCC'],
   'credits':      ['--sig-video', '#CC99CC'],
+  'sick-bay':     ['--state-alarm', '#ff3b3b'],
 };
 
 export const hasTile = (id: string): boolean => id in GLYPHS;

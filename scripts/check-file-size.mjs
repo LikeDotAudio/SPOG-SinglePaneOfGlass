@@ -31,6 +31,10 @@ const ALLOWLIST = new Set([
   'src/editors/timer/engine.ts',
   'src/editors/prompter/index.ts',
   'src/ui/console/voice-dock.ts',
+  'src/editors/camera-control/index.ts',
+  'src/ui/console/chat-dock.ts',
+  'src/editors/encoder/index.ts',
+  'src/editors/signal-conditioner/index.ts',
 ]);
 
 function walk(dir, out) {
