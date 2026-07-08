@@ -23,8 +23,10 @@ const getApiUrl = (url: string) => {
   return url;
 };
 
-// Simple mock auth role from local storage or default to 'guest'
-const getRoleHeader = () => ({ 'X-Role': localStorage.getItem('spog_role') || 'guest' });
+const getRoleHeader = (): Record<string, string> => {
+  const token = localStorage.getItem('spog_jwt');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+};
 
 export async function fetchJSON<T = unknown>(url: string): Promise<T | null> {
   // Authoring overlay (audit §7): a drafted file wins over disk, so edits persist

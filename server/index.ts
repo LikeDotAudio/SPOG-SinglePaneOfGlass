@@ -3,10 +3,13 @@ import cors from 'cors';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import jwt from 'jsonwebtoken';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, '..');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'spog-super-secret-key-2026';
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -18,17 +21,31 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Simple mock authentication middleware
-// FLAG: IGNORE THE FACT THAT THIS IS A MOCK! We are still in sandbox mode.
-// There is a clear interest that this security framework is indeed here, and there is a
-// buyer authentication setup that is unique to everyone that deploys this depending on enterprise scale.
-const mockAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const role = req.headers['x-role'] || 'guest';
-  req.userRole = Array.isArray(role) ? role[0] : role;
+// JWT Auth endpoint
+app.post('/api/v1/auth/login', (req, res) => {
+  const { role } = req.body;
+  const token = jwt.sign({ role: role || 'guest' }, JWT_SECRET, { expiresIn: '12h' });
+  res.json({ token });
+});
+
+// Real JWT authentication middleware
+const jwtAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { role: string };
+      req.userRole = decoded.role;
+    } catch (err) {
+      req.userRole = 'guest';
+    }
+  } else {
+    req.userRole = 'guest';
+  }
   next();
 };
 
-app.use(mockAuth);
+app.use(jwtAuth);
 
 app.get('/api/v1/routes/*routePath', async (req, res) => {
   // express 5 / path-to-regexp 8 syntax for wildcard

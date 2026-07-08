@@ -9,14 +9,14 @@
 // -narrate (mutation → entry + Reverse Course), -view (CSS + render).
 import { addStyles } from '../dom.js';
 import { role, onRoleChange } from '../../platform/auth.js';
-import { ensureNarrative, nextEid, nextNid, nid, setCurrent, narratives, selected, entryById, narById, raiseNid, raiseEid, type Entry, type Narrative } from './captains-log-state.js';
+import { ensureNarrative, nextEid, nextNid, nid, setCurrent, narratives, selected, entryById, narById, raiseNid, raiseEid, type Entry, type Narrative, type LogEntryEvent } from './captains-log-state.js';
 import { hydrateLog, emitLog, onLogEntry, persistEntry } from './captains-log-persist.js';
 import { signed, reverseSelected, observeRoot } from './captains-log-narrate.js';
 import { render, setListEl, CL_CSS } from './captains-log-view.js';
 
 // Re-exported so importers of './captains-log.js' stay byte-identical.
 export { onLogEntry };
-export type { LogEntryEvent } from './captains-log-state.js';
+export type { LogEntryEvent };
 
 /** Log a SEMANTIC action (e.g. an Edit-Layout change) as a Captain's Log entry.
  *  `undo`, if given, is run by Reverse Course to undo it — so layout edits are

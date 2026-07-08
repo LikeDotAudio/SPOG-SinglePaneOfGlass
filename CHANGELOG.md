@@ -2,6 +2,16 @@
 
 All notable changes to SPOG (Single Pane Of Glass) are recorded here.
 
+## [v108] — 2026-07-08
+
+### Added — True Cryptographic Auth (Milestone 1)
+- **JWT Validation**: Replaced the mock `X-Role` setup in the API gateway with real `jsonwebtoken` validation. Added a `POST /api/v1/auth/login` endpoint to issue cryptographically signed JWTs.
+- **Frontend Authentication Integration**: Updated the console's role switcher to request a JWT upon role change and pass it securely via `Authorization: Bearer <token>` in all API requests.
+
+### Changed — Telemetry Logging (Milestone 2)
+- **Removed Message Throttling**: Completely ripped out the `throttle.ts` coalescing logic for outgoing MQTT messages. `opts?.throttle` requests are now ignored, and all telemetry is dispatched instantly.
+- **Message Rate Monitor**: Added a local message counter to the TwistBus that tracks the rate of outgoing payloads. It logs this rate every minute to a new dedicated `SPOG/system/rate/<client-id>` topic for external monitoring.
+
 ## [v107] — 2026-07-08
 
 ### Added — People Manager & Crew Guide

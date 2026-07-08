@@ -50,6 +50,20 @@ export function setRole(r: Role): void {
   current = r;
   try { sessionStorage.setItem(ROLE_KEY, r.id); } catch { /* private mode */ }
   for (const l of listeners) l(r);
+
+  // Authenticate with the backend and get a cryptographic JWT
+  fetch('http://localhost:3000/api/v1/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: r.id })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.token) {
+        try { localStorage.setItem('spog_jwt', data.token); } catch { /* ignore */ }
+      }
+    })
+    .catch(err => console.error('Failed to get JWT:', err));
 }
 
 /** Subscribe to role changes (the auth UI re-renders + re-applies scope). */

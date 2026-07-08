@@ -9,7 +9,6 @@
 // resolves, so the console boots and runs identically with or without MQTT.
 
 import type { TwistBus, ConfigMsg, ValueMsg } from './types.js';
-import { createThrottler, type Throttler } from './throttle.js';
 import { getBrokerConfig, resolveBrokerUrl } from './config.js';
 import { loadMqtt, type MqttClient } from './mqtt-load.js';
 
@@ -66,7 +65,6 @@ export function createTwistBus(): TwistBus {
   // restores no matter when the applier arrives. Self-echoes are cached too —
   // an editor REopened later should see this console's own current state.
   const lastValue = new Map<string, unknown>();
-  const throttlers = new Map<string, Throttler<{ topic: string; payload: string }>>();
   let client: MqttClient | null = null;
   let connected = false;
   let heartbeat: ReturnType<typeof setInterval> | null = null;
@@ -74,9 +72,16 @@ export function createTwistBus(): TwistBus {
 
   const full = (suffix: string): string => `${SPOG_ROOT}/${suffix.replace(/^\/+/, '')}`;
 
+  let messageCounter = 0;
+  let rateTimer: ReturnType<typeof setInterval> | null = null;
+  const rateTopic = `${SPOG_ROOT}/system/rate/${sessionId.split(':')[0]}`;
+
   const send = (topic: string, payload: string, retain = true): void => {
     if (!client) return;                       // mqtt.js buffers pre-connect and flushes on connect
-    try { client.publish(topic, payload, { retain, qos: 0 }); } catch (e) { dbg('publish failed', topic, e); }
+    try { 
+      client.publish(topic, payload, { retain, qos: 0 }); 
+      messageCounter++;
+    } catch (e) { dbg('publish failed', topic, e); }
   };
 
   let resolveReady!: () => void;
@@ -101,6 +106,10 @@ export function createTwistBus(): TwistBus {
       const beat = (): void => send(presenceTopic, JSON.stringify({ active: true, full_id: sessionId, ts: Date.now() }));
       beat();
       heartbeat = setInterval(beat, 1000);
+      rateTimer = setInterval(() => {
+        send(rateTopic, JSON.stringify({ messagesPerMinute: messageCounter, ts: Date.now(), full_id: sessionId }), false);
+        messageCounter = 0;
+      }, 60000);
       clearTimeout(readyTimer);
       resolveReady();
     });
@@ -134,11 +143,7 @@ export function createTwistBus(): TwistBus {
     publishValue<T>(suffix: string, value: T, opts?: { throttle?: boolean }): void {
       const topic = full(suffix);
       const payload = JSON.stringify({ value, ts: Date.now(), full_id: sessionId } satisfies ValueMsg<T>);
-      if (opts?.throttle) {
-        let t = throttlers.get(topic);
-        if (!t) { t = createThrottler((m) => send(m.topic, m.payload), 22); throttlers.set(topic, t); }
-        t.push({ topic, payload });
-      } else send(topic, payload);
+      send(topic, payload);
     },
 
     publishRaw(suffix, payload, opts): void {
@@ -162,8 +167,7 @@ export function createTwistBus(): TwistBus {
       disposed = true;
       clearTimeout(readyTimer);
       if (heartbeat) clearInterval(heartbeat);
-      for (const t of throttlers.values()) t.flush();
-      throttlers.clear();
+      if (rateTimer) clearInterval(rateTimer);
       subs.clear();
       if (client) {
         send(presenceTopic, JSON.stringify({ active: false, full_id: sessionId }));
