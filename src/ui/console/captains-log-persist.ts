@@ -7,7 +7,7 @@ import { narratives, setCurrent, raiseNid, raiseEid, type StoredEntry, type LogE
 import { render } from './captains-log-view.js';
 
 let hydrating = false;
-function persistEntry(e: LogEntryEvent): void {
+export function persistEntry(e: LogEntryEvent): void {
   if (hydrating) return;
   const voyTitle = narratives.find((n) => n.id === e.voyage)?.title ?? `Voyage ${e.voyage}`;
   if (e.reversed) {

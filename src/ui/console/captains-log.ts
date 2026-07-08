@@ -9,8 +9,8 @@
 // -narrate (mutation → entry + Reverse Course), -view (CSS + render).
 import { addStyles } from '../dom.js';
 import { role, onRoleChange } from '../../platform/auth.js';
-import { ensureNarrative, nextEid, nextNid, nid, setCurrent, narratives, selected, entryById, narById, type Entry, type Narrative } from './captains-log-state.js';
-import { hydrateLog, emitLog, onLogEntry } from './captains-log-persist.js';
+import { ensureNarrative, nextEid, nextNid, nid, setCurrent, narratives, selected, entryById, narById, raiseNid, raiseEid, type Entry, type Narrative } from './captains-log-state.js';
+import { hydrateLog, emitLog, onLogEntry, persistEntry } from './captains-log-persist.js';
 import { signed, reverseSelected, observeRoot } from './captains-log-narrate.js';
 import { render, setListEl, CL_CSS } from './captains-log-view.js';
 
@@ -28,6 +28,30 @@ export function logAction(text: string, undo?: () => void): void {
   const entry: Entry = { id: nextEid(), ts, twist: null, dest: '', prod: '', added: [], removed: [], text: line, reversed: false, undo };
   nar.entries.push(entry);
   emitLog({ voyage: nar.id, entry: entry.id, ts, dest: '', prod: '', added: [], removed: [], text: line, reversed: false });
+  render();
+}
+
+/** Inject a log entry received from the MQTT bridge into the local state. */
+export function receiveNetworkLog(e: LogEntryEvent): void {
+  let nar = narratives.find((n) => n.id === e.voyage);
+  if (!nar) { 
+    nar = { id: e.voyage, title: `Voyage ${e.voyage}`, entries: [] }; 
+    narratives.push(nar); 
+  }
+  if (nar.entries.some((x) => x.id === e.entry)) return;
+
+  const entry: Entry = {
+    id: e.entry, ts: e.ts, twist: null, dest: e.dest, prod: e.prod,
+    added: [], removed: [], text: e.text, reversed: e.reversed,
+    restored: true
+  };
+  nar.entries.push(entry);
+  nar.entries.sort((a, b) => a.id - b.id);
+  narratives.sort((a, b) => a.id - b.id);
+  raiseNid(e.voyage);
+  raiseEid(e.entry);
+  
+  persistEntry(e);
   render();
 }
 

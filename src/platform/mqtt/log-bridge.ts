@@ -6,7 +6,7 @@
 // "topics in every … Captain's Log" and "every create route" fall out of a single
 // subscription. Each entry lands at Twist/log/<voyage>/<entry> plus Twist/log/latest.
 
-import { onLogEntry, type LogEntryEvent } from '../../ui/console/captains-log.js';
+import { onLogEntry, receiveNetworkLog, type LogEntryEvent } from '../../ui/console/captains-log.js';
 import type { TwistBus, LogMsg } from './types.js';
 
 /** Wire the Captain's Log to the bus. Returns an unsubscribe.
@@ -17,7 +17,7 @@ import type { TwistBus, LogMsg } from './types.js';
  * time (the old behaviour) left the bridge permanently dead if MQTT wasn't up yet.
  * mqtt.js buffers any pre-`connect` publishes and flushes them on connect. */
 export function startLogBridge(bus: TwistBus): () => void {
-  return onLogEntry((e: LogEntryEvent) => {
+  const unsubLocal = onLogEntry((e: LogEntryEvent) => {
     if (!bus.status().enabled) return;
     const msg: Omit<LogMsg, 'full_id'> = {
       voyage: e.voyage, entry: e.entry, ts: e.ts,
@@ -27,4 +27,16 @@ export function startLogBridge(bus: TwistBus): () => void {
     bus.publishRaw(`log/${e.voyage}/${e.entry}`, { ...msg, full_id: bus.sessionId });
     bus.publishRaw('log/latest', { ...msg, full_id: bus.sessionId });
   });
+
+  const unsubRemote = bus.subscribe('log/latest', (_topic, payload) => {
+    const msg = payload as LogMsg | null;
+    if (!msg || msg.full_id === bus.sessionId) return;
+    receiveNetworkLog({
+      voyage: msg.voyage, entry: msg.entry, ts: msg.ts,
+      dest: msg.dest, prod: msg.prod, added: msg.added, removed: msg.removed,
+      text: msg.text, reversed: msg.reversed,
+    });
+  });
+
+  return () => { unsubLocal(); unsubRemote(); };
 }
