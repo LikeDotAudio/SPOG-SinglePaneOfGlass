@@ -10,11 +10,14 @@ All notable changes to SPOG (Single Pane Of Glass) are recorded here.
 
 ### Added — Sick Bay Diagnostics & Booking
 - **Sick Bay Interaction**: Clicking an offline or troubled destination in Sick Bay now directly navigates to its declaration and displays a live diagnostic PROGRAM monitor below it.
+- **Sick Bay Alert UI**: The SICK BAY footer tab now flashes with a dedicated, CSS-driven red pulse animation (`#ff3333`) and drop-shadow when active, improving alert visibility.
 - **Resource Booking**: Added soft-booking fields (`bookedBy`, `inUseBy`, `scheduledUntil`, `allowSharedComms`) to destination configurations to integrate resource management with the production schedule.
 
-### Changed — Layout Refinements
+### Changed — Layout & Manifest Refinements
 - **Sources Panel Priority**: "People" is now explicitly anchored as the very first source pool in the left-hand rail.
 - **Gang Grid Full Width**: Source listings inside the gang grid now display at full width (`1fr`) rather than squeezed.
+- **Manifest Sync**: Unified folder names across `Routes/Destinations/index.json` and `Routes/Sources/index.json` to use singular terminology (e.g., `Control Room`, `Encoder`, `Studio`) ensuring accurate mapping to the actual data directories.
+- **Player Banks**: Removed deprecated `Bank E`, `Bank F`, and `Bank G` from the Player sources manifest.
 
 ## [v106] — 2026-07-05
 
