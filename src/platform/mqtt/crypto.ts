@@ -29,6 +29,7 @@ export async function encodeAndEncrypt(payloadObj: any): Promise<Uint8Array> {
     let paramVal: spog.ParamValue.$Shape = {};
     if (typeof value === 'number') paramVal = { numberValue: value, value: 'numberValue' };
     else if (typeof value === 'boolean') paramVal = { boolValue: value, value: 'boolValue' };
+    else if (typeof value === 'object' && value !== null) paramVal = { stringValue: JSON.stringify(value), value: 'stringValue' };
     else paramVal = { stringValue: String(value), value: 'stringValue' };
 
     wrapper = {
@@ -70,7 +71,12 @@ export async function decryptAndDecode(bytes: Uint8Array): Promise<any> {
       let val: any;
       if (wrapper.valueMsg.value?.numberValue != null) val = wrapper.valueMsg.value.numberValue;
       else if (wrapper.valueMsg.value?.boolValue != null) val = wrapper.valueMsg.value.boolValue;
-      else val = wrapper.valueMsg.value?.stringValue;
+      else {
+        val = wrapper.valueMsg.value?.stringValue;
+        if (typeof val === 'string' && (val.startsWith('[') || val.startsWith('{'))) {
+          try { val = JSON.parse(val); } catch { /* ignore */ }
+        }
+      }
       
       return {
         value: val,
