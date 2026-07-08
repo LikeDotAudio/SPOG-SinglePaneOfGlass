@@ -152,7 +152,7 @@ export function initUserMenu(): void {
     row.innerHTML = `UPDATES
       <button data-um-changelog title="View the public changelog">CHANGELOG</button>`;
     row.querySelector('[data-um-changelog]')?.addEventListener('click', () => {
-      window.open('/api/v1/changelog', '_blank');
+      window.open('https://github.com/LikeDotAudio/SPOG-SinglePaneOfGlass/blob/main/CHANGELOG.md', '_blank');
     });
     return row;
   };

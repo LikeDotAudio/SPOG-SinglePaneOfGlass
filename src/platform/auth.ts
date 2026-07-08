@@ -52,7 +52,7 @@ export function setRole(r: Role): void {
   for (const l of listeners) l(r);
 
   // Authenticate with the backend and get a cryptographic JWT
-  fetch('/api/v1/auth/login', {
+  fetch('http://localhost:3000/api/v1/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ role: r.id })
