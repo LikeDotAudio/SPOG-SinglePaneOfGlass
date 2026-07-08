@@ -152,7 +152,7 @@ export function initUserMenu(): void {
     row.innerHTML = `UPDATES
       <button data-um-changelog title="View the public changelog">CHANGELOG</button>`;
     row.querySelector('[data-um-changelog]')?.addEventListener('click', () => {
-      window.open('http://localhost:3000/api/v1/changelog', '_blank');
+      window.open('/api/v1/changelog', '_blank');
     });
     return row;
   };

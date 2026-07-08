@@ -17,7 +17,7 @@ export interface Listing {
   files: Entry[];
 }
 
-const API_BASE = 'http://localhost:3000/api/v1/routes/';
+const API_BASE = '/api/v1/routes/';
 const getApiUrl = (url: string) => {
   if (url.startsWith('Routes/')) return API_BASE + url.substring(7);
   return url;
