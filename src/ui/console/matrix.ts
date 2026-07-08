@@ -11,8 +11,10 @@
 import { updateTwistVisuals, toggleHelix } from './helix.js';
 import { parseConfig, enforceTwistLimits, ensureDropZone, acceptsFor, buildDroppedGroup, rid } from './matrix-groups.js';
 import { refreshCrosspoints } from './matrix-crosspoints.js';
-import { publishCrosspoints } from './matrix-place.js';
+import { publishCrosspoints, applyCrosspointsFromNetwork } from './matrix-place.js';
 import { fanOutToInputs } from './matrix-cascade.js';
+import { getBus } from '../../platform/mqtt/index.js';
+import { twistTopic } from '../../platform/mqtt/topics.js';
 
 // ---- barrel: preserve the module's public surface ------------------------------
 export { publishCrosspoints, enforceTwistLimits, buildDroppedGroup, refreshCrosspoints };
@@ -34,6 +36,19 @@ export function initializeTwists(root: ParentNode, onOpenEditor?: OpenEditor): v
     twist.querySelectorAll<HTMLElement>('.twist-lip, .twist-foldbar').forEach((lip) => {
       lip.addEventListener('click', (e) => toggleHelix(e, lip));
     });
+
+    const prod = twist.dataset.prodName ?? '';
+    const name = (twist.querySelector('.twist-title')?.textContent ?? '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+    if (prod && name) {
+      const bus = getBus();
+      const unsub = bus.subscribe(`${twistTopic(prod, name)}/crosspoints`, (_topic, payload) => {
+        if (!twist.isConnected) { unsub(); return; }
+        const p = payload as { value?: string[] } | string[] | null;
+        const arr = (p && 'value' in p && Array.isArray(p.value)) ? p.value : (Array.isArray(p) ? p : null);
+        if (!arr) return;
+        applyCrosspointsFromNetwork(twist, arr);
+      });
+    }
 
     twist.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).closest('.signal-node, .twist-lip, .twist-foldbar')) return;

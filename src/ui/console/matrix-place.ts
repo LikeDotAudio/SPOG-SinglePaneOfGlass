@@ -5,6 +5,8 @@ import { getBus } from '../../platform/mqtt/index.js';
 import { twistTopic } from '../../platform/mqtt/topics.js';
 import { parseConfig, enforceTwistLimits, ensureDropZone, rid } from './matrix-groups.js';
 import { refreshCrosspoints } from './matrix-crosspoints.js';
+import { pauseNarrator, resumeNarrator } from './captains-log-narrate.js';
+import { updateTwistVisuals } from './helix.js';
 
 /** Project a twist's current routed set onto its retained crosspoints topic (audit §4). */
 export function publishCrosspoints(twist: HTMLElement): void {
@@ -40,4 +42,39 @@ export function placeSourceInTwist(twist: HTMLElement, node: HTMLElement): boole
   refreshCrosspoints(dropZone);   // number 1..N + make reorderable
   publishCrosspoints(twist);
   return true;
+}
+
+/** Hydrate a twist's routed set from its retained MQTT crosspoints topic. */
+export function applyCrosspointsFromNetwork(twist: HTMLElement, sourceNames: string[]): void {
+  const dropZone = ensureDropZone(twist);
+  pauseNarrator();
+  dropZone.replaceChildren();
+  
+  const allSources = [...document.querySelectorAll<HTMLElement>('.signal-node')].filter(n => !n.closest('.twist-container'));
+  
+  for (const name of sourceNames) {
+    const srcNode = allSources.find(n => (n.textContent ?? '').trim().split('\n')[0] === name);
+    let clone: HTMLElement;
+    if (srcNode) {
+      clone = srcNode.cloneNode(true) as HTMLElement;
+      clone.id = srcNode.id + '-' + rid();
+    } else {
+      clone = document.createElement('div');
+      clone.className = 'signal-node';
+      clone.textContent = name;
+      clone.style.backgroundColor = 'rgba(255,255,255,0.1)';
+      clone.style.padding = '4px 8px';
+      clone.style.borderRadius = '4px';
+      clone.style.fontSize = '11px';
+      clone.id = 'net-' + rid();
+    }
+    clone.classList.remove('selected');
+    clone.style.opacity = '1';
+    clone.draggable = false;
+    dropZone.appendChild(clone);
+  }
+  
+  refreshCrosspoints(dropZone);
+  updateTwistVisuals(twist);
+  resumeNarrator();
 }

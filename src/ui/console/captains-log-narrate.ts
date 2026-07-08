@@ -10,6 +10,9 @@ import { narratives, selected, ensureNarrative, nextEid, type Entry, type Remove
 
 let observer: MutationObserver | null = null, paused = false;
 
+export function pauseNarrator(): void { paused = true; }
+export function resumeNarrator(): void { paused = false; observer?.takeRecords(); }
+
 const utc = (ts: number): string => new Date(ts).toISOString().replace('T', ' ').replace(/\.\d+Z$/, '') + ' UTC';
 
 /** Sign a log line with the operator's name (asked at login) when one is set. */
