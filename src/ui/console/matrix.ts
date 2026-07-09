@@ -129,7 +129,11 @@ export function initializeTwists(root: ParentNode, onOpenEditor?: OpenEditor): v
       // 
       // If a WHOLE PRODUCTION is dropped onto a STUDIO, wire up the whole room:
       const firstId = document.getElementById(ids[0] ?? '');
-      if (firstId && firstId.classList.contains('production')) {
+      const isHost = ids.some((id) => document.getElementById(id)?.classList.contains('video-person'));
+      if (isHost) {
+        dropZone.replaceChildren(); // discard the default placement; route to first free camera
+        fanOutHostToCamera(twist, ids);
+      } else if (firstId && firstId.classList.contains('production')) {
         dropZone.replaceChildren(); // discard the default placement
         fanOutProductionToStudio(twist, ids);
       } else if (config && (config.cameraInput || config.row === 'remotes')) {

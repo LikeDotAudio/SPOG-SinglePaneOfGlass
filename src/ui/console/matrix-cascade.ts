@@ -67,6 +67,26 @@ export function fanOutToInputs(startTwist: HTMLElement, ids: string[]): void {
   if (audios.length) cascadeNodes(startTwist, [], audios);   // audio bundle → console + positioner
 }
 
+/** Drop a HOST (person) onto a production: their camera feed lands on the first
+ *  AVAILABLE (empty) camera input, then cascades downward to the vision mixer +
+ *  multiviewers. Dropping a second host fills the next empty camera, and so on. */
+export function fanOutHostToCamera(startTwist: HTMLElement, ids: string[]): void {
+  const scope: ParentNode = startTwist.closest('.program-row') ?? startTwist.closest('[id^="tab-"]') ?? document;
+  const cameras = [...scope.querySelectorAll<HTMLElement>('.twist-container')]
+    .filter((t) => { const c = parseConfig(t); return !!c && !!c.cameraInput && c.row === 'cameras'; });
+  if (!cameras.length) return;
+  // The host's camera feed (the dropped video node); ignore any audio in the drag.
+  const video = ids.map((id) => document.getElementById(id))
+    .find((n): n is HTMLElement => !!n && n.classList.contains('video'));
+  if (!video) return;
+  // First camera with an empty drop-zone; fall back to the first camera if all full.
+  const target = cameras.find((t) => !ensureDropZone(t).querySelector('.signal-node')) ?? cameras[0]!;
+  ensureDropZone(target).replaceChildren();      // one host per camera
+  placeSourceInTwist(target, video);
+  updateTwistVisuals(target);
+  cascadeNodes(target, [video], []);             // camera video → vision + multiviewers
+}
+
 /** Drop a whole Production onto a Studio: wires up monitors, speakers, comms, and controllers */
 export function fanOutProductionToStudio(startTwist: HTMLElement, ids: string[]): void {
   const scope: ParentNode = startTwist.closest('.program-row') ?? startTwist.closest('[id^="tab-"]') ?? document;
