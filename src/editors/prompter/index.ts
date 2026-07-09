@@ -33,9 +33,12 @@ const CSS = `
 .tp-config label{display:flex;align-items:center;gap:8px;cursor:pointer;}
 .tp-config input[type="color"]{width:40px;height:40px;padding:0;border:none;border-radius:4px;background:none;cursor:pointer;}
 .tp-config input[type="checkbox"]{width:24px;height:24px;cursor:pointer;}
-.tp-stage{flex:1;min-height:0;position:relative;overflow:hidden;background:#000;border:1px solid #1d2942;border-radius:10px;}
+.tp-stage{aspect-ratio:1/1;max-height:100%;margin:0 auto;position:relative;overflow:hidden;background:#000;border:1px solid #1d2942;border-radius:10px;}
 .tp-scroll{position:absolute;left:0;right:0;top:0;padding:0 9%;color:#fff;font-weight:800;text-align:center;
   text-shadow:0 2px 8px rgba(0,0,0,.8);will-change:transform;}
+.tp-scroll.show-lines { counter-reset: tp-line; }
+.tp-scroll.show-lines > div, .tp-scroll.show-lines > p { counter-increment: tp-line; }
+.tp-scroll.show-lines > div::before, .tp-scroll.show-lines > p::before { content: counter(tp-line) ": "; opacity: 0.5; margin-right: 8px; }
 .tp-scroll p{margin:0 0 .7em;}
 .story-marker{color:#ffcc33;font-weight:700;font-size:0.65em;border-top:1px dashed rgba(255,255,255,0.35);padding-top:4px;margin-top:8px;text-transform:uppercase;}
 .gpo-marker{color:#ff3366;font-weight:700;font-size:0.65em;border-top:1px dashed rgba(255,51,102,0.35);padding-top:4px;margin-top:8px;text-transform:uppercase;}
@@ -52,9 +55,7 @@ const CSS = `
 .tp-pace-thumb { position:absolute; left:-8px; right:-8px; height:16px; margin-top:-8px; background:#fff; border:3px solid #6FC8F0; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.8); z-index:4; pointer-events:none; }
 .tp-pace-center { position:absolute; top:50%; left:5px; right:5px; height:2px; margin-top:-1px; background:#fff; opacity:0.3; z-index:2; }
 .tp-wheel-label { color:#6FC8F0; font:bold 18px monospace; margin-bottom:10px; text-shadow:0 2px 4px #000; }
-/* Reading line sits in the LOWER THIRD — near where a real teleprompter's glass
-   folds out from the monitor base, so the presenter reads close to the lens. */
-.tp-mid{position:absolute;left:0;right:0;top:68%;height:2px;background:rgba(111,200,240,.35);pointer-events:none;}
+.tp-mid{position:absolute;left:0;right:0;top:50%;height:2px;background:rgba(111,200,240,.35);pointer-events:none;margin-top:-1px;}
 .tp-mid::before{content:'▶';position:absolute;left:3%;top:-10px;color:#6FC8F0;font-size:22px;line-height:22px;text-shadow:0 2px 4px rgba(0,0,0,0.8);}
 .tp-mid::after{content:'◀';position:absolute;right:3%;top:-10px;color:#6FC8F0;font-size:22px;line-height:22px;text-shadow:0 2px 4px rgba(0,0,0,0.8);}
 `;
@@ -242,34 +243,24 @@ const plugin: EditorPlugin = {
     let prevY = y;
     rewind.addEventListener('click', () => { y = stage.clientHeight || 300; prevY = y; ctx.services.publishParam?.('position', y); });
 
-    // File Import / Export / Add/Remove Line Numbers
+    // File Import / Export / Line Numbers Toggle
     const importBtn = el('button', { class: 'tp-file-btn' }, ['Import .txt']);
     const exportBtn = el('button', { class: 'tp-file-btn' }, ['Export .txt']);
-    const addLineNumBtn = el('button', { class: 'tp-file-btn' }, ['Add Line #s']);
-    const removeLineNumBtn = el('button', { class: 'tp-file-btn' }, ['Remove Line #s']);
+    const lineNumBtn = el('button', { class: 'tp-btn' }, ['Line #s']);
+    lineNumBtn.style.fontSize = '16px';
+    lineNumBtn.style.padding = '8px 16px';
     const fileInput = el('input', { type: 'file', accept: '.txt', style: 'display:none' }) as HTMLInputElement;
     
-    addLineNumBtn.addEventListener('click', () => {
-      let counter = 1;
-      const blocks = script.querySelectorAll('div, p');
-      if (blocks.length > 0) {
-        blocks.forEach(b => {
-           const t = (b as HTMLElement).innerText;
-           if (t.trim() && !/^\d+:\s/.test(t)) {
-             b.insertAdjacentText('afterbegin', `${counter++}: `);
-           } else if (/^\d+:\s/.test(t)) counter++;
-        });
-      } else {
-         if (!/^\d+:\s/.test(script.innerText)) script.insertAdjacentText('afterbegin', `1: `);
-      }
-      updateGutter(); rebuild(); saveScript();
-      ctx.services.publishParam?.('script', script.innerHTML);
-    });
+    let showLineNumbers = false;
+    const reflectLineNumbers = (): void => {
+      lineNumBtn.classList.toggle('on', showLineNumbers);
+      scroll.classList.toggle('show-lines', showLineNumbers);
+    };
 
-    removeLineNumBtn.addEventListener('click', () => {
-      script.innerHTML = script.innerHTML.replace(/(^|>)\d+:\s*/g, '$1');
-      updateGutter(); rebuild(); saveScript();
-      ctx.services.publishParam?.('script', script.innerHTML);
+    lineNumBtn.addEventListener('click', () => {
+      showLineNumbers = !showLineNumbers;
+      reflectLineNumbers();
+      ctx.services.publishParam?.('lines', showLineNumbers, { throttle: false });
     });
 
     importBtn.addEventListener('click', () => fileInput.click());
@@ -343,7 +334,7 @@ const plugin: EditorPlugin = {
       el('div', { class: 'tp-col' }, [
         el('div', { style: 'display:flex; justify-content:space-between; align-items:center;' }, [
           el('h4', {}, ['Script']),
-          el('div', { style: 'display:flex; gap:8px;' }, [addLineNumBtn, removeLineNumBtn, importBtn, exportBtn, fileInput])
+          el('div', { style: 'display:flex; gap:8px;' }, [lineNumBtn, importBtn, exportBtn, fileInput])
         ]),
         scriptWrapper,
         el('div', { class: 'tp-config' }, [
@@ -382,12 +373,19 @@ const plugin: EditorPlugin = {
       { name: 'lineHeight', type: 'number', writable: true },
       { name: 'textColor', type: 'string', writable: true },
       { name: 'bgColor', type: 'string', writable: true },
+      { name: 'lines', type: 'bool', writable: true },
     ]);
     
     // Honour inbound writes from the bus / other consoles — apply WITHOUT re-publishing.
     ctx.services.onParam?.('speed', (v) => { if (typeof v === 'number') { speed = v; speedIn.value = String(speed); updateWheelVisual(); } });
     ctx.services.onParam?.('size', (v) => { if (typeof v === 'number') { size = v; sizeIn.value = String(size); setSize(); } });
-    ctx.services.onParam?.('position', (v) => { if (typeof v === 'number') { y = v; prevY = v; applyTransform(); } });
+    ctx.services.onParam?.('position', (v) => { 
+      if (typeof v === 'number') { 
+        // If both consoles are playing, avoid network fighting ("up then down") by ignoring small drifts
+        if (running && Math.abs(y - v) < 50) return;
+        y = v; prevY = v; applyTransform(); 
+      } 
+    });
     ctx.services.onParam?.('play', (v) => { running = !!v; reflectPlay(); });
     ctx.services.onParam?.('mirror', (v) => { mirrored = !!v; reflectMirror(); });
     ctx.services.onParam?.('script', (v) => { if (typeof v === 'string') { script.innerHTML = v; updateGutter(); rebuild(); saveScript(); } });
@@ -397,6 +395,7 @@ const plugin: EditorPlugin = {
     ctx.services.onParam?.('lineHeight', (v) => { if (typeof v === 'number') { lineHeight = v; lineIn.value = String(v); rebuild(); } });
     ctx.services.onParam?.('textColor', (v) => { if (typeof v === 'string') { textColor = v; tcIn.value = v; rebuild(); } });
     ctx.services.onParam?.('bgColor', (v) => { if (typeof v === 'string') { bgColor = v; bgIn.value = v; rebuild(); } });
+    ctx.services.onParam?.('lines', (v) => { if (typeof v === 'boolean') { showLineNumbers = v; reflectLineNumbers(); } });
 
     // Seed retained values so a late-joining consumer sees current state.
     ctx.services.publishParam?.('speed', speed);
@@ -409,6 +408,7 @@ const plugin: EditorPlugin = {
     ctx.services.publishParam?.('lineHeight', lineHeight);
     ctx.services.publishParam?.('textColor', textColor);
     ctx.services.publishParam?.('bgColor', bgColor);
+    ctx.services.publishParam?.('lines', showLineNumbers);
 
     rebuild();
     setSize();
@@ -416,10 +416,15 @@ const plugin: EditorPlugin = {
     y = stage.clientHeight || 300;
     prevY = y;
     let bgY = 0;
+    let prevTime = performance.now();
     ctx.dispose.raf(() => {
+      const now = performance.now();
+      const dt = (now - prevTime) / 1000;
+      prevTime = now;
+      
       if (running) {
-        y -= speed / 60;
-        bgY += (speed / 60) * 2;
+        y -= speed * dt;
+        bgY += (speed * dt) * 2;
         if (bgY > 20) bgY -= 20;
         else if (bgY < -20) bgY += 20;
         wheelBg.style.backgroundPositionY = `${bgY}px`;
@@ -434,7 +439,7 @@ const plugin: EditorPlugin = {
         }
         ctx.services.publishParam?.('position', y);   // throttled scroll telemetry
         
-        const midY = stage.clientHeight * 0.68;
+        const midY = stageH * 0.50;
         const markers = scroll.querySelectorAll('.gpo-marker') as NodeListOf<HTMLElement>;
         markers.forEach(m => {
            const top = m.offsetTop;

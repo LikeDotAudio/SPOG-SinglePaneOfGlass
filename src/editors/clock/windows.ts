@@ -86,6 +86,7 @@ export function createWindows(C: ClockCtx): WindowsApi {
 
   const floatWin = (d: Device, head: HTMLElement): void => {
     d.win.addEventListener('pointerdown', () => { select(d); d.win.style.zIndex = String(front()); });
+    d.win.addEventListener('pointerup', () => C.publishCount());
     head.addEventListener('pointerdown', (e) => {
       if ((e.target as HTMLElement).closest('.ck-ico, .ck-win-title, select')) return;
       e.preventDefault();
@@ -95,7 +96,11 @@ export function createWindows(C: ClockCtx): WindowsApi {
         d.win.style.left = `${Math.max(0, ox + ev.clientX - sx)}px`;
         d.win.style.top = `${Math.max(0, oy + ev.clientY - sy)}px`;
       };
-      const up = (): void => { head.removeEventListener('pointermove', move); head.removeEventListener('pointerup', up); };
+      const up = (): void => { 
+        head.removeEventListener('pointermove', move); 
+        head.removeEventListener('pointerup', up); 
+        C.publishCount();
+      };
       head.addEventListener('pointermove', move); head.addEventListener('pointerup', up);
     });
   };

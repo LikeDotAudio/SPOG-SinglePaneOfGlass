@@ -61,19 +61,48 @@ const plugin: EditorPlugin = {
     const stage = el('div', { class: 'ck-stage' });
     const devices: Device[] = [];
 
+    let layouts: any = null;
+    let suppressPublish = false;
+
     // Shared render context handed to every sibling builder.
     const C: ClockCtx = {
       host, stage, devices, dpr, detectedIdx,
       FACES, faceById, normFace,
       defaultFace: DEFAULT_FACE,
       activePreset: 'row',
-      publishCount: () => ctx.services.publishParam?.('clocks', devices.filter((d) => d.kind === 'clock').length, { throttle: false }),
+      publishCount: () => {
+        if (suppressPublish) return;
+        ctx.services.publishParam?.('clocks', devices.filter((d) => d.kind === 'clock').length, { throttle: false });
+        if (layouts) {
+          ctx.services.publishParam?.('layout', JSON.stringify(layouts.captureScene()));
+          ctx.services.publishParam?.('saved_layouts', JSON.stringify(layouts.getSavedLayouts()));
+        }
+      },
       syncPresetBtns: () => { /* wired below once the toolbar buttons exist */ },
     };
 
     const w = createWindows(C);
-    const layouts = createLayouts(C, w);
+    layouts = createLayouts(C, w);
     const applyPreset = layouts.applyPreset;
+
+    ctx.services.onParam?.('layout', (v) => {
+      if (typeof v !== 'string') return;
+      try {
+        const scene = JSON.parse(v);
+        suppressPublish = true;
+        layouts.applyScene(scene);
+        suppressPublish = false;
+      } catch (e) { /* ignore */ }
+    });
+    ctx.services.onParam?.('saved_layouts', (v) => {
+      if (typeof v !== 'string') return;
+      try {
+        const saved = JSON.parse(v);
+        suppressPublish = true;
+        layouts.setSavedLayouts(saved);
+        suppressPublish = false;
+      } catch (e) { /* ignore */ }
+    });
 
     // ---- toolbar ------------------------------------------------------------
     const addClockBtn = el('button', { class: 'ck-add' }, ['＋ Clock']);
@@ -128,6 +157,8 @@ const plugin: EditorPlugin = {
       { name: 'face', type: 'string', writable: true },
       { name: 'preset', type: 'string', writable: true },
       { name: 'clocks', type: 'number' },
+      { name: 'layout', type: 'string', writable: true },
+      { name: 'saved_layouts', type: 'string', writable: true },
     ]);
     ctx.services.onParam?.('face', (v) => { if (hasFace(String(v))) setFace(String(v), false); });
     ctx.services.onParam?.('preset', (v) => { if (PRESET_NAMES.some((p) => p.name === v)) applyPreset(String(v)); });

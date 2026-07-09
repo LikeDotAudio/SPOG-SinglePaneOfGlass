@@ -17,14 +17,27 @@ const BW_CSS = `
 
 export function initBuildWatch(bus: TwistBus, running: { short: string; full: string; ts?: number }): void {
   if (!bus.status().enabled) return;
-  if (running.short === 'dev') return;   // dev server: the stamp is someone else's deploy
   addStyles('build-watch-styles', BW_CSS);
+  
+  let initialStampSeen = false;
+  let currentStampFull = running.full;
+
   bus.subscribe('system/build', (_t, p) => {
     const stamp = p as BuildStamp | null;
-    if (!stamp?.buildId?.full || stamp.buildId.full === running.full) return;
-    // Only a stamp NEWER than this bundle's own build time means "behind" —
-    // an old retained stamp from before this deploy must not cry wolf.
-    if (typeof stamp.ts === 'number' && typeof running.ts === 'number' && stamp.ts <= running.ts + 60_000) return;
+    if (!stamp?.buildId?.full) return;
+
+    if (running.short === 'dev' && !initialStampSeen) {
+      initialStampSeen = true;
+      currentStampFull = stamp.buildId.full;
+      return;
+    }
+    initialStampSeen = true;
+
+    if (stamp.buildId.full === currentStampFull) return;
+    
+    // Only a stamp NEWER than this bundle's own build time means "behind"
+    if (running.short !== 'dev' && typeof stamp.ts === 'number' && typeof running.ts === 'number' && stamp.ts <= running.ts + 60_000) return;
+    
     const badge = document.querySelector<HTMLElement>('.app-version');
     if (!badge || badge.classList.contains('stale')) return;
     badge.classList.add('stale');

@@ -3,6 +3,8 @@
 // MutationObserver + its `paused` flag; reads/writes the shared state through
 // the state module and fans entries out via persist's emitLog.
 import { updateTwistVisuals } from './helix.js';
+import { refreshCrosspoints } from './matrix-crosspoints.js';
+import { publishCrosspoints } from './matrix-place.js';
 import { operator } from '../../platform/auth.js';
 import { emitLog } from './captains-log-persist.js';
 import { render } from './captains-log-view.js';
@@ -97,7 +99,14 @@ function reverseEntry(entry: Entry): void {
       entry.twist?.querySelector<HTMLElement>('.drop-zone')?.appendChild(node);
     }
   });
-  if (entry.twist) { try { updateTwistVisuals(entry.twist); } catch { /* ignore */ } }
+  if (entry.twist) { 
+    try { 
+      updateTwistVisuals(entry.twist); 
+      const dropZone = entry.twist.querySelector<HTMLElement>('.drop-zone');
+      if (dropZone) refreshCrosspoints(dropZone);
+      publishCrosspoints(entry.twist);
+    } catch { /* ignore */ } 
+  }
   entry.reversed = true;
   const voyage = narratives.find((n) => n.entries.includes(entry))?.id ?? 0;
   emitLog({ voyage, entry: entry.id, ts: Date.now(), dest: entry.dest, prod: entry.prod, added: entry.added.map(nodeLabel).filter(Boolean), removed: entry.removed.map((r) => nodeLabel(r.node)).filter(Boolean), text: `Course reversed: ${entry.text}`, reversed: true });

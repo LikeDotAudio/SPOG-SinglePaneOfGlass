@@ -32,15 +32,18 @@ export function setBrokerSetting(host: string): void {
   try { localStorage.setItem(LS_KEY, (host || '').trim()); } catch { /* ignore */ }
 }
 
+const LS_PLAINTEXT = 'twistMqttPlaintext';
+
 /** The full broker connection config — host, port, and credentials. Port/user/pass
  *  always resolve to a value (the defaults) so the connection form is never blank. */
-export interface BrokerConfig { host: string; port: number; username: string; password: string; }
+export interface BrokerConfig { host: string; port: number; username: string; password: string; plaintext: boolean; }
 export function getBrokerConfig(): BrokerConfig {
   return {
     host: getBrokerSetting(),
     port: Number(lsGet(LS_PORT, String(DEFAULT_PORT))) || DEFAULT_PORT,
     username: lsGet(LS_USER, DEFAULT_USER),
     password: lsGet(LS_PASS, DEFAULT_PASS),
+    plaintext: lsGet(LS_PLAINTEXT, 'false') === 'true',
   };
 }
 /** Persist any subset of the broker config (host '' clears MQTT next boot). */
@@ -50,6 +53,7 @@ export function setBrokerConfig(c: Partial<BrokerConfig>): void {
     if (c.port !== undefined) localStorage.setItem(LS_PORT, String(c.port));
     if (c.username !== undefined) localStorage.setItem(LS_USER, c.username);
     if (c.password !== undefined) localStorage.setItem(LS_PASS, c.password);
+    if (c.plaintext !== undefined) localStorage.setItem(LS_PLAINTEXT, String(c.plaintext));
   } catch { /* ignore */ }
 }
 

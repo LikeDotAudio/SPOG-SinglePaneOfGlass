@@ -13,6 +13,10 @@ export interface LayoutsApi {
   applyPreset: (name: string) => void;
   saveBtn: HTMLElement;
   savedRow: HTMLElement;
+  captureScene: () => SceneItem[];
+  applyScene: (items: SceneItem[]) => void;
+  getSavedLayouts: () => Record<string, SceneItem[]>;
+  setSavedLayouts: (s: Record<string, SceneItem[]>) => void;
 }
 
 export function createLayouts(C: ClockCtx, w: WindowsApi): LayoutsApi {
@@ -94,5 +98,10 @@ export function createLayouts(C: ClockCtx, w: WindowsApi): LayoutsApi {
   });
   renderSaved();
 
-  return { applyPreset, saveBtn, savedRow };
+  return { 
+    applyPreset, saveBtn, savedRow, 
+    captureScene, applyScene, 
+    getSavedLayouts: () => savedLayouts, 
+    setSavedLayouts: (s) => { savedLayouts = s; persistSaved(); renderSaved(); } 
+  };
 }

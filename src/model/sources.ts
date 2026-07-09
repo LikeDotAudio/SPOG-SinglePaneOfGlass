@@ -24,16 +24,13 @@ export interface Production {
   name: string;
   color?: Hex;
   parentName?: string;
-  /** The top Destinations category (Facility level) — Control Rooms / Floors / … */
   category?: string;
   status?: Status;
-  /** Room/floor-room/person-level hover tip — what this production expects of an op. */
   tip?: TipSpec;
   outputs?: { video?: string[]; audio?: string[]; intercom?: string[] };
   twists?: Array<string | TwistConfig>;
-  // A Person's destination projection lives under `kit` (see PersonLeaf); the
-  // destinations loader normalises `kit.twists` → `twists` on load.
   kit?: { twists?: Array<string | TwistConfig> };
+  role?: string;
 }
 
 /** A name-super / lower-third graphic tied to a person (drives the LOWER THIRD

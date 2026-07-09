@@ -12,7 +12,7 @@ import { updateTwistVisuals, toggleHelix } from './helix.js';
 import { parseConfig, enforceTwistLimits, ensureDropZone, acceptsFor, buildDroppedGroup, rid } from './matrix-groups.js';
 import { refreshCrosspoints } from './matrix-crosspoints.js';
 import { publishCrosspoints, applyCrosspointsFromNetwork } from './matrix-place.js';
-import { fanOutToInputs } from './matrix-cascade.js';
+import { fanOutToInputs, fanOutProductionToStudio } from './matrix-cascade.js';
 import { getBus } from '../../platform/mqtt/index.js';
 import { twistTopic } from '../../platform/mqtt/topics.js';
 
@@ -126,7 +126,13 @@ export function initializeTwists(root: ParentNode, onOpenEditor?: OpenEditor): v
       // A CAM / REMOTE holds ONE input: a dropped bundle FANS OUT one feed per input
       // across the cameras + remotes (from here onward), each trickling its video to
       // the vision/multiviewer twists and the audio bundle to the console/positioner.
-      if (config && (config.cameraInput || config.row === 'remotes')) {
+      // 
+      // If a WHOLE PRODUCTION is dropped onto a STUDIO, wire up the whole room:
+      const firstId = document.getElementById(ids[0] ?? '');
+      if (firstId && firstId.classList.contains('production')) {
+        dropZone.replaceChildren(); // discard the default placement
+        fanOutProductionToStudio(twist, ids);
+      } else if (config && (config.cameraInput || config.row === 'remotes')) {
         dropZone.replaceChildren();   // discard the default placement; fan-out re-places
         fanOutToInputs(twist, ids);
       }

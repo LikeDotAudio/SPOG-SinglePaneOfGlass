@@ -80,8 +80,13 @@ export function createTwistBus(): TwistBus {
   const send = async (topic: string, payload: any, retain = true): Promise<void> => {
     if (!client) return;                       // mqtt.js buffers pre-connect and flushes on connect
     try { 
-      const ciphertext = await encodeAndEncrypt(payload);
-      client.publish(topic, ciphertext as any, { retain, qos: 0 }); 
+      let outPayload: string | Uint8Array;
+      if (getBrokerConfig().plaintext) {
+        outPayload = typeof payload === 'string' ? payload : JSON.stringify(payload);
+      } else {
+        outPayload = await encodeAndEncrypt(payload);
+      }
+      client.publish(topic, outPayload as any, { retain, qos: 0 }); 
       messageCounter++;
     } catch (e) { dbg('publish failed', topic, e); }
   };

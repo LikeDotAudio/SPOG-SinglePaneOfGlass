@@ -18,6 +18,7 @@
 import { el, addStyles } from '../dom.js';
 import type { TwistBus } from '../../platform/mqtt/index.js';
 import { SPOG_ROOT, getBrokerConfig, setBrokerConfig } from '../../platform/mqtt/index.js';
+import { role } from '../../platform/auth.js';
 import { loadMqtt, type MqttClient } from '../../platform/mqtt/mqtt-load.js';
 import { MQ_CSS } from './mqtt-tree-styles.js';
 import { type TopicStore, type TreeNode, escapeHtml, buildTree, renderRows } from './mqtt-tree-nodes.js';
@@ -61,16 +62,24 @@ export function initMqttTree(bus: TwistBus): void {
     ])]),
     rows,
   ]);
+  let viewMode: 'tree' | 'recent' = 'tree';
+  const recentMsgs: { topic: string; payload: string; ts: number }[] = [];
+  const bToggle = el('button', { style: 'margin-right:8px;' }, ['VIEW: TREE']);
+
   const panel = el('div', { class: 'mqt' }, [
     el('div', { class: 'mqt-head' }, [
-      el('span', {}, ['SPOG MQTT TREE']),
-      el('span', { class: 'sp' }), countEl, bX,
+      el('span', {}, ['SPOG MQTT DIAGNOSTICS']),
+      el('span', { class: 'sp' }), bToggle, countEl, bX,
     ]),
     el('div', { class: 'mqt-form' }, [
       el('label', {}, ['Host', hostInput]),
       el('label', {}, ['Port', portInput]),
       el('label', {}, ['User', userInput]),
       el('label', {}, ['Pass', passInput]),
+      ...(role().id === 'ep' ? [el('label', { class: 'plain', title: 'Disable encryption/protobuf (Test Mode)' }, [
+        el('input', { type: 'checkbox', class: 'plain-cb', checked: cfg.plaintext } as any),
+        ' Plaintext'
+      ])] : []),
       bGo, bOff,
     ]),
     effEl,
@@ -112,13 +121,36 @@ export function initMqttTree(bus: TwistBus): void {
   const foldOverride = new Map<string, boolean>();   // path → collapsed?
   const WIDE = 12;                                    // >n children folds by default
 
+  bToggle.addEventListener('click', () => {
+    viewMode = viewMode === 'tree' ? 'recent' : 'tree';
+    bToggle.textContent = `VIEW: ${viewMode.toUpperCase()}`;
+    render();
+  });
+
   const render = (): void => {
     countEl.textContent = String(store.size);
-    if (!store.size) {
+    if (!store.size && viewMode === 'tree') {
       rows.innerHTML = `<tr><td colspan="3" class="empty">${connected ? '— no retained topics yet —' : '— not connected —'}</td></tr>`;
+      setStatus();
       return;
     }
-    rows.innerHTML = renderRows(buildTree(store, SPOG_ROOT), foldOverride, WIDE, Date.now());
+    
+    if (viewMode === 'recent') {
+      if (!recentMsgs.length) {
+        rows.innerHTML = `<tr><td colspan="3" class="empty">— no recent messages —</td></tr>`;
+      } else {
+        const now = Date.now();
+        rows.innerHTML = recentMsgs.map((m) => {
+          const age = now - m.ts;
+          const ageStr = age < 1000 ? '<1s' : `${Math.floor(age / 1000)}s`;
+          return `<tr><td class="topic" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(m.topic)}">${escapeHtml(m.topic)}</td>` +
+                 `<td class="payload" style="word-break:break-all;">${escapeHtml(m.payload)}</td>` +
+                 `<td class="age">${ageStr}</td></tr>`;
+        }).join('');
+      }
+    } else {
+      rows.innerHTML = renderRows(buildTree(store, SPOG_ROOT), foldOverride, WIDE, Date.now());
+    }
     setStatus();
   };
 
@@ -158,6 +190,12 @@ export function initMqttTree(bus: TwistBus): void {
       client.on('message', (topic: string, payload: Uint8Array) => {
         let txt = new TextDecoder().decode(payload);
         try { txt = JSON.stringify(JSON.parse(txt)); } catch { /* leave raw */ }
+        
+        if (!topic.toLowerCase().includes('presence') && !topic.toLowerCase().includes('heartbeat')) {
+           recentMsgs.unshift({ topic, payload: txt, ts: Date.now() });
+           if (recentMsgs.length > 50) recentMsgs.pop();
+        }
+        
         if (!txt) store.delete(topic); else store.set(topic, { payload: txt, ts: Date.now() });
         render();
       });
@@ -173,10 +211,14 @@ export function initMqttTree(bus: TwistBus): void {
   // Save & Connect persists the full config (host/port/user/pass) so the shared
   // PUBLISHING bus adopts it on the next boot and starts advertising the tree, then
   // reloads. Disable clears the host. Both mirror the old settings popover.
-  const persist = (): void => setBrokerConfig({
-    host: hostInput.value, port: Number(portInput.value) || 8081,
-    username: userInput.value, password: passInput.value,
-  });
+  const persist = (): void => {
+    const plainCb = panel.querySelector('.plain-cb') as HTMLInputElement | null;
+    setBrokerConfig({
+      host: hostInput.value, port: Number(portInput.value) || 8081,
+      username: userInput.value, password: passInput.value,
+      plaintext: plainCb ? plainCb.checked : false,
+    });
+  };
   bGo.addEventListener('click', () => { persist(); location.reload(); });
   bOff.addEventListener('click', () => { setBrokerConfig({ host: '' }); location.reload(); });
 

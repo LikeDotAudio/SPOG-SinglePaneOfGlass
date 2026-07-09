@@ -39,6 +39,7 @@ const ALLOWLIST = new Set([
   'src/platform/mqtt/schema.d.ts',
   'src/ui/console/dest-fixtures-counters.ts',
   'src/ui/console/user-menu.ts',
+  'src/ui/console/mqtt-tree.ts',
 ]);
 
 function walk(dir, out) {

@@ -30,7 +30,12 @@ export async function addDestinationTree(
         onActivate: () => {
           void fetchJSON<Production>(baseUrl + f.href).then((data) => {
             if (!data) return;
-            data.id = id;
+            const explicitId = data.id || id;
+            if (data.role && !explicitId.startsWith(data.role + 's-')) {
+              data.id = `${data.role}s-${explicitId}`;
+            } else {
+              data.id = explicitId;
+            }
             // Unified person model: its destination twists live under `kit`.
             if (!data.twists && data.kit?.twists) data.twists = data.kit.twists;
             if (parentName) data.parentName = parentName;

@@ -33,8 +33,8 @@ export const CL_CSS = `
 .cl-mid{flex:1;min-width:0;padding:7px 11px;font-size:12px;line-height:1.42;color:#ffe9b0;}
 .cl-val{flex:0 0 auto;align-self:stretch;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:4px 13px;background:#1c1408;color:#ffcf6b;font-family:'Courier New',monospace;font-weight:bold;font-size:12px;min-width:78px;text-align:right;}
 .cl-val small{font-size:8px;color:#8a7430;letter-spacing:1px;}
-.cl-entry.sel{outline:2px solid #fff;outline-offset:-2px;}
-.cl-entry.sel .cl-cap{background:#fff !important;}
+.cl-entry.sel{outline:2px solid rgb(244, 144, 44);outline-offset:-2px;background:rgba(244, 144, 44, 0.15);}
+.cl-entry.sel .cl-cap{background:rgb(244, 144, 44) !important;color:#fff;}
 .cl-entry.reversed{opacity:.4;}
 .cl-entry.reversed .cl-mid{text-decoration:line-through;}
 .cl-rb{color:#ff8a8a;font-style:italic;font-size:10px;}`;

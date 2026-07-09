@@ -6,10 +6,11 @@ import { slugId } from './format.js';
 import { wireFold } from './pools-fold.js';
 
 // ---- PRODUCTIONS-as-source pool (port of renderProductionInputs) ------------
-const DEFAULT_OUTPUTS = {
+const DEFAULT_OUTPUTS: Record<string, string[]> = {
   video: ['AUX 1', 'AUX 2', 'MV 1', 'PROGRAM'],
   audio: ['MAIN MIX', 'MIX MINUS 1', 'MIX MINUS 2', 'MIX MINUS 3', 'MIX MINUS 4'],
   intercom: ['IFB OUT 1', 'IFB OUT 2', 'IFB OUT 3', 'IFB OUT 4'],
+  control: ['LIGHTING', 'SIGNALING', 'CLOCK SYNC', 'DUAL COUNTER', 'STOPWATCH', 'CHAT ROOM'],
 };
 
 // A production source fans out MANY feeds (per box: a video + its audio, plus the
@@ -46,6 +47,7 @@ export function renderProductionInputs(data: SourceLeaf, container: HTMLElement)
     (outs.video ?? DEFAULT_OUTPUTS.video).forEach((o) => vids.push(vNode(`${data.name} ${o}`, `prodsrc-${data.id}-${slugId(o)}`, data.name)));
     (outs.audio ?? DEFAULT_OUTPUTS.audio).forEach((o) => auds.push(aNode(`${data.name} ${o}`, `prodsrc-${data.id}-${slugId(o)}`, data.name)));
     (outs.intercom ?? DEFAULT_OUTPUTS.intercom).forEach((o) => auds.push(aNode(`${data.name} ${o}`, `prodsrc-${data.id}-${slugId(o)}`, data.name, 'audio-comms')));
+    (outs.control ?? DEFAULT_OUTPUTS.control).forEach((o) => ctrls.push(cNode(`${data.name} ${o}`, `prodsrc-${data.id}-${slugId(o)}`, data.name)));
   }
 
   // Each category is a labelled sub-section (only if it has feeds); video uses the
@@ -54,7 +56,7 @@ export function renderProductionInputs(data: SourceLeaf, container: HTMLElement)
     nodes.length ? `<div class="prod-src-cat" style="color:${color}">${label}</div><div class="${gridClass}">${nodes.join('')}</div>` : '';
 
   group.innerHTML = `
-    <div class="foldable-header" style="--lcars-color: ${color}; background-color: ${color}; font-size: 11px; margin-bottom: 4px;">
+    <div class="foldable-header signal-node multiplex production" draggable="true" id="prodsrc-${data.id}-bundle" data-origin="${data.name}" style="--lcars-color: ${color}; background-color: ${color}; font-size: 11px; margin-bottom: 4px;">
       <span>${data.name}</span>
       <span class="fold-icon" style="transform: rotate(-90deg); display: inline-block; transition: transform 0.2s;">▼</span>
     </div>

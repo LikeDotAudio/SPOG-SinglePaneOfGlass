@@ -39,6 +39,16 @@ const AXES: Axis[] = [
   { name: 'dolly', unit: '%', min: 0, max: 100, get: (s) => s.dolly, set: (s, v) => { s.dolly = v; }, out: pct, from: fromPct },
   { name: 'ped', unit: '%', min: 0, max: 100, get: (s) => s.ped, set: (s, v) => { s.ped = v; }, out: pct, from: fromPct },
   { name: 'rate', unit: 'x', min: 0.2, max: 3, get: (s) => s.rate, set: (s, v) => { s.rate = clampRate(v); }, out: (v) => v, from: clampRate },
+  { name: 'mblack', unit: '%', min: -100, max: 100, get: (s) => s.mblack, set: (s, v) => { s.mblack = v; }, out: (v) => (v - 0.5) * 200, from: (v) => clamp(v / 200 + 0.5) },
+  { name: 'gamma', unit: '%', min: -100, max: 100, get: (s) => s.gamma, set: (s, v) => { s.gamma = v; }, out: (v) => (v - 0.5) * 200, from: (v) => clamp(v / 200 + 0.5) },
+  { name: 'mgain', unit: '%', min: -100, max: 100, get: (s) => s.mgain, set: (s, v) => { s.mgain = v; }, out: (v) => (v - 0.5) * 200, from: (v) => clamp(v / 200 + 0.5) },
+  { name: 'shutter', unit: 'hz', min: 50, max: 1000, get: (s) => s.shutter, set: (s, v) => { s.shutter = v; }, out: (v) => 50 + v * 950, from: (v) => clamp((v - 50) / 950) },
+  { name: 'rGain', unit: '%', min: -100, max: 100, get: (s) => s.rGain, set: (s, v) => { s.rGain = v; }, out: (v) => (v - 0.5) * 200, from: (v) => clamp(v / 200 + 0.5) },
+  { name: 'gGain', unit: '%', min: -100, max: 100, get: (s) => s.gGain, set: (s, v) => { s.gGain = v; }, out: (v) => (v - 0.5) * 200, from: (v) => clamp(v / 200 + 0.5) },
+  { name: 'bGain', unit: '%', min: -100, max: 100, get: (s) => s.bGain, set: (s, v) => { s.bGain = v; }, out: (v) => (v - 0.5) * 200, from: (v) => clamp(v / 200 + 0.5) },
+  { name: 'rBlk', unit: '%', min: -100, max: 100, get: (s) => s.rBlk, set: (s, v) => { s.rBlk = v; }, out: (v) => (v - 0.5) * 200, from: (v) => clamp(v / 200 + 0.5) },
+  { name: 'gBlk', unit: '%', min: -100, max: 100, get: (s) => s.gBlk, set: (s, v) => { s.gBlk = v; }, out: (v) => (v - 0.5) * 200, from: (v) => clamp(v / 200 + 0.5) },
+  { name: 'bBlk', unit: '%', min: -100, max: 100, get: (s) => s.bBlk, set: (s, v) => { s.bBlk = v; }, out: (v) => (v - 0.5) * 200, from: (v) => clamp(v / 200 + 0.5) },
 ];
 
 /** The MQTT bridge the console wires up: publish/seed/inbound for the pose axes. */
