@@ -7,7 +7,12 @@ import { addStyles } from '../dom.js';
 
 const CSS = `
 .launch-dock{position:fixed;right:14px;bottom:76px;z-index:1200;display:flex;gap:10px;align-items:center;}
-.launch-dock > button{position:static !important;right:auto !important;bottom:auto !important;}`;
+.launch-dock > button{position:static !important;right:auto !important;bottom:auto !important;}
+/* Chirality: the clock + MQTT chip dock OPPOSITE the sources rail (left in
+   right-handed mode — lcars.css .ptp-clock/.mq-chip flip). CHAT/VOICE must sit
+   ABOVE that cluster, so the dock flips to the same side. Left-handed keeps the
+   default right edge (where the clock lives there). */
+html[data-chirality="right"] .launch-dock{right:auto !important;left:14px;}`;
 
 /** Get (or lazily create) the shared launch dock — order-independent between docks. */
 export function launchDock(): HTMLElement {

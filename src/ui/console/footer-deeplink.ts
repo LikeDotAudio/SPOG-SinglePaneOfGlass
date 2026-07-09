@@ -5,6 +5,22 @@
 import { footerGroups, openGroupPath, type GroupHandle } from './footer.js';
 
 const destSlug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+/** Unfold every LCARS twist group in a production's pane. Destinations render on
+ *  demand (async fetch), so retry briefly until the groups exist. A production the
+ *  operator actively opens (deep link / tab click) comes up EXPANDED, while the
+ *  root / passive restore stays folded. */
+export function expandProductionGroups(tabId: string): void {
+  if (!tabId) return;
+  let tries = 0;
+  const open = (): void => {
+    const pane = document.getElementById('tab-' + tabId);
+    const groups = pane ? pane.querySelectorAll<HTMLDetailsElement>('details.twist-group') : null;
+    if (groups && groups.length) { groups.forEach((g) => { g.open = true; }); return; }
+    if (tries++ < 14) setTimeout(open, 120);
+  };
+  open();
+}
 const groupOfTab = (tab: HTMLElement): GroupHandle | null => footerGroups().find((g) => g.tabsEl.contains(tab)) ?? null;
 const chainSlugs = (g: GroupHandle | null): string[] => (g ? g.path.split(' / ').map(destSlug) : []);
 
@@ -30,6 +46,7 @@ export function navigateToDest(segments: string[]): boolean {
     if (!ok) continue;
     if (g) openGroupPath(g.path);
     tab.click();
+    expandProductionGroups(tab.dataset['tabId'] ?? '');   // navigated-to production opens EXPANDED
     tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     return true;
   }

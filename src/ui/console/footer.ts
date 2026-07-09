@@ -9,7 +9,7 @@ import { addStyles } from '../dom.js';
 import { stampIcon } from '../icon-face.js';
 import { getPrefs, patchPrefs } from '../../platform/prefs.js';
 import { FOOTER_CSS, LCARS_COLORS, hexToRgb } from './footer-styles.js';
-import { destHashPath } from './footer-deeplink.js';
+import { destHashPath, expandProductionGroups } from './footer-deeplink.js';
 
 export interface GroupHandle {
   group: HTMLElement;
@@ -176,6 +176,8 @@ export const Footer = {
       if (e.isTrusted) {
         collapseAllGroups();
         patchPrefs({ ui: { destTab: pgm.id } });
+        expandProductionGroups(pgm.id);   // a production the operator opens comes up EXPANDED
+
         // Point the URL at the production being viewed ("as it is called"), unless an
         // editor deep link (#/…) currently owns the hash.
         if (!document.querySelector('.ed-overlay.open') && !/^#\//.test(location.hash)) {

@@ -63,6 +63,60 @@ def get_changed_routes(project_dir):
     return to_upload, to_delete
 
 
+def get_routes_between(project_dir, base, head):
+    """(to_upload, to_delete) for Routes/** changed between two commits.
+
+    Used in CI: the checked-out tree is CLEAN (everything committed), so a
+    working-tree `git status` finds nothing and would fall back to a full push.
+    Diffing the push range (github.event.before .. github.sha) instead uploads
+    ONLY the files this push actually changed. Handles renames/copies/deletes.
+    """
+    result = subprocess.run(
+        ['git', '-C', project_dir, 'diff', '--name-status', '-z', base, head],
+        capture_output=True, text=True, check=True
+    )
+    tokens = result.stdout.split('\0')
+    to_upload, to_delete = [], []
+    i = 0
+    while i < len(tokens):
+        status = tokens[i]
+        if not status:
+            i += 1
+            continue
+        code = status[0]
+        i += 1
+        if code in ('R', 'C'):
+            orig = tokens[i] if i < len(tokens) else ''
+            new = tokens[i + 1] if i + 1 < len(tokens) else ''
+            i += 2
+            if orig and _under_roots(orig):
+                to_delete.append(orig)
+            if _under_roots(new) and os.path.isfile(os.path.join(project_dir, new)):
+                to_upload.append(new)
+            continue
+        path = tokens[i] if i < len(tokens) else ''
+        i += 1
+        if not _under_roots(path):
+            continue
+        if code == 'D':
+            to_delete.append(path)
+        elif os.path.isfile(os.path.join(project_dir, path)):
+            to_upload.append(path)
+    return to_upload, to_delete
+
+
+def valid_diff_base(project_dir, base):
+    """True if `base` is a real commit we can diff from (not empty / all-zeros /
+    the unknown-parent sentinel git uses for a brand-new branch)."""
+    if not base or set(base) <= {'0'}:
+        return False
+    r = subprocess.run(
+        ['git', '-C', project_dir, 'cat-file', '-e', base + '^{commit}'],
+        capture_output=True
+    )
+    return r.returncode == 0
+
+
 def get_all_routes(project_dir):
     """Every file under the manifest roots (relative paths)."""
     out = []

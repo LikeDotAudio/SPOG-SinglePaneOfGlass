@@ -49,6 +49,11 @@ jobs:
         env:
           TWIST_MQTT_HOST: test.mosquitto.org
           TWIST_MQTT_PORT: 8080
+          DEPLOY_DIFF_BASE: ${{ github.event.before }}
+          DEPLOY_DIFF_HEAD: ${{ github.sha }}
         run: |
-          # Use --fresh to full-sync and clear dead files
-          python3 SETUP/deploy.py --fresh
+          # Incremental: upload ONLY the Routes files changed in this push (the app
+          # bundle is always rebuilt + re-uploaded). The deploy log now shows the
+          # changes, not the whole tree. Run `deploy.py --all` (full sync) or
+          # `--fresh` (full sync + sweep dead server files) manually when needed.
+          python3 SETUP/deploy.py

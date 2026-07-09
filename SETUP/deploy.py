@@ -54,7 +54,10 @@ from deploy.constants import DIST_DIR, REMOTE_ENTRY, LEGACY_REMOTE
 from deploy.env import load_env
 from deploy.build import run_build, find_entry, collect_app_files
 from deploy.manifests import generate_manifests
-from deploy.routes import is_tree_clean, get_changed_routes, get_all_routes
+from deploy.routes import (
+    is_tree_clean, get_changed_routes, get_all_routes,
+    get_routes_between, valid_diff_base,
+)
 from deploy.ftp import upload_file, remote_rmtree, fresh_sweep
 from deploy.mqtt_stamp import publish_build_stamp
 
@@ -91,9 +94,21 @@ def main():
 
     # 2) Manifests + Routes upload set.
     generate_manifests(project_dir)
+    # CI passes the push range (github.event.before .. github.sha) so the deploy
+    # uploads ONLY the Routes files this push changed — the log shows the changes,
+    # not the whole tree. Falls back to the working-tree diff (local) or a full
+    # push when the base commit is unknown (first push / force-push).
+    diff_base = os.environ.get('DEPLOY_DIFF_BASE', '')
+    diff_head = os.environ.get('DEPLOY_DIFF_HEAD', '') or 'HEAD'
+    use_range = (not force_all) and valid_diff_base(project_dir, diff_base)
     if force_all:
         print("Full Routes upload requested (--all).")
         routes_upload, routes_delete = get_all_routes(project_dir), []
+    elif use_range:
+        print(f"Incremental Routes upload — diff {diff_base[:8]}..{diff_head[:8]}.")
+        routes_upload, routes_delete = get_routes_between(project_dir, diff_base, diff_head)
+        if not routes_upload and not routes_delete:
+            print("No Routes changes in this push.")
     else:
         routes_upload, routes_delete = get_changed_routes(project_dir)
         if not routes_upload and not routes_delete:
