@@ -13,7 +13,7 @@
 
 import { buildConsole } from './shell.js';
 import { openFromHash } from './editor-dispatch.js';
-import { handleDestDeepLink } from '../ui/console/footer.js';
+import { handleDestDeepLink } from '../ui/console/footer-deeplink.js';
 
 // Real build stamp shown beside the credit byline — injected by Vite's `define`
 // at build time (see vite.config.ts `buildId`), so it changes on every deploy.
