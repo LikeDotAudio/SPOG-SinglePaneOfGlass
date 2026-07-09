@@ -31,16 +31,19 @@ export function buildLanes(): { lanes: Lane[]; opColor: Map<string, string>; t0:
     lane('who', 'OPERATORS', op).kf.push({ ts: e.ts, text: e.text, rev: e.reversed, op, color: c });
   }
   const mid = new Date(); mid.setHours(0, 0, 0, 0); const day = mid.getTime();
-  let lastPlan = 0;
+  let firstPlan = Infinity, lastPlan = 0;
   for (const sl of SCHEDULE) {
-    const s = day + sl.s * 3600000, en = day + sl.e * 3600000; lastPlan = Math.max(lastPlan, en);
+    const s = day + sl.s * 3600000, en = day + sl.e * 3600000;
+    firstPlan = Math.min(firstPlan, s); lastPlan = Math.max(lastPlan, en);
     lane('where', 'SCHEDULED — ROOMS', sl.room).plans.push({ s, e: en, label: sl.show });
     for (const role of sl.crew) lane('who', 'BOOKED CREW', role).plans.push({ s, e: en, label: sl.show });
   }
   const now = Date.now();
-  const tsAll = [...entries.map((e) => e.ts), now];
+  const tsAll = [...entries.map((e) => e.ts), now, ...(Number.isFinite(firstPlan) ? [firstPlan, lastPlan] : [])];
+  // Span the whole picture: earliest of (first event, first scheduled show) → latest of
+  // (now, last event, last scheduled show), so the day's schedule is always on-canvas.
   const t0 = Math.min(...tsAll) - 900000;
-  const t1 = Math.max(now + 900000, ...tsAll, lastPlan);
+  const t1 = Math.max(now + 900000, ...tsAll);
   const ord = { where: 0, who: 1 } as const;
   const list = [...lanes.values()].sort((a, b) => ord[a.section] - ord[b.section] || a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
   return { lanes: list, opColor, t0, t1 };

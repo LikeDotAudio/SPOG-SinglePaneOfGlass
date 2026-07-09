@@ -9,61 +9,27 @@
 // `narratives` + `SCHEDULE` each open (and on ⟳), never on a live subscription.
 import { el, addStyles } from '../dom.js';
 import { buildLanes, type Lane } from './captains-log-timeline-data.js';
+import { TL_CSS } from './captains-log-timeline-css.js';
 
 const PLAN = '#5a6a8c';
-const PX_PER_MIN = 5, MIN_SPAN_MIN = 60, LANE_H = 30, GROUP_H = 19, RULER_H = 26, GUTTER = 220;
+const PX_PER_MIN = 5, MIN_SPAN_MIN = 60, GUTTER = 220;
 const hm = (ts: number): string => new Date(ts).toISOString().slice(11, 16);
 const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] ?? c));
-
-const TL_CSS = `
-.tl-panel{position:fixed;inset:0;z-index:2700;display:none;flex-direction:column;background:#06070c;color:#cfe6ff;font-family:Arial,Helvetica,sans-serif;}
-.tl-panel.open{display:flex;}
-.tl-head{display:flex;align-items:center;gap:10px;min-height:46px;padding:4px 14px;background:#C2B74B;color:#000;flex:0 0 auto;flex-wrap:wrap;}
-.tl-title{font-weight:900;letter-spacing:2px;}
-.tl-head .tl-spacer{flex:1;}
-.tl-legend{display:flex;gap:10px;flex-wrap:wrap;font:10px 'Courier New',monospace;}
-.tl-legend span{display:inline-flex;align-items:center;gap:4px;}
-.tl-legend i{width:10px;height:10px;border-radius:50%;display:inline-block;}
-.tl-filter{font:12px 'Courier New',monospace;border:none;border-radius:12px;padding:7px 12px;width:180px;background:#140f06;color:#ffcf6b;outline:none;}
-.tl-filter::placeholder{color:#8a7430;}
-.tl-groups{display:flex;gap:6px;flex-wrap:wrap;}
-.tl-chip{font:800 10px 'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;border:2px solid var(--c,#3FC1C9);border-radius:12px;padding:5px 11px;cursor:pointer;background:transparent;color:var(--c,#3FC1C9);white-space:nowrap;}
-.tl-chip:hover{background:color-mix(in srgb, var(--c,#3FC1C9) 22%, transparent);}
-.tl-chip.on{background:var(--c,#3FC1C9);color:#06070c;}
-.tl-btn{font:900 11px sans-serif;letter-spacing:1px;text-transform:uppercase;border:none;border-radius:12px;padding:7px 12px;cursor:pointer;background:#140f06;color:#ffcf6b;}
-.tl-btn:hover{filter:brightness(1.15);}
-.tl-x{cursor:pointer;font-weight:900;padding:0 6px;}
-.tl-body{flex:1;min-height:0;overflow:auto;position:relative;background:#06070c;}
-.tl-grid{position:relative;}
-.tl-sec,.tl-group{cursor:pointer;user-select:none;}
-.tl-sec{position:sticky;left:0;z-index:5;height:${GROUP_H}px;display:flex;align-items:center;gap:6px;padding:0 8px;font:900 10px sans-serif;letter-spacing:2px;color:#06070c;}
-.tl-sec.where{background:#6FC8F0;} .tl-sec.who{background:#A06EB4;}
-.tl-group{position:sticky;left:0;z-index:4;height:${GROUP_H}px;display:flex;align-items:center;gap:6px;padding:0 8px 0 18px;color:#9a8845;font:9px 'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;background:#0a0805;}
-.tl-lane{position:relative;height:${LANE_H}px;border-bottom:1px solid #10141f;}
-.tl-lane:nth-of-type(even){background:rgba(255,255,255,.015);}
-.tl-lanelabel{position:sticky;left:0;z-index:4;display:inline-flex;align-items:center;height:100%;width:${GUTTER}px;box-sizing:border-box;padding:0 8px 0 30px;font:11px 'Courier New',monospace;color:#9fb6cc;background:#0a0c14;border-right:1px solid #1d2942;box-shadow:2px 0 6px rgba(0,0,0,.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.tl-band{position:absolute;top:11px;height:8px;border-radius:4px;opacity:.5;}
-.tl-plan{position:absolute;top:7px;height:16px;border-radius:5px;border:1.5px dashed ${PLAN};background:rgba(90,106,140,.18);color:#aeb9d0;font:9px 'Courier New',monospace;line-height:16px;padding:0 6px;overflow:hidden;white-space:nowrap;box-sizing:border-box;}
-.tl-kf{position:absolute;top:8px;width:12px;height:12px;margin-left:-6px;border-radius:50%;border:2px solid #06070c;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.6);z-index:3;}
-.tl-kf:hover{transform:scale(1.4);z-index:6;}
-.tl-kf.rev{opacity:.35;}
-.tl-tick{position:absolute;top:0;bottom:${RULER_H}px;width:1px;background:#12182a;}
-.tl-ruler{position:sticky;bottom:0;height:${RULER_H}px;z-index:5;background:#0a0c14;border-top:1px solid #1d2942;}
-.tl-rlabel{position:absolute;bottom:0;height:100%;display:flex;flex-direction:column;justify-content:center;font:10px 'Courier New',monospace;color:#7e93b5;padding-left:3px;border-left:1px solid #16233d;}
-.tl-rlabel b{color:#6FC8F0;font-size:9px;}
-.tl-now{position:absolute;top:0;bottom:${RULER_H}px;width:2px;background:#ff3b3b;box-shadow:0 0 8px #ff3b3b;z-index:4;pointer-events:none;}
-.tl-empty{padding:40px;text-align:center;color:#6a5a30;letter-spacing:1px;}
-.tl-detail{position:fixed;z-index:2800;max-width:380px;min-width:220px;background:#0a1120;border:1px solid #2a3b5c;border-radius:10px;box-shadow:0 12px 36px rgba(0,0,0,.65);color:#e6f2ff;font:12px/1.5 'Courier New',monospace;overflow:hidden;}
-.tl-detail-h{display:flex;align-items:center;gap:8px;padding:7px 11px;background:#16233d;color:#6FC8F0;font-weight:bold;letter-spacing:1px;}
-.tl-detail-h .x{margin-left:auto;cursor:pointer;color:#7e93b5;}
-.tl-detail-b{padding:9px 12px;}
-.tl-detail-b .rev{color:#ff8a8a;font-style:italic;}
-`;
 
 let panel: HTMLElement | null = null;
 const collapsed = new Set<string>();
 let filter = '';
-let evList: { ts: number; text: string; op: string; rev: boolean }[] = [];
+let evList: { ts: number; text: string; op: string; rev: boolean; color: string }[] = [];
+
+/** Sync the minimap's viewport rectangle to the main scroll position. */
+function updateNavView(): void {
+  const body = panel?.querySelector<HTMLElement>('.tl-body');
+  const view = panel?.querySelector<HTMLElement>('.tl-nav-view');
+  if (!body || !view) return;
+  const sw = body.scrollWidth || 1;
+  view.style.left = `${(body.scrollLeft / sw) * 100}%`;
+  view.style.width = `${(body.clientWidth / sw) * 100}%`;
+}
 
 function renderInto(body: HTMLElement, resetScroll = true): void {
   const { lanes: all, opColor, t0, t1 } = buildLanes();
@@ -103,7 +69,7 @@ function renderInto(body: HTMLElement, resetScroll = true): void {
       if (ex > sx) html += `<div class="tl-band" style="left:${sx}px;width:${ex - sx}px;background:${k.color};"></div>`;
     });
     for (const p of ln.plans) html += `<div class="tl-plan" style="left:${x(p.s)}px;width:${x(p.e) - x(p.s)}px;" title="${esc(p.label)} · scheduled">${esc(p.label)}</div>`;
-    for (const k of kf) { const idx = evList.push({ ts: k.ts, text: k.text, op: k.op, rev: k.rev }) - 1; html += `<div class="tl-kf${k.rev ? ' rev' : ''}" data-ev="${idx}" style="left:${x(k.ts)}px;background:${k.color};" title="${esc(hm(k.ts) + '  ' + k.text)}"></div>`; }
+    for (const k of kf) { const idx = evList.push({ ts: k.ts, text: k.text, op: k.op, rev: k.rev, color: k.color }) - 1; html += `<div class="tl-kf${k.rev ? ' rev' : ''}" data-ev="${idx}" style="left:${x(k.ts)}px;background:${k.color};" title="${esc(hm(k.ts) + '  ' + k.text)}"></div>`; }
     html += `</div>`;
   }
   let ticks = '', ruler = '';
@@ -130,7 +96,15 @@ function renderInto(body: HTMLElement, resetScroll = true): void {
       return `<button class="tl-chip${filter === g.toLowerCase() ? ' on' : ''}" data-group="${esc(g)}" style="--c:${c}">${esc(g)}</button>`;
     }).join('');
   }
+  // Minimap: the whole span compressed, with event marks, a NOW tick, and a viewport box.
+  const nav = panel?.querySelector('.tl-nav');
+  if (nav) {
+    const pct = (ts: number): string => ((x(ts) / width) * 100).toFixed(2);
+    nav.innerHTML = evList.map((e) => `<div class="tl-nav-mark" style="left:${pct(e.ts)}%;background:${e.color};"></div>`).join('')
+      + `<div class="tl-nav-now" style="left:${pct(now)}%;"></div><div class="tl-nav-view"></div><div class="tl-nav-cap">NAV · drag</div>`;
+  }
   if (resetScroll) body.scrollLeft = Math.max(0, x(now) - body.clientWidth * 0.6);
+  updateNavView();
 }
 
 function showDetail(idx: number, cx: number, cy: number): void {
@@ -157,12 +131,12 @@ export function openTimeline(): void {
     const filterEl = el('input', { class: 'tl-filter', type: 'search', placeholder: '⌕ filter lanes / events…' }) as HTMLInputElement;
     filterEl.addEventListener('input', () => { filter = filterEl.value.trim().toLowerCase(); const sx = body.scrollLeft; renderInto(body, false); body.scrollLeft = sx; });
     const groupsEl = el('span', { class: 'tl-groups' });
-    // Destination-group chips (top-right) — click to scope the timeline to that room;
-    // each inherits the room's declared schema colour (via the DOM's --lcars-color).
+    // Destination-group chips — click to scope the timeline to a room (or SHOW ALL to
+    // clear). Each inherits the room's declared schema colour (via DOM --lcars-color).
     groupsEl.addEventListener('click', (e) => {
       const chip = (e.target as HTMLElement).closest<HTMLElement>('[data-group]'); if (!chip) return;
-      const g = chip.dataset['group']!;
-      const on = filter === g.toLowerCase();
+      const g = chip.dataset['group'] ?? '';
+      const on = !g || filter === g.toLowerCase();          // empty = SHOW ALL; re-click a room = clear
       filter = on ? '' : g.toLowerCase(); filterEl.value = on ? '' : g;
       const sx = body.scrollLeft; renderInto(body, false); body.scrollLeft = sx;
     });
@@ -171,10 +145,10 @@ export function openTimeline(): void {
       filterEl,
       el('span', { class: 'tl-legend' }),
       el('span', { class: 'tl-spacer' }),
-      groupsEl,
       nowBtn, schedBtn, el('button', { class: 'tl-btn' }, ['⟳ REFRESH']),
       el('span', { class: 'tl-x', title: 'Close' }, ['✕']),
     ]);
+    const chipbar = el('div', { class: 'tl-chipbar' }, [groupsEl]);
     head.querySelector('.tl-x')!.addEventListener('click', () => panel!.classList.remove('open'));
     (head.querySelectorAll('.tl-btn')[2] as HTMLElement).addEventListener('click', () => renderInto(body));
     nowBtn.addEventListener('click', () => { const n = body.querySelector<HTMLElement>('.tl-now'); if (n) body.scrollLeft = Math.max(0, n.offsetLeft - body.clientWidth * 0.5); });
@@ -188,7 +162,15 @@ export function openTimeline(): void {
       if (kf) showDetail(Number(kf.dataset['ev']), (e as MouseEvent).clientX, (e as MouseEvent).clientY);
       else panel!.querySelector('.tl-detail')?.remove();
     });
-    panel.append(head, body);
+    // Navigation minimap — drag/click to scroll the main view; tracks the scroll.
+    const nav = el('div', { class: 'tl-nav', title: 'Navigation — click or drag to scroll' });
+    const navTo = (clientX: number): void => { const r = nav.getBoundingClientRect(); const f = Math.max(0, Math.min(1, (clientX - r.left) / r.width)); body.scrollLeft = f * body.scrollWidth - body.clientWidth / 2; };
+    let navDrag = false;
+    nav.addEventListener('pointerdown', (e) => { navDrag = true; nav.setPointerCapture(e.pointerId); navTo(e.clientX); });
+    nav.addEventListener('pointermove', (e) => { if (navDrag) navTo(e.clientX); });
+    nav.addEventListener('pointerup', () => { navDrag = false; });
+    body.addEventListener('scroll', () => updateNavView());
+    panel.append(head, chipbar, body, nav);
     document.body.appendChild(panel);
   }
   renderInto(panel.querySelector('.tl-body') as HTMLElement);
