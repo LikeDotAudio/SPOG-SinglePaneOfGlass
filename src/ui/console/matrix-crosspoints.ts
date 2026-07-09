@@ -5,6 +5,7 @@ import { updateTwistVisuals } from './helix.js';
 import { addStyles } from '../dom.js';
 import { logAction } from './captains-log.js';
 import { publishCrosspoints } from './matrix-place.js';
+import { stampRouted, wireDetailsHold } from './crosspoint-details.js';
 
 // ---- crosspoints: number each routed feed 1..N (add order) + drag-to-reorder ---
 const XP_CSS = `
@@ -82,6 +83,9 @@ function makeCrosspointDraggable(node: HTMLElement): void {
   node.draggable = true;
   if (node.dataset.xpWired) return;
   node.dataset.xpWired = '1';
+  // Stamp when/who at landing time + wire press-and-hold → DETAILS card.
+  stampRouted(node);
+  wireDetailsHold(node);
   let startDz: HTMLElement | null = null;
   node.addEventListener('dragstart', (e) => {
     draggingXp = node; startDz = node.parentElement as HTMLElement | null;
