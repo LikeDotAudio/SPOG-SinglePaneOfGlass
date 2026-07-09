@@ -39,10 +39,25 @@ export function createDashboard(twistName: string, modules: Record<string, HTMLE
   };
 
   let currentLayout: ScreenLayout = {
-    order: ['macros', 'pgm', 'buses', 'tbar', 'pvw', 'scenes', 'transitions', 'keyers', 'dsks', 'me', 'aux', 'dve'],
-    hidden: ['dve'],
-    sizes: {},
-    positions: {}
+    order: ['pgm', 'buses', 'pvw', 'transitions', 'keyers', 'macros', 'scenes', 'me', 'dsks', 'aux', 'tbar', 'dve'],
+    hidden: [],
+    sizes: {
+      pgm: { width: '300px', height: '300px' },
+      pvw: { width: '300px', height: '300px' },
+      tbar: { width: '159px', height: '319px' },
+      dsks: { width: '756px', height: '149px' },
+      aux: { width: '206px', height: '208px' }
+    },
+    positions: {
+      keyers: { x: 678, y: 139 },
+      dsks: { x: 672, y: 224 },
+      tbar: { x: 1313, y: 371 },
+      dve: { x: 1490, y: 375 },
+      aux: { x: 1592, y: 158 },
+      macros: { x: 13, y: 612 },
+      scenes: { x: 298, y: 606 },
+      me: { x: 614, y: 613 }
+    }
   };
 
   try {
