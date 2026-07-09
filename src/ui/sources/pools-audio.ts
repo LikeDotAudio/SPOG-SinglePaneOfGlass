@@ -4,6 +4,15 @@ import type { SourceLeaf } from '../../model/index.js';
 import { isFaultStatus } from '../../domain/routing-core/index.js';
 import { slugId, faultTag, monoEmoji, styleSignalNode } from './format.js';
 import { wireFold, tagOrigin } from './pools-fold.js';
+import { addStyles } from '../dom.js';
+
+// Host / co-host / panelist … person labels hug the SQUARE (spine) edge, not the
+// rounded outer edge. lcars.css forces every signal-node text-align:left in
+// right-handed mode (nodes keep L→R order); people are single labels, so re-align
+// them to the spine (right in right-handed mode; left mode already hugs its spine).
+const PERSON_ALIGN_CSS = `
+html[data-chirality="right"] .ingress-panel .super-pool-content .signal-node.video-person,
+html[data-chirality="right"] .ingress-panel .super-pool-content .signal-node.audio-person { text-align: right; }`;
 
 // ---- AUDIO pool -------------------------------------------------------------
 export function renderAudioPool(data: SourceLeaf, container: HTMLElement, color?: string): void {
@@ -54,6 +63,7 @@ export function renderAudioPool(data: SourceLeaf, container: HTMLElement, color?
 // to audio destinations and video to video destinations independently. An ISO
 // recorder (accepts:"both") is the one place both of a person's feeds can co-land.
 export function renderPersonPool(data: SourceLeaf, container: HTMLElement, color?: string): void {
+  addStyles('person-label-align', PERSON_ALIGN_CSS);
   const poolColor = color || data.color || '#F2B74B';
   const faulted = isFaultStatus(data.status);
   const origin = data.origin || data.name;
