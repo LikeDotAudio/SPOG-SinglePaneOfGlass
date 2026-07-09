@@ -19,9 +19,9 @@ export const CL_CSS = `
 .cl-x{flex:0 0 auto;width:62px;display:flex;align-items:center;justify-content:center;color:#000;font-weight:900;letter-spacing:1px;cursor:pointer;box-shadow:inset 2px 0 0 rgba(0,0,0,.25);}
 .cl-x:hover{background:rgba(0,0,0,.15);}
 .cl-tools{display:flex;gap:8px;padding:10px 12px;background:#140f06;}
-.cl-rev,.cl-new{font-family:inherit;font-weight:900;font-size:11px;letter-spacing:1px;cursor:pointer;padding:8px 16px;border:none;border-radius:14px;text-transform:uppercase;color:#000;}
-.cl-rev{background:#cc3a3a;} .cl-new{background:#6cdf4a;}
-.cl-rev:hover,.cl-new:hover{filter:brightness(1.12);}
+.cl-rev,.cl-new,.cl-tl{font-family:inherit;font-weight:900;font-size:11px;letter-spacing:1px;cursor:pointer;padding:8px 16px;border:none;border-radius:14px;text-transform:uppercase;color:#000;}
+.cl-rev{background:#cc3a3a;} .cl-new{background:#6cdf4a;} .cl-tl{background:#3FC1C9;}
+.cl-rev:hover,.cl-new:hover,.cl-tl:hover{filter:brightness(1.12);}
 .cl-list{flex:1;overflow:auto;padding:10px 10px 10px 0;background:#0a0805;}
 .cl-empty{color:#6a5a30;padding:30px 10px;text-align:center;letter-spacing:1px;}
 .cl-nar{margin:0 0 16px 14px;}

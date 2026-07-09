@@ -2,6 +2,42 @@
 
 All notable changes to SPOG (Single Pane Of Glass) are recorded here.
 
+## [v110] — 2026-07-08
+
+### Added — Captain's Log Timeline Viewer
+- **Timeline Viewer window**: A new `⧗ TIMELINE` window off the Captain's Log renders every log event as a **keyframe on a resource lane** — a stringline / swimlane view where time flows left→right and a **now playhead** sweeps the day. A **WHERE** lens lanes events by destination (grouped by room); a **WHO** lens lanes them by operator (crew view). Occupancy bands span each keyframe to the next (step interpolation); reversed entries dim; hovering a keyframe shows its log narration. Rendered **on demand** — it computes a snapshot from the in-memory log each time it opens (and on ⟳ Refresh), never on a live subscription. Design rationale: `docs/Audits/TimeLine Investigation.md`.
+
+### Added — Routed-Source Provenance & Editor UX
+- **Crosspoint "Details" card**: Press-and-hold any routed source in a Twist to open a Details card showing its **source family / feeds-from tree** (reconstructed from the live source panel's ancestry), full signal name and kind, and **when it was routed and by whom** (stamped onto the node at placement time).
+- **Prompter Highlighter Pens**: The prompter toolbar's two colour swatches were replaced with **six fixed highlighter pens plus a clear pen** — they wash the selected text's background rather than acting as a colour picker.
+- **Host → Camera Cascade**: Dragging a host (person) onto a production now routes their camera feed to the **first available camera input** and cascades it downward to the vision mixer + multiviewers; a second host fills the next free camera.
+- **URL Deep-Linking**: Pasting `https://spog.like.audio/#on/<floor>/<production>` (e.g. `#on/control-room/production-1`) now **selects and jumps to** that production, expanding its Twist groups; the URL also updates to reflect the production being viewed as you navigate.
+- **Academy Version Badge**: The Quick Start overlay header now displays the running build version.
+- **Reverse Course Attribution**: A reversed Captain's Log entry now stays in the log marked `[course reversed by <name> at <time> UTC]`; the attribution travels over MQTT and survives reload.
+- **SMRT Adoption Audit**: Published `docs/Audits/SMRT adoption.md` — a deep comparison of the SMRT protocol/state model against SPOG's MQTT/file-tree architecture, with an adoption recommendation.
+
+### Changed — Unified Captain's Log (supersedes v107's `log/latest` sync)
+- **Cross-Browser Unified Log**: The Captain's Log now publishes each entry to an origin-namespaced retained topic (`log/<origin>/<voyage>/<entry>`) and subscribes to the **full retained tree**, so a late-joining console catches up on the *entire* merged log rather than only the last entry. Entries are grouped by (origin, voyage) so two seats' voyages never collide or drop as false duplicates — fixing the divergent "36 vs 112" entry counts.
+- **Leaner Log Wire Format**: Routing entries no longer ship their English narration on the wire — each console rebuilds the sentence locally from the structured fields (audit F3).
+
+### Changed — Console Layout & Chirality
+- **Fold-On-Load**: A fresh load with nothing selected now presents every Twist group **folded**; a production the operator actively opens (deep-link or tab click) comes up **expanded**.
+- **Multiviewer Sizing**: The MULTIVIEWER gang now lays its members out as an even N-column grid (⅓ each for 3, ¼ for 4) on one row, with the DNA-helix corrected to fit its own cell (fixes the overlap regression).
+- **Chat/Voice Chirality**: The CHAT/VOICE dock now respects chirality — it flips to the same side as the clock + MQTT cluster so it always sits **above the time and MQTT**, in both handedness modes.
+- **Person Label Alignment**: Host / co-host / panelist labels now hug the **square (spine) edge**, not the rounded outer edge.
+- **Prompter as a V source**: Every prompter source now exposes a **single `V` video feed** rather than three named feeds.
+- **Removed Wireless Controller**: The `Wireless_Controller` node was removed from People and from both Production source pools.
+
+### Changed — Wire-Format Optimization (re-introduces & extends v108's throttling)
+- **Message Throttling Restored**: Re-implemented the per-topic trailing-edge coalescing that v108 removed (`throttle.ts`). Param publishes are throttled by default (~20 Hz); discrete one-shots opt out. High-rate sources (prompter scroll at ~60 Hz, slider drags) now emit an order of magnitude fewer messages, and the final retained value always lands.
+- **Compact Protobuf v2 (backward-compatible)**: The `full_id` string is replaced on the wire by a 4-byte `origin_id`; routing crosspoints ride as `repeated string` instead of JSON-in-a-string (~39% smaller per crosspoint); timestamps carry as a varint. The decoder reads both the new and legacy formats. Published `Protobuf-Payload-Optimization-Audit.md`.
+
+### Changed — CI/CD Incremental Deploy (supersedes v107's full-sync)
+- **Incremental Route Uploads**: The production and sandbox deploy workflows now upload **only the Routes files changed in the push** (diffing the `github.event.before…github.sha` range) instead of `--fresh`/`--all` full-tree syncs — so the deploy log shows the changes, not the whole tree. `deploy.py --all` / `--fresh` remain available for a manual full re-sync.
+
+### Fixed
+- **1990s View State Loss**: The router grid now also harvests already-routed crosspoints as sender rows, so a route to a source whose panel pool is collapsed no longer drops off the grid.
+
 ## [v109] — 2026-07-08
 
 ### Added — True Cryptographic Auth & Sandbox Autonomy (Milestone 1, Phase 2)

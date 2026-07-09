@@ -14,6 +14,7 @@ import { getBus } from '../../platform/mqtt/index.js';
 import { hydrateLog, emitLog, onLogEntry, persistEntry } from './captains-log-persist.js';
 import { signed, reverseSelected, observeRoot, narrationFromLabels } from './captains-log-narrate.js';
 import { render, setListEl, CL_CSS } from './captains-log-view.js';
+import { openTimeline } from './captains-log-timeline.js';
 
 // Re-exported so importers of './captains-log.js' stay byte-identical.
 export { onLogEntry };
@@ -95,13 +96,14 @@ function build(): HTMLElement {
   panel.className = 'cl-panel';
   panel.innerHTML = `
     <div class="cl-head"><span class="cl-title">▣ ${logTitle()}</span><span class="cl-x" title="Close">CLOSE</span></div>
-    <div class="cl-tools"><button class="cl-rev">↩ REVERSE COURSE</button><button class="cl-new">✦ NEW VOYAGE</button></div>
+    <div class="cl-tools"><button class="cl-rev">↩ REVERSE COURSE</button><button class="cl-new">✦ NEW VOYAGE</button><button class="cl-tl">⧗ TIMELINE</button></div>
     <div class="cl-list"></div>`;
   document.body.appendChild(panel);
   const listEl = panel.querySelector<HTMLElement>('.cl-list');
   setListEl(listEl);
   panel.querySelector('.cl-x')?.addEventListener('click', close);
   panel.querySelector('.cl-rev')?.addEventListener('click', reverseSelected);
+  panel.querySelector('.cl-tl')?.addEventListener('click', () => { void openTimeline(); });
   panel.querySelector('.cl-new')?.addEventListener('click', () => {
     const title = prompt('Name this voyage:', `Voyage ${nid() + 1}`);
     const nar: Narrative = { id: nextNid(), origin: selfOrigin(), title: (title || `Voyage ${nid()}`).trim(), entries: [] };
