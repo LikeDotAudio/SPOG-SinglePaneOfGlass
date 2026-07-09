@@ -44,7 +44,7 @@ function syncCounters(id: string): void {
   const s = counterStore.get(id);
   if (s) {
     timeSync.claimMaster();
-    getBus().publishValue(`destinations/${id}/counters`, s, { retain: true });
+    getBus().publishValue(`destinations/${id}/counters`, s, { throttle: false });
   }
 }
 
@@ -158,7 +158,7 @@ function counterRow(destId: string, id: 'A' | 'B', openEdit: () => void, offline
       tSync.running = !tSync.running;
       tSync.unix = timeSync.now();
       timeSync.claimMaster();
-      getBus().publishValue(`destinations/${destId}/counters_timer`, (countersOf(destId) as any).T, { retain: true });
+      getBus().publishValue(`destinations/${destId}/counters_timer`, (countersOf(destId) as any).T, { throttle: false });
     } else {
       if (s.running) { s.base = cMs(s); s.running = false; } else { s.startedAt = timeSync.now(); s.running = true; }
       syncCounters(destId);
@@ -171,7 +171,7 @@ function counterRow(destId: string, id: 'A' | 'B', openEdit: () => void, offline
     if (tSync) {
       tSync.valueFrames = 0; tSync.unix = timeSync.now();
       timeSync.claimMaster();
-      getBus().publishValue(`destinations/${destId}/counters_timer`, (countersOf(destId) as any).T, { retain: true });
+      getBus().publishValue(`destinations/${destId}/counters_timer`, (countersOf(destId) as any).T, { throttle: false });
     } else {
       s.base = 0; s.startedAt = timeSync.now(); syncCounters(destId); 
     }

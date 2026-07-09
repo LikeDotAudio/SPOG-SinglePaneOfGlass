@@ -20,15 +20,24 @@ export function buildLanes(): { lanes: Lane[]; opColor: Map<string, string>; t0:
   const opColor = new Map<string, string>();
   const colorFor = (op: string): string => { if (!opColor.has(op)) opColor.set(op, OP_COLORS[opColor.size % OP_COLORS.length]!); return opColor.get(op)!; };
   const lanes = new Map<string, Lane>();
-  const lane = (section: 'where' | 'who', group: string, name: string): Lane => {
-    const k = `${section}|${group}|${name}`;
+  // A lane is keyed separately from its display name so a scheduled crew ROLE and an
+  // operator acting in that role land on the SAME lane (booked vs actual), matched on
+  // the role's first segment ("Conn · TD" / "Conn · Helm" → "conn").
+  const lane = (section: 'where' | 'who', group: string, key: string, name: string): Lane => {
+    const k = `${section}|${group}|${key}`;
     if (!lanes.has(k)) lanes.set(k, { section, group, name, kf: [], plans: [] });
     return lanes.get(k)!;
   };
+  const roleKey = (s: string): string => s.split(/[·—]/)[0]!.trim().toLowerCase();
   for (const e of entries) {
     const op = opOf(e), c = colorFor(op);
-    lane('where', (e.prod || 'FACILITY').toUpperCase(), e.dest || '— actions —').kf.push({ ts: e.ts, text: e.text, rev: e.reversed, op, color: c });
-    lane('who', 'OPERATORS', op).kf.push({ ts: e.ts, text: e.text, rev: e.reversed, op, color: c });
+    const kf = { ts: e.ts, text: e.text, rev: e.reversed, op, color: c };
+    const dest = e.dest || '— actions —';
+    lane('where', (e.prod || 'FACILITY').toUpperCase(), dest, dest).kf.push(kf);
+    // Prefer the operator's ROLE lane (aligns with scheduled crew); fall back to the
+    // operator name for legacy entries with no role recorded.
+    if (e.role) lane('who', 'CREW / ROLES', roleKey(e.role), e.role).kf.push(kf);
+    else lane('who', 'OPERATORS', op, op).kf.push(kf);
   }
   // The production SCHEDULE is a DAILY recurring timetable — project it across today
   // and the next few days so future occurrences land to the RIGHT of now (the graph
@@ -41,8 +50,9 @@ export function buildLanes(): { lanes: Lane[]; opColor: Map<string, string>; t0:
     for (const sl of SCHEDULE) {
       const s = day + sl.s * 3600000, en = day + sl.e * 3600000;
       firstPlan = Math.min(firstPlan, s); lastPlan = Math.max(lastPlan, en);
-      lane('where', 'SCHEDULED — ROOMS', sl.room).plans.push({ s, e: en, label: sl.show });
-      for (const role of sl.crew) lane('who', 'BOOKED CREW', role).plans.push({ s, e: en, label: sl.show });
+      lane('where', 'SCHEDULED — ROOMS', sl.room, sl.room).plans.push({ s, e: en, label: sl.show });
+      // Booked crew ride the SAME role lanes as the operators who act in them.
+      for (const cr of sl.crew) { const ln = lane('who', 'CREW / ROLES', roleKey(cr), cr); ln.name = cr; ln.plans.push({ s, e: en, label: sl.show }); }
     }
   }
   const now = Date.now();

@@ -20,7 +20,8 @@ let curWidth = 0;          // last rendered content width (for the nav zoom math
 const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] ?? c));
 
 let panel: HTMLElement | null = null;
-const collapsed = new Set<string>();
+const collapsed = new Set<string>();          // explicitly-collapsed SECTIONS (default expanded)
+const expandedGroups = new Set<string>();     // explicitly-expanded room GROUPS (rooms fold by default)
 const selectedGroups = new Set<string>();   // multi-select room chips (stack / union)
 let filter = '';
 let evList: { ts: number; text: string; op: string; rev: boolean; color: string }[] = [];
@@ -54,9 +55,18 @@ function renderInto(body: HTMLElement, resetScroll = true): void {
   curWidth = width;
   const now = Date.now();
   const x = (ts: number): number => GUTTER + ((ts - t0) / 60000) * pxPerMin;
-  // Grid HTML (foldable headers with composite rows, dots, bands, ruler) — see
+  // WHERE room-groups FOLD BY DEFAULT (compact overview). A room is shown expanded only
+  // when the operator explicitly opened it OR it's currently selected via a room chip —
+  // so selecting one (or many) chips unfolds those rooms and exposes their lanes.
+  const groupSelected = (group: string): boolean => sel.some((g) => group.toLowerCase().includes(g));
+  const foldSet = new Set<string>(collapsed);   // section collapses carry through
+  for (const g of new Set(all.filter((l) => l.section === 'where' && l.group !== 'SCHEDULED — ROOMS').map((l) => l.group))) {
+    const key = `G:where|${g}`;
+    if (!expandedGroups.has(key) && !groupSelected(g)) foldSet.add(key);
+  }
+  // Grid HTML (foldable headers with inline counts, dots, bands, ruler) — see
   // captains-log-timeline-render. `ev` is the click-lookup list.
-  const { html, ev } = buildGrid(lanes, x, width, t0, t1, now, collapsed);
+  const { html, ev } = buildGrid(lanes, x, width, t0, t1, now, foldSet);
   evList = ev;
   const grid = el('div', { class: 'tl-grid', style: `width:${width}px;` });
   grid.innerHTML = html;
@@ -141,7 +151,8 @@ export function openTimeline(): void {
     body.addEventListener('click', (e) => {
       const t = e.target as HTMLElement;
       const fold = t.closest<HTMLElement>('[data-fold]');
-      if (fold) { const k = fold.dataset['fold']!; collapsed.has(k) ? collapsed.delete(k) : collapsed.add(k); const sx = body.scrollLeft; renderInto(body, false); body.scrollLeft = sx; return; }
+      // Groups fold by default → their toggle tracks EXPANDED (opt-in); sections track COLLAPSED.
+      if (fold) { const k = fold.dataset['fold']!; const set = k.startsWith('G:') ? expandedGroups : collapsed; set.has(k) ? set.delete(k) : set.add(k); const sx = body.scrollLeft; renderInto(body, false); body.scrollLeft = sx; return; }
       const kf = t.closest<HTMLElement>('.tl-kf[data-ev]');
       if (kf) showDetail(Number(kf.dataset['ev']), (e as MouseEvent).clientX, (e as MouseEvent).clientY);
       else panel!.querySelector('.tl-detail')?.remove();

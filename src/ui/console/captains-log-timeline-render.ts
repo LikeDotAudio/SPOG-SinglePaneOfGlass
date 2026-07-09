@@ -43,8 +43,11 @@ export function buildGrid(lanes: RLane[], x: (ts: number) => number, width: numb
     if (ln.group !== curGrp) {
       curGrp = ln.group;
       const c = collapsed.has(grpKey);
-      html += `<div class="tl-group" data-fold="${esc(grpKey)}">${c ? '▸' : '▾'} ${esc(ln.group)}</div>`;
-      if (c) html += laneHtml(comp((aggG.get(grpKey) ?? []).length), aggG.get(grpKey) ?? [], [], 'tl-comp');
+      // Folded rooms show their event count INLINE in the header (e.g. "▸ 1ST FLOOR — ROOM 1
+      // (2 events)") — no separate composite lane, so a folded room is a single compact row.
+      const n = (aggG.get(grpKey) ?? []).length;
+      const count = c ? ` <span class="tl-count">(${n} event${n === 1 ? '' : 's'})</span>` : '';
+      html += `<div class="tl-group${c ? ' folded' : ''}" data-fold="${esc(grpKey)}">${c ? '▸' : '▾'} ${esc(ln.group)}${count}</div>`;
     }
     if (collapsed.has(grpKey)) continue;
     html += laneHtml(ln.name, ln.kf, ln.plans);

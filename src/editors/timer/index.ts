@@ -143,7 +143,7 @@ const plugin: EditorPlugin = {
         getBus().publishValue(`destinations/${ctx.production.id}/counters_timer`, {
           A: { running: S.channels.A.running, valueFrames: S.channels.A.value, fps: S.fps, unix: timeSync.now(), direction: S.channels.A.direction },
           B: { running: S.channels.B.running, valueFrames: S.channels.B.value, fps: S.fps, unix: timeSync.now(), direction: S.channels.B.direction }
-        }, { retain: true });
+        }, { throttle: false });
       }
     }
 

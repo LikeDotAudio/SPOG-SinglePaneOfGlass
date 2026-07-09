@@ -11,46 +11,31 @@ class NetworkTimeSync {
     this.initialized = true;
     
     const bus = getBus();
-    
-    // Listen for pings
-    bus.subscribeRaw('SPOG/system/time/ping', (topic, msg) => {
+    // Topics are relative to the SPOG root — the bus adds it. Payloads ride as plain
+    // objects (publishRaw encodes; subscribe hands back the decoded object).
+
+    // Listen for pings (the master answers with a pong stamped with its own clock).
+    bus.subscribe('system/time/ping', (_topic, payload) => {
       if (!this.master) return;
-      try {
-        const payload = JSON.parse(new TextDecoder().decode(msg));
-        if (payload.t1 && payload.client) {
-          bus.publishRaw(`SPOG/system/time/pong/${payload.client}`, JSON.stringify({
-            t1: payload.t1,
-            t2: Date.now(),
-            t3: Date.now()
-          }), { retain: false, qos: 0 });
-        }
-      } catch (e) { /* ignore */ }
-    });
-
-    // Listen for pongs addressed to us
-    bus.subscribeRaw(`SPOG/system/time/pong/${this.myId}`, (topic, msg) => {
-      try {
-        const payload = JSON.parse(new TextDecoder().decode(msg));
-        const t4 = Date.now();
-        const newOffset = ((payload.t2 - payload.t1) + (payload.t3 - t4)) / 2;
-        
-        // Smooth the offset
-        if (Math.abs(this.offset - newOffset) > 1000) {
-          this.offset = newOffset; // Hard snap if way off
-        } else {
-          this.offset = this.offset * 0.8 + newOffset * 0.2; // Soft smooth
-        }
-      } catch (e) { /* ignore */ }
-    });
-
-    // Periodically send ping if we are not the master
-    setInterval(() => {
-      if (!this.master) {
-        bus.publishRaw('SPOG/system/time/ping', JSON.stringify({ 
-          t1: Date.now(), 
-          client: this.myId 
-        }), { retain: false, qos: 0 });
+      const p = payload as { t1?: number; client?: string } | null;
+      if (p && p.t1 && p.client) {
+        bus.publishRaw(`system/time/pong/${p.client}`, { t1: p.t1, t2: Date.now(), t3: Date.now() }, { retain: false });
       }
+    });
+
+    // Listen for pongs addressed to us and fold the round-trip into the offset.
+    bus.subscribe(`system/time/pong/${this.myId}`, (_topic, payload) => {
+      const p = payload as { t1?: number; t2?: number; t3?: number } | null;
+      if (!p || p.t1 == null || p.t2 == null || p.t3 == null) return;
+      const t4 = Date.now();
+      const newOffset = ((p.t2 - p.t1) + (p.t3 - t4)) / 2;
+      // Hard-snap if way off, else smooth toward the new estimate.
+      this.offset = Math.abs(this.offset - newOffset) > 1000 ? newOffset : this.offset * 0.8 + newOffset * 0.2;
+    });
+
+    // Periodically send a ping if we are not the master.
+    setInterval(() => {
+      if (!this.master) bus.publishRaw('system/time/ping', { t1: Date.now(), client: this.myId }, { retain: false });
     }, 2000);
   }
 

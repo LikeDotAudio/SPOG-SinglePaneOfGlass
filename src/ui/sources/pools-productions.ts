@@ -6,7 +6,7 @@ import { slugId } from './format.js';
 import { wireFold } from './pools-fold.js';
 
 // ---- PRODUCTIONS-as-source pool (port of renderProductionInputs) ------------
-const DEFAULT_OUTPUTS: Record<string, string[]> = {
+const DEFAULT_OUTPUTS: { video: string[]; audio: string[]; intercom: string[]; control: string[] } = {
   video: ['AUX 1', 'AUX 2', 'MV 1', 'PROGRAM'],
   audio: ['MAIN MIX', 'MIX MINUS 1', 'MIX MINUS 2', 'MIX MINUS 3', 'MIX MINUS 4'],
   intercom: ['IFB OUT 1', 'IFB OUT 2', 'IFB OUT 3', 'IFB OUT 4'],
@@ -47,7 +47,7 @@ export function renderProductionInputs(data: SourceLeaf, container: HTMLElement)
     (outs.video ?? DEFAULT_OUTPUTS.video).forEach((o) => vids.push(vNode(`${data.name} ${o}`, `prodsrc-${data.id}-${slugId(o)}`, data.name)));
     (outs.audio ?? DEFAULT_OUTPUTS.audio).forEach((o) => auds.push(aNode(`${data.name} ${o}`, `prodsrc-${data.id}-${slugId(o)}`, data.name)));
     (outs.intercom ?? DEFAULT_OUTPUTS.intercom).forEach((o) => auds.push(aNode(`${data.name} ${o}`, `prodsrc-${data.id}-${slugId(o)}`, data.name, 'audio-comms')));
-    (outs.control ?? DEFAULT_OUTPUTS.control).forEach((o) => ctrls.push(cNode(`${data.name} ${o}`, `prodsrc-${data.id}-${slugId(o)}`, data.name)));
+    ((outs as { control?: string[] }).control ?? DEFAULT_OUTPUTS.control).forEach((o) => ctrls.push(cNode(`${data.name} ${o}`, `prodsrc-${data.id}-${slugId(o)}`, data.name)));
   }
 
   // Each category is a labelled sub-section (only if it has feeds); video uses the

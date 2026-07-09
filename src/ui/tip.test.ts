@@ -10,7 +10,7 @@ function ctx(over: Partial<EditorContext> = {}): EditorContext {
   return {
     twist: { name: 'VIDEO MIXER', config: { name: 'Video Mixer', accepts: 'video', inputs: ['SW 1', 'SW 2'] } },
     sources: [{ id: 'a', label: 'CAM 1', color: '#fff' }, { id: 'b', label: 'CAM 3', color: '#fff' }],
-    production: { name: 'PROD 7', color: '#5566EE' },
+    production: { id: 'prod-7', name: 'PROD 7', color: '#5566EE' },
     siblings: [{ name: 'Video Mixer', config: null, sources: [] }],
     can: () => true,
     services: { openStageBox: () => {} },
@@ -35,7 +35,7 @@ describe('expectationHtml (Kind A)', () => {
   });
 
   it('shows the floor when the room sits under one', () => {
-    const { html } = expectationHtml(ctx({ production: { name: 'ROOM 2', color: '#3FC1C9', floor: '2ND FLOOR' } }), {});
+    const { html } = expectationHtml(ctx({ production: { id: 'room-2', name: 'ROOM 2', color: '#3FC1C9', floor: '2ND FLOOR' } }), {});
     expect(html).toContain('ROOM 2 · 2ND FLOOR');
   });
 
@@ -52,7 +52,7 @@ describe('expectationHtml (Kind A)', () => {
 
   it('renders the JSON-authored room tip (string form) and per-tool tip (object form)', () => {
     const c = ctx({
-      production: { name: 'PROD 7', color: '#5566EE', tip: 'Secondary gallery.' },
+      production: { id: 'prod-7', name: 'PROD 7', color: '#5566EE', tip: 'Secondary gallery.' },
       twist: { name: 'VIDEO MIXER', config: { name: 'Video Mixer', accepts: 'video', tip: { lead: '8-input switcher.', good: 'PGM before roll.' } } },
     });
     const { html } = expectationHtml(c, {});
@@ -62,7 +62,7 @@ describe('expectationHtml (Kind A)', () => {
   });
 
   it('escapes HTML in authored + derived text', () => {
-    const { html } = expectationHtml(ctx({ production: { name: 'A <b>& B', color: '#000' } }), {});
+    const { html } = expectationHtml(ctx({ production: { id: 'ab', name: 'A <b>& B', color: '#000' } }), {});
     expect(html).toContain('A &lt;b&gt;&amp; B');
     expect(html).not.toContain('A <b>& B');
   });
