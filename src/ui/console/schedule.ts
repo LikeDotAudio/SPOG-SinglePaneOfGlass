@@ -36,6 +36,24 @@ export const SCHEDULE: Slot[] = [
   { s: 23, e: 24, show: 'Overnight Handoff', room: 'Newsroom Flash Desk', crew: ['Conn · TD', 'Comms'], resources: ['Wire Service Feed'] },
 ];
 
+// Every production/show earns its OWN identity colour, stable across the app so the
+// same show reads the same hue on the schedule overlay AND the timeline (its room lane
+// and every crew-role lane) — you can trace one production's crew + actions by colour.
+// Assign-on-first-seen over a wide palette; pre-seeded from SCHEDULE below so the order
+// is deterministic regardless of which surface asks for a colour first.
+export const SHOW_COLORS = [
+  '#FF9C63', '#3FC1C9', '#A06EB4', '#6cdf4a', '#6FC8F0', '#C2B74B', '#ff5fa2', '#cc6a3a',
+  '#9C6B9C', '#39d353', '#e0524a', '#5b8def', '#e0b53a', '#d8b4e2', '#4ad6c0', '#f08fb0',
+  '#b0d04a', '#8f9cf0', '#f0a24a', '#7ad0f0',
+];
+const showColorMap = new Map<string, string>();
+/** Stable identity colour for a production/show (same string → same hue, app-wide). */
+export function showColor(show: string): string {
+  if (!showColorMap.has(show)) showColorMap.set(show, SHOW_COLORS[showColorMap.size % SHOW_COLORS.length]!);
+  return showColorMap.get(show)!;
+}
+for (const sl of SCHEDULE) showColor(sl.show);   // deterministic seed in schedule order
+
 const fmt = (h: number): string => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 
 // Crew roles map to the three divisions — Command (red), Operations (gold), Sciences (blue).
@@ -89,10 +107,12 @@ function build(root: HTMLElement): void {
   const now = nowHours();
   SCHEDULE.forEach((sl) => {
     const live = now >= sl.s && now < sl.e;
+    const pc = showColor(sl.show);
     const el = document.createElement('div');
     el.className = 'sc-slot' + (live ? ' live' : '');
+    el.style.borderLeft = `4px solid ${pc}`;   // production identity bar
     el.innerHTML = `<div class="sc-time">${fmt(sl.s)}<br>–${fmt(sl.e)}<div class="badge">${live ? '● LIVE NOW' : 'SCHEDULED'}</div></div>
-      <div class="sc-show"><b>${sl.show}</b><div class="sc-room">▣ ${sl.room}</div>
+      <div class="sc-show"><b style="color:${pc}">${sl.show}</b><div class="sc-room">▣ ${sl.room}</div>
         <div class="sc-crew">${sl.crew.map((r) => { const [d, c] = division(r); return `<span class="sc-role" style="border-color:${c};color:${c}" title="${d} division">${r}</span>`; }).join('')}</div>
         ${sl.resources ? `<div class="sc-resources">${sl.resources.map((res) => `<span class="sc-resource" title="Booked Remote Resource">⚡ ${res}</span>`).join('')}</div>` : ''}
       </div>`;

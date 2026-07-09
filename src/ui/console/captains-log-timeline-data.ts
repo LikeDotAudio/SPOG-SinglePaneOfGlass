@@ -4,12 +4,12 @@
 // carrying its past keyframes (log events, coloured by operator) and future planned
 // bands (scheduled shows). Split out of captains-log-timeline (200-line rule).
 import { narratives, type Entry } from './captains-log-state.js';
-import { SCHEDULE } from './schedule.js';
+import { SCHEDULE, showColor } from './schedule.js';
 
 const OP_COLORS = ['#FF9C63', '#3FC1C9', '#A06EB4', '#6cdf4a', '#6FC8F0', '#C2B74B', '#ff5fa2', '#cc6a3a', '#9C6B9C', '#39d353'];
 
 export interface Keyframe { ts: number; text: string; rev: boolean; op: string; color: string }
-export interface Plan { s: number; e: number; label: string; reh?: boolean }
+export interface Plan { s: number; e: number; label: string; reh?: boolean; color?: string }
 export interface Lane { section: 'where' | 'who'; group: string; name: string; kf: Keyframe[]; plans: Plan[] }
 
 const allEntries = (): Entry[] => narratives.flatMap((n) => n.entries).sort((a, b) => a.ts - b.ts);
@@ -52,15 +52,16 @@ export function buildLanes(): { lanes: Lane[]; opColor: Map<string, string>; t0:
       const s = day + sl.s * 3600000, en = day + sl.e * 3600000;
       const reh = s - 45 * 60000;   // every slot earns a 45-minute rehearsal band before air
       firstPlan = Math.min(firstPlan, reh); lastPlan = Math.max(lastPlan, en);
+      const pc = showColor(sl.show);   // production identity colour, shared with the schedule overlay
       const room = lane('where', 'SCHEDULED — ROOMS', sl.room, sl.room);
-      room.plans.push({ s: reh, e: s, label: `${sl.show} · rehearsal`, reh: true });
-      room.plans.push({ s, e: en, label: sl.show });
+      room.plans.push({ s: reh, e: s, label: `${sl.show} · rehearsal`, reh: true, color: pc });
+      room.plans.push({ s, e: en, label: sl.show, color: pc });
       // Booked crew ride the SAME role lanes as the operators who act in them — so two
       // concurrent shows needing one role stack into two rows (= "needs another person").
       for (const cr of sl.crew) {
         const ln = lane('who', 'CREW / ROLES', roleKey(cr), cr); ln.name = cr;
-        ln.plans.push({ s: reh, e: s, label: `${sl.show} · rehearsal`, reh: true });
-        ln.plans.push({ s, e: en, label: sl.show });
+        ln.plans.push({ s: reh, e: s, label: `${sl.show} · rehearsal`, reh: true, color: pc });
+        ln.plans.push({ s, e: en, label: sl.show, color: pc });
       }
     }
   }
