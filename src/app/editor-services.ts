@@ -9,6 +9,8 @@ import { openOverlay } from '../platform/overlay.js';
 import type { EditorServices } from '../editors/types.js';
 import { getBus } from '../platform/mqtt/index.js';
 import { twistTopic, slug as topicSlug } from '../platform/mqtt/topics.js';
+import { mergeManager } from '../platform/merge/manager.js';
+import { localSeatRank, localSeatLabel } from '../platform/merge/seat.js';
 
 /** Open a "system" editor overlay (no room twist) with a minimal always-permitted
  *  context — the shared spine of openStageBox / openWirelessMic / openTsg. */
@@ -53,11 +55,26 @@ const services: EditorServices = {
 export function twistServices(prodDisplayName: string, twistName: string): EditorServices {
   const base = twistTopic(prodDisplayName, twistName);   // rooms/<prod>/twists/<twist>
   const bus = getBus();
+  // Bind the mediator's self-identity to the bus session once (used to drop our own echo).
+  if (mergeManager.selfFullId === 'local:TWIST:0' && bus.sessionId) mergeManager.selfFullId = bus.sessionId;
   const paramTopic = (p: string): string => `${base}/params/${topicSlug(p)}`;
   return {
     ...services,
     advertiseParams(params) { bus.publishConfig(`${base}/config`, { kind: 'twist', name: twistName, params }); },
-    publishParam(pname, value, opts) { bus.publishValue(paramTopic(pname), value, { throttle: opts?.throttle ?? true }); },
-    onParam(pname, cb) { return bus.subscribe(paramTopic(pname), (_t, p) => cb((p as { value?: unknown } | null)?.value ?? p)); },
+    // A local write feeds the mediator AND rides the bus carrying our seat rank, so
+    // every console arbitrates the same fight by the same higher-rank-wins rule.
+    publishParam(pname, value, opts) {
+      const topic = paramTopic(pname);
+      mergeManager.submitLocal(topic, pname, value);
+      bus.publishValue(topic, value, { throttle: opts?.throttle ?? true, seat: localSeatRank(), label: localSeatLabel() });
+    },
+    // The editor's applier receives the mediator's RESOLVED value (windowed); foreign
+    // bus writes are fed in as competing proposals rather than applied blindly.
+    onParam(pname, cb) {
+      const topic = paramTopic(pname);
+      const offApply = mergeManager.onApply(topic, pname, (v) => cb(v));
+      const offBus = bus.subscribe(topic, (_t, p) => mergeManager.ingestForeign(topic, pname, p));
+      return () => { offApply(); offBus(); };
+    },
   };
 }

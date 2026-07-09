@@ -157,9 +157,9 @@ export function createTwistBus(): TwistBus {
       send(full(`${suffix}`), { ...msg, full_id } satisfies ConfigMsg);
     },
 
-    publishValue<T>(suffix: string, value: T, opts?: { throttle?: boolean }): void {
+    publishValue<T>(suffix: string, value: T, opts?: { throttle?: boolean; seat?: number; label?: string }): void {
       const topic = full(suffix);
-      const payload = { value, ts: Date.now(), full_id: sessionId } satisfies ValueMsg<T>;
+      const payload = { value, ts: Date.now(), full_id: sessionId, ...(opts?.seat !== undefined ? { seat: opts.seat, label: opts.label } : {}) } satisfies ValueMsg<T>;
       // Throttled by default (editor-services passes throttle:true unless a caller
       // opts out for a discrete one-shot); coalesce rapid drags on the trailing edge.
       if (opts?.throttle === false) void send(topic, payload);

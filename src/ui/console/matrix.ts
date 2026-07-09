@@ -13,6 +13,7 @@ import { parseConfig, enforceTwistLimits, ensureDropZone, acceptsFor, buildDropp
 import { refreshCrosspoints } from './matrix-crosspoints.js';
 import { publishCrosspoints, applyCrosspointsFromNetwork } from './matrix-place.js';
 import { fanOutToInputs, fanOutProductionToStudio, fanOutHostToCamera } from './matrix-cascade.js';
+import { logAction } from './captains-log.js';
 import { getBus } from '../../platform/mqtt/index.js';
 import { twistTopic } from '../../platform/mqtt/topics.js';
 
@@ -74,6 +75,21 @@ export function initializeTwists(root: ParentNode, onOpenEditor?: OpenEditor): v
       const dropZone = ensureDropZone(twist);
       const accepts = acceptsFor(config);
       const appendWithLimit = (child: HTMLElement): void => { enforceTwistLimits(dropZone, config, child); dropZone.appendChild(child); };
+
+      // Illegal-route detection (OOPS): a dropped source whose TYPE this twist rejects
+      // (video → an audio-only device, a signal → a clock, …). Collected now; logged at
+      // the end only if no reroute branch (host / production / camera fan-out) salvaged it.
+      const destName = (twist.querySelector('.twist-title')?.textContent ?? 'destination').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+      const firstLine = (n: HTMLElement): string => (n.textContent ?? '').trim().split('\n')[0] || 'source';
+      const oops: string[] = [];
+      ids.forEach((id) => {
+        const node = document.getElementById(id);
+        if (!node || node.classList.contains('production')) return;
+        const feeds = node.classList.contains('multiplex')
+          ? [...node.querySelectorAll<HTMLElement>('.sub-stream')].filter((f) => f.classList.contains('signal-node'))
+          : (node.classList.contains('signal-node') ? [node] : []);
+        if (feeds.length && !feeds.some(accepts)) oops.push(firstLine(node));
+      });
 
       const plain: HTMLElement[] = [];
       ids.forEach((id) => {
@@ -139,6 +155,14 @@ export function initializeTwists(root: ParentNode, onOpenEditor?: OpenEditor): v
       } else if (config && (config.cameraInput || config.row === 'remotes')) {
         dropZone.replaceChildren();   // discard the default placement; fan-out re-places
         fanOutToInputs(twist, ids);
+      }
+
+      // OOPS — record the illegal route in the Captain's Log (unless a reroute branch
+      // legitimately handled the drop: host→camera, whole-production, camera/remote fan-out).
+      const special = isHost || !!(firstId && firstId.classList.contains('production')) || !!(config && (config.cameraInput || config.row === 'remotes'));
+      if (oops.length && !special) {
+        const acc = config?.accepts ? ` (accepts ${config.accepts} only)` : '';
+        logAction(`⚠ OOPS — ${oops.join(', ')} can't route to ${destName}${acc} — rejected`);
       }
 
       // Redraw the DNA strand for the new routed set, then a brief confirm flash.

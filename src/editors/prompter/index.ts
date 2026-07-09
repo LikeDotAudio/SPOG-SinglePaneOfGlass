@@ -387,12 +387,13 @@ const plugin: EditorPlugin = {
     // Honour inbound writes from the bus / other consoles — apply WITHOUT re-publishing.
     ctx.services.onParam?.('speed', (v) => { if (typeof v === 'number') { speed = v; speedIn.value = String(speed); updateWheelVisual(); } });
     ctx.services.onParam?.('size', (v) => { if (typeof v === 'number') { size = v; sizeIn.value = String(size); setSize(); } });
-    ctx.services.onParam?.('position', (v) => { 
-      if (typeof v === 'number') { 
-        // If both consoles are playing, avoid network fighting ("up then down") by ignoring small drifts
-        if (running && Math.abs(y - v) < 50) return;
-        y = v; prevY = v; applyTransform(); 
-      } 
+    ctx.services.onParam?.('position', (v) => {
+      if (typeof v === 'number') {
+        // The merge mediator (src/platform/merge) now arbitrates concurrent drives in a
+        // window and delivers ONE converged value — no more "up then down" fighting, so
+        // the old <50px deadband hack is gone. We simply apply what the mediator resolved.
+        y = v; prevY = v; applyTransform();
+      }
     });
     ctx.services.onParam?.('play', (v) => { running = !!v; reflectPlay(); });
     ctx.services.onParam?.('mirror', (v) => { mirrored = !!v; reflectMirror(); });

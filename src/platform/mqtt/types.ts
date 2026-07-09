@@ -36,6 +36,11 @@ export interface ValueMsg<T = unknown> {
   value: T;
   ts: number;
   full_id: string;
+  /** Writer's seat rank + label — carried so the merge mediator's higher-rank-wins
+   *  tie-break is authoritative across consoles (see src/platform/merge). Optional;
+   *  absent on non-param writes and on pre-mediator builds. */
+  seat?: number;
+  label?: string;
 }
 
 /** One Captain's Log narrative entry, retained on `SPOG/log/**`. */
@@ -65,7 +70,7 @@ export interface TwistBus {
   /** Publish a retained `…/config` advertisement under the SPOG root. */
   publishConfig(topicSuffix: string, msg: Omit<ConfigMsg, 'full_id'>): void;
   /** Publish a retained live value; opts.throttle coalesces rapid drags (~45 Hz). */
-  publishValue<T>(topicSuffix: string, value: T, opts?: { throttle?: boolean }): void;
+  publishValue<T>(topicSuffix: string, value: T, opts?: { throttle?: boolean; seat?: number; label?: string }): void;
   /** Publish an already-shaped retained payload (log entries, presence, …). */
   publishRaw(topicSuffix: string, payload: unknown, opts?: { retain?: boolean }): void;
   /** Subscribe to a topic filter (relative to the SPOG root). Returns an unsubscribe. */

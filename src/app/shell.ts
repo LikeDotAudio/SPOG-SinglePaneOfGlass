@@ -38,6 +38,10 @@ import { initMqttTree } from '../ui/console/mqtt-tree.js';
 import { onRoleChange } from '../platform/auth.js';
 import { showPeopleManager } from '../ui/console/people-manager.js';
 import { openEditorForTwist } from './editor-dispatch.js';
+import { initMergeObserver } from '../ui/merge/observer.js';
+import { initMergeBadge, describeEvent } from '../ui/merge/badge.js';
+import { mergeManager } from '../platform/merge/manager.js';
+import { logAction } from '../ui/console/captains-log.js';
 
 /** The Vite-injected build stamp (see main.ts / vite.config.ts). */
 type BuildStamp = { short: string; full: string; ts?: number };
@@ -149,6 +153,11 @@ export async function buildConsole(BUILD: BuildStamp): Promise<void> {
   // mirror the operator role; publish a final presence on unload.
   const bus = getBus();
   initMqttTree(bus);   // bottom-right chip (above the clock) → live topic tree + broker config
+  // Merge mediator surfaces: the "⚖ MERGE" observer (bottom-left) + the contested
+  // toast, and a highlighted Captain's Log entry whenever a window held a real fight.
+  initMergeObserver();
+  initMergeBadge();
+  mergeManager.onEvent((e) => { if (e.contested || e.concordant) logAction(`⚖ ${describeEvent(e)}`); });
   initChromeIcons();   // ICON-face tiles for the chrome buttons (after ALL chrome inits)
   startLogBridge(bus);
   initSeatSync(bus);   // seat prefs ride the retained bus; newer-wins on connect
