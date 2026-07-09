@@ -13,6 +13,7 @@
 
 import { buildConsole } from './shell.js';
 import { openFromHash } from './editor-dispatch.js';
+import { handleDestDeepLink } from '../ui/console/footer.js';
 
 // Real build stamp shown beside the credit byline — injected by Vite's `define`
 // at build time (see vite.config.ts `buildId`), so it changes on every deploy.
@@ -20,7 +21,8 @@ import { openFromHash } from './editor-dispatch.js';
 declare const __BUILD_ID__: { short: string; full: string; ts?: number };
 const BUILD = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : { short: 'dev', full: 'dev build' };
 
-buildConsole(BUILD).then(() => openFromHash()).catch((e: unknown) => {
+buildConsole(BUILD).then(() => { handleDestDeepLink(); openFromHash(); }).catch((e: unknown) => {
   document.body.innerHTML = `<pre style="color:#ff6a6a">console boot failed: ${String(e)}</pre>`;
 });
-window.addEventListener('hashchange', openFromHash);
+// `#on/<floor>/<production>` jumps to a destination; `#/<prod>/<twist>` opens an editor.
+window.addEventListener('hashchange', () => { handleDestDeepLink(); openFromHash(); });

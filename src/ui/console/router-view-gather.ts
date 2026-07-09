@@ -55,6 +55,18 @@ export function gatherSenderNodes(): Map<string, Map<string, HTMLElement | null>
       push(n.dataset.origin || label, label, n);
     }
   });
+  // Also harvest sources that are ALREADY ROUTED (placed as crosspoints) even when
+  // their panel pool is collapsed / lazy-unrendered — otherwise a live route has no
+  // sender row to land in and drops off the grid ("states being lost"). Panel nodes
+  // scanned above win the label; this only fills gaps. Keys match gatherLinks() exactly.
+  document.querySelectorAll<HTMLElement>('.twist-container .drop-zone > .signal-node').forEach((node) => {
+    const feeds = node.classList.contains('dropped-group')
+      ? [...node.querySelectorAll<HTMLElement>('.dropped-group-children .signal-node')] : [node];
+    feeds.forEach((f) => {
+      const label = firstLine(f); if (!label) return;
+      push(f.dataset.origin || node.dataset.origin || label, label, f);
+    });
+  });
   return m;
 }
 

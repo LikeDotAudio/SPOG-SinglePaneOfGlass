@@ -120,7 +120,9 @@ export function createWindows(C: ClockCtx): WindowsApi {
     for (const o of opts) sel.append(el('option', { value: o.v }, [o.label]));
     sel.value = value;
     sel.addEventListener('pointerdown', (e) => e.stopPropagation());
-    sel.addEventListener('change', () => onChange(sel.value));
+    // A per-window zone / resolution / face pick is a discrete "let go" change →
+    // publish the layout so it mirrors to the other consoles over MQTT.
+    sel.addEventListener('change', () => { onChange(sel.value); C.publishCount(); });
     return sel;
   };
 
@@ -157,6 +159,8 @@ export function createWindows(C: ClockCtx): WindowsApi {
       const txt = title.textContent ?? '';
       if (d.zone) d.zone = { ...d.zone, label: txt.trim() || d.zone.label };
     });
+    // Mirror the rename once the operator finishes (blur = "lets go").
+    title.addEventListener('blur', () => C.publishCount());
     floatWin(d, head);
     devices.push(d);
     stage.appendChild(d.win);

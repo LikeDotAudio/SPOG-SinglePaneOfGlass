@@ -78,6 +78,46 @@ export function activateTab(tabId: string): boolean {
   return true;
 }
 
+// ---- URL deep-linking (`#on/<floor…>/<production>`) --------------------------
+const destSlug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+const groupOfTab = (tab: HTMLElement): GroupHandle | null => groups.find((g) => g.tabsEl.contains(tab)) ?? null;
+const chainSlugs = (g: GroupHandle | null): string[] => (g ? g.path.split(' / ').map(destSlug) : []);
+
+/** The `on/<floor…>/<production>` hash path that addresses a destination tab. */
+export function destHashPath(tab: HTMLElement): string {
+  const segs = chainSlugs(groupOfTab(tab));
+  segs.push(destSlug(tab.innerText));
+  return 'on/' + segs.filter(Boolean).join('/');
+}
+
+/** Deep-link: reveal + select a destination by its slugged path. The last segment
+ *  is the production tab; earlier ones are floor/category filters (a subsequence of
+ *  the tab's group chain, so intermediate levels like "primary" may be omitted). */
+export function navigateToDest(segments: string[]): boolean {
+  const segs = segments.map(destSlug).filter(Boolean);
+  if (!segs.length) return false;
+  const prod = segs[segs.length - 1], floors = segs.slice(0, -1);
+  for (const tab of document.querySelectorAll<HTMLElement>('.lcars-tab')) {
+    if (destSlug(tab.innerText) !== prod) continue;
+    const g = groupOfTab(tab), chain = chainSlugs(g);
+    let ci = 0;
+    const ok = floors.every((f) => { while (ci < chain.length && chain[ci] !== f) ci++; return ci++ < chain.length; });
+    if (!ok) continue;
+    if (g) openGroupPath(g.path);
+    tab.click();
+    tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    return true;
+  }
+  return false;
+}
+
+/** Handle an `#on/…` deep link in the current URL. Returns true if it matched. */
+export function handleDestDeepLink(): boolean {
+  const h = location.hash || '';
+  if (!/^#on\//i.test(h)) return false;
+  return navigateToDest(h.replace(/^#on\//i, '').split('/').filter(Boolean).map(decodeURIComponent));
+}
+
 /** Re-apply the remembered footer state (open groups + selected destination).
  *  Call once after the destination tree is built; a deep-link hash still wins
  *  because openFromHash runs after and simply switches again. */
@@ -168,8 +208,16 @@ export const Footer = {
       activate();
       switchTab(pgm.id, e);
       // Only a REAL click is the operator's choice — programmatic activations
-      // (loadAllDestinations, deep links, restore) must not clobber the memory.
-      if (e.isTrusted) { collapseAllGroups(); patchPrefs({ ui: { destTab: pgm.id } }); }
+      // (loadAllDestinations, deep links, restore) must not clobber the memory or URL.
+      if (e.isTrusted) {
+        collapseAllGroups();
+        patchPrefs({ ui: { destTab: pgm.id } });
+        // Point the URL at the production being viewed ("as it is called"), unless an
+        // editor deep link (#/…) currently owns the hash.
+        if (!document.querySelector('.ed-overlay.open') && !/^#\//.test(location.hash)) {
+          try { history.replaceState(null, '', '#' + destHashPath(tab)); } catch { /* ignore */ }
+        }
+      }
     };
     if (active) activate();
     return tab;
