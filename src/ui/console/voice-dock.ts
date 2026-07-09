@@ -30,13 +30,20 @@ const CSS = `
 .vd-learn-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;font:13px monospace;line-height:1.5;}
 .vd-learn-list{font:13px monospace;color:#d6e6ef;margin:0;padding-left:20px;}
 .vd-learn-list li{margin-bottom:6px;}
-/* ICON FACE — the VOICE launcher becomes a tile like CHAT/MQTT (the shared dock
-   CSS lives in the static lcars.css, which isn't redeployed, so it's bundled here). */
+/* ICON FACE — the VOICE launcher becomes a tile IN LINE with CHAT + MQTT on the
+   clock row (the shared dock CSS lives in the static lcars.css, which isn't
+   redeployed, so voice's tile + row placement are bundled here). Row (edge→in):
+   CHAT(26) · MQTT(76) · VOICE(126) · CLOCK(186), all bottom:33. */
 html[data-face="icons"] .voice-launch.has-face-icon{
   background:var(--face-icon) center/contain no-repeat !important;background-color:transparent !important;
-  width:40px;height:40px;min-width:40px;padding:0;border:none;border-radius:10px;font-size:0;letter-spacing:0;color:transparent;box-shadow:none;overflow:visible;gap:0;}
+  width:40px;height:40px;min-width:40px;padding:0;border:none;border-radius:10px;font-size:0;letter-spacing:0;color:transparent;box-shadow:none;overflow:visible;gap:0;
+  right:126px !important;left:auto !important;bottom:33px !important;position:fixed !important;}
+html[data-chirality="right"][data-face="icons"] .voice-launch.has-face-icon{left:126px !important;right:auto !important;}
 html[data-face="icons"] .voice-launch.has-face-icon:hover{background-image:var(--face-icon-hover,var(--face-icon)) !important;transform:none;}
 html[data-face="icons"] .voice-launch.has-face-icon::after{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:3px;font:900 8px 'Courier New',monospace;letter-spacing:1px;color:#8fa8c8;white-space:nowrap;pointer-events:none;content:'VOICE';}
+/* Shift the clock inboard so it doesn't collide with the new VOICE tile. */
+html[data-face="icons"] .ptp-clock{right:186px !important;}
+html[data-chirality="right"][data-face="icons"] .ptp-clock{left:186px !important;right:auto !important;}
 `;
 
 export function initVoiceDock(): void {

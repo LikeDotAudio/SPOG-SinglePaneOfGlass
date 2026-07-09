@@ -14,7 +14,7 @@ import { buildDestinations, addDestinationTree } from '../ui/console/destination
 import { DEST_GROUP_COLORS, rgbAt } from '../ui/palette.js';
 import { initSickBay } from '../ui/console/sick-bay.js';
 import { initClock } from '../ui/console/clock.js';
-import { showSchedule } from '../ui/console/schedule.js';
+import { showSchedule, loadSchedule } from '../ui/console/schedule.js';
 import { initAuthPanel } from '../ui/console/auth-panel.js';
 import { initRouterView } from '../ui/console/router-view.js';
 import { initAcademy } from '../ui/console/academy.js';
@@ -114,13 +114,14 @@ export async function buildConsole(BUILD: BuildStamp): Promise<void> {
   }
   const peoplePromise = addDestinationTree('Routes/People/', peopleGroup, peopleColor, undefined, openEditorForTwist, 'People');
 
-  await initSickBay(); // Creates SICK BAY group next (to the right of PEOPLE)
-
   await Promise.all([
     renderSourcesPanel(ingress, () => wireSourceNodes(ingress)).then(() => wireSourceNodes(ingress)),
     peoplePromise,
     buildDestinations(openEditorForTwist),
+    loadSchedule(),   // the production schedule is data — Routes/Schedule/Schedule.json
   ]);
+
+  await initSickBay(); // SICK BAY group goes LAST — after the destination categories (…/TESTING)
   // Seat memory: re-open the remembered groups + destination tab (a deep-link
   // hash still wins — openFromHash runs after boot and switches again).
   restoreFooterState();

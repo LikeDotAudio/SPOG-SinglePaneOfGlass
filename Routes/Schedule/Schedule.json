@@ -1,0 +1,317 @@
+{
+  "name": "24-Hour Global Newsroom",
+  "description": "The repeating daily production schedule. Hours are decimal (19.25 = 19:15). Each slot books a room + crew ROLES (+ optional remote resources); the timeline projects these as planned bands, adds a 45-minute rehearsal before each, and stacks concurrent same-role bookings. Designed for a prime-time peak of five concurrent productions (18:30-19:30) with a deliberate Ops/Comms clash at 19:00.",
+  "colors": {
+    "Overnight Desk": "#FF9C63",
+    "World News · Tokyo": "#3FC1C9",
+    "World News · Sydney": "#A06EB4",
+    "First Light": "#6cdf4a",
+    "Morning Show · East": "#6FC8F0",
+    "World News · London": "#C2B74B",
+    "Market Watch": "#ff5fa2",
+    "Midmorning Report": "#cc6a3a",
+    "News at Noon": "#9C6B9C",
+    "Afternoon Briefing": "#39d353",
+    "Early Evening News": "#e0524a",
+    "Sports Tonight": "#5b8def",
+    "Prime Time News": "#e0b53a",
+    "Evening Weather": "#d8b4e2",
+    "Flash Update": "#4ad6c0",
+    "Late Edition": "#f08fb0",
+    "World News · Tokyo AM": "#b0d04a",
+    "Overnight Handoff": "#8f9cf0"
+  },
+  "slots": [
+    {
+      "s": 0,
+      "e": 5,
+      "show": "Overnight Desk",
+      "room": "Newsroom Flash Desk",
+      "crew": [
+        "Conn · TD",
+        "Comms"
+      ],
+      "resources": [
+        "Wire Service Feed"
+      ]
+    },
+    {
+      "s": 1,
+      "e": 2,
+      "show": "World News · Tokyo",
+      "room": "Studio 5 · Tokyo Bureau",
+      "crew": [
+        "First Officer · Director",
+        "Conn · TD",
+        "Comms"
+      ],
+      "resources": [
+        "Tokyo Bureau Fiber"
+      ]
+    },
+    {
+      "s": 3,
+      "e": 4,
+      "show": "World News · Sydney",
+      "room": "Studio 2 · 2nd Floor",
+      "crew": [
+        "First Officer · Director",
+        "Conn · TD",
+        "Ops"
+      ],
+      "resources": [
+        "Sydney Bureau Fiber"
+      ]
+    },
+    {
+      "s": 5,
+      "e": 6,
+      "show": "First Light",
+      "room": "Studio 3 · 3rd Floor",
+      "crew": [
+        "First Officer · Director",
+        "Chief Engineer",
+        "Comms"
+      ],
+      "resources": [
+        "Sunrise Roof Cam"
+      ]
+    },
+    {
+      "s": 6,
+      "e": 9,
+      "show": "Morning Show · East",
+      "room": "Primary Control Room",
+      "crew": [
+        "Captain · EP",
+        "First Officer · Director",
+        "Conn · TD",
+        "Chief Engineer",
+        "Comms",
+        "Ops"
+      ],
+      "resources": [
+        "Correspondent Live Shot",
+        "Remote Cam 3"
+      ]
+    },
+    {
+      "s": 7,
+      "e": 8,
+      "show": "World News · London",
+      "room": "Studio 4 · London Bureau",
+      "crew": [
+        "First Officer · Director",
+        "Conn · TD",
+        "Comms"
+      ],
+      "resources": [
+        "London Bureau Fiber"
+      ]
+    },
+    {
+      "s": 9,
+      "e": 9.5,
+      "show": "Market Watch",
+      "room": "Studio 2 · 2nd Floor",
+      "crew": [
+        "First Officer · Director",
+        "Science"
+      ],
+      "resources": [
+        "Exchange Data Feed"
+      ]
+    },
+    {
+      "s": 10,
+      "e": 11,
+      "show": "Midmorning Report",
+      "room": "Studio 3 · 3rd Floor",
+      "crew": [
+        "First Officer · Director",
+        "Conn · TD",
+        "Tactical"
+      ],
+      "resources": [
+        "Traffic Chopper"
+      ]
+    },
+    {
+      "s": 12,
+      "e": 12.5,
+      "show": "News at Noon",
+      "room": "Primary Control Room",
+      "crew": [
+        "First Officer · Director",
+        "Conn · TD",
+        "Chief Engineer",
+        "Comms"
+      ],
+      "resources": [
+        "Guest Skype Feed"
+      ]
+    },
+    {
+      "s": 12,
+      "e": 13,
+      "show": "World News · London",
+      "room": "Studio 4 · London Bureau",
+      "crew": [
+        "First Officer · Director",
+        "Conn · TD",
+        "Comms"
+      ],
+      "resources": [
+        "London Bureau Fiber"
+      ]
+    },
+    {
+      "s": 14,
+      "e": 15,
+      "show": "Afternoon Briefing",
+      "room": "Studio 2 · 2nd Floor",
+      "crew": [
+        "First Officer · Director",
+        "Tactical",
+        "Ops"
+      ],
+      "resources": [
+        "Press Room Pool"
+      ]
+    },
+    {
+      "s": 17,
+      "e": 18,
+      "show": "Early Evening News",
+      "room": "Primary Control Room",
+      "crew": [
+        "First Officer · Director",
+        "Conn · TD",
+        "Chief Engineer",
+        "Comms"
+      ],
+      "resources": [
+        "Correspondent Live Shot"
+      ]
+    },
+    {
+      "s": 18,
+      "e": 20,
+      "show": "Sports Tonight",
+      "room": "Studio 3 · 3rd Floor",
+      "crew": [
+        "Captain · EP",
+        "First Officer · Director",
+        "Conn · TD",
+        "Chief Engineer",
+        "Tactical",
+        "Comms",
+        "Ops",
+        "Science"
+      ],
+      "resources": [
+        "Stadium Feed A",
+        "Stadium Feed B"
+      ]
+    },
+    {
+      "s": 18.5,
+      "e": 19.5,
+      "show": "World News · London",
+      "room": "Studio 4 · London Bureau",
+      "crew": [
+        "First Officer · Director",
+        "Conn · TD",
+        "Comms"
+      ],
+      "resources": [
+        "London Bureau Fiber"
+      ]
+    },
+    {
+      "s": 19,
+      "e": 21,
+      "show": "Prime Time News",
+      "room": "Primary Control Room",
+      "crew": [
+        "Captain · EP",
+        "First Officer · Director",
+        "Conn · TD",
+        "Chief Engineer",
+        "Tactical",
+        "Comms"
+      ],
+      "resources": [
+        "Helicopter Cam",
+        "White House Briefing"
+      ]
+    },
+    {
+      "s": 19,
+      "e": 19.5,
+      "show": "Evening Weather",
+      "room": "Weather Center",
+      "crew": [
+        "First Officer · Director",
+        "Ops"
+      ],
+      "resources": [
+        "Doppler Radar Array"
+      ]
+    },
+    {
+      "s": 19.25,
+      "e": 19.5,
+      "show": "Flash Update",
+      "room": "Newsroom Flash Desk",
+      "crew": [
+        "First Officer · Director",
+        "Comms"
+      ],
+      "resources": [
+        "Breaking Wire"
+      ]
+    },
+    {
+      "s": 21,
+      "e": 22,
+      "show": "Late Edition",
+      "room": "Studio 2 · 2nd Floor",
+      "crew": [
+        "First Officer · Director",
+        "Conn · TD",
+        "Comms"
+      ],
+      "resources": [
+        "Late Guest Feed"
+      ]
+    },
+    {
+      "s": 22,
+      "e": 23,
+      "show": "World News · Tokyo AM",
+      "room": "Studio 5 · Tokyo Bureau",
+      "crew": [
+        "First Officer · Director",
+        "Conn · TD",
+        "Comms"
+      ],
+      "resources": [
+        "Tokyo Bureau Fiber"
+      ]
+    },
+    {
+      "s": 23,
+      "e": 24,
+      "show": "Overnight Handoff",
+      "room": "Newsroom Flash Desk",
+      "crew": [
+        "Conn · TD",
+        "Comms"
+      ],
+      "resources": [
+        "Wire Service Feed"
+      ]
+    }
+  ]
+}

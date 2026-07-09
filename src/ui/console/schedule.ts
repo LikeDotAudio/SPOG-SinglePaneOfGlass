@@ -7,34 +7,34 @@ import { addStyles } from '../dom.js';
 
 export interface Slot { s: number; e: number; show: string; room: string; crew: string[]; resources?: string[] }
 
-// A 24-hour global news operation — world bureaus staggered across time zones, a
-// prime-time PEAK of five concurrent productions (18:30–19:30 across five rooms),
-// and a deliberate crew clash: Sports Tonight and Evening Weather BOTH need Ops at
-// 19:00 (and the Flash desk pulls a second Comms) — an overlap the timeline flags
-// as "impossible without another person". Every slot also earns a 45-minute
-// rehearsal band, added by the timeline projection (captains-log-timeline-data).
-export const SCHEDULE: Slot[] = [
-  { s: 0, e: 5, show: 'Overnight Desk', room: 'Newsroom Flash Desk', crew: ['Conn · TD', 'Comms'], resources: ['Wire Service Feed'] },
-  { s: 1, e: 2, show: 'World News · Tokyo', room: 'Studio 5 · Tokyo Bureau', crew: ['First Officer · Director', 'Conn · TD', 'Comms'], resources: ['Tokyo Bureau Fiber'] },
-  { s: 3, e: 4, show: 'World News · Sydney', room: 'Studio 2 · 2nd Floor', crew: ['First Officer · Director', 'Conn · TD', 'Ops'], resources: ['Sydney Bureau Fiber'] },
-  { s: 5, e: 6, show: 'First Light', room: 'Studio 3 · 3rd Floor', crew: ['First Officer · Director', 'Chief Engineer', 'Comms'], resources: ['Sunrise Roof Cam'] },
-  { s: 6, e: 9, show: 'Morning Show · East', room: 'Primary Control Room', crew: ['Captain · EP', 'First Officer · Director', 'Conn · TD', 'Chief Engineer', 'Comms', 'Ops'], resources: ['Correspondent Live Shot', 'Remote Cam 3'] },
-  { s: 7, e: 8, show: 'World News · London', room: 'Studio 4 · London Bureau', crew: ['First Officer · Director', 'Conn · TD', 'Comms'], resources: ['London Bureau Fiber'] },
-  { s: 9, e: 9.5, show: 'Market Watch', room: 'Studio 2 · 2nd Floor', crew: ['First Officer · Director', 'Science'], resources: ['Exchange Data Feed'] },
-  { s: 10, e: 11, show: 'Midmorning Report', room: 'Studio 3 · 3rd Floor', crew: ['First Officer · Director', 'Conn · TD', 'Tactical'], resources: ['Traffic Chopper'] },
-  { s: 12, e: 12.5, show: 'News at Noon', room: 'Primary Control Room', crew: ['First Officer · Director', 'Conn · TD', 'Chief Engineer', 'Comms'], resources: ['Guest Skype Feed'] },
-  { s: 12, e: 13, show: 'World News · London', room: 'Studio 4 · London Bureau', crew: ['First Officer · Director', 'Conn · TD', 'Comms'], resources: ['London Bureau Fiber'] },
-  { s: 14, e: 15, show: 'Afternoon Briefing', room: 'Studio 2 · 2nd Floor', crew: ['First Officer · Director', 'Tactical', 'Ops'], resources: ['Press Room Pool'] },
-  { s: 17, e: 18, show: 'Early Evening News', room: 'Primary Control Room', crew: ['First Officer · Director', 'Conn · TD', 'Chief Engineer', 'Comms'], resources: ['Correspondent Live Shot'] },
-  { s: 18, e: 20, show: 'Sports Tonight', room: 'Studio 3 · 3rd Floor', crew: ['Captain · EP', 'First Officer · Director', 'Conn · TD', 'Chief Engineer', 'Tactical', 'Comms', 'Ops', 'Science'], resources: ['Stadium Feed A', 'Stadium Feed B'] },
-  { s: 18.5, e: 19.5, show: 'World News · London', room: 'Studio 4 · London Bureau', crew: ['First Officer · Director', 'Conn · TD', 'Comms'], resources: ['London Bureau Fiber'] },
-  { s: 19, e: 21, show: 'Prime Time News', room: 'Primary Control Room', crew: ['Captain · EP', 'First Officer · Director', 'Conn · TD', 'Chief Engineer', 'Tactical', 'Comms'], resources: ['Helicopter Cam', 'White House Briefing'] },
-  { s: 19, e: 19.5, show: 'Evening Weather', room: 'Weather Center', crew: ['First Officer · Director', 'Ops'], resources: ['Doppler Radar Array'] },
-  { s: 19.25, e: 19.5, show: 'Flash Update', room: 'Newsroom Flash Desk', crew: ['First Officer · Director', 'Comms'], resources: ['Breaking Wire'] },
-  { s: 21, e: 22, show: 'Late Edition', room: 'Studio 2 · 2nd Floor', crew: ['First Officer · Director', 'Conn · TD', 'Comms'], resources: ['Late Guest Feed'] },
-  { s: 22, e: 23, show: 'World News · Tokyo AM', room: 'Studio 5 · Tokyo Bureau', crew: ['First Officer · Director', 'Conn · TD', 'Comms'], resources: ['Tokyo Bureau Fiber'] },
-  { s: 23, e: 24, show: 'Overnight Handoff', room: 'Newsroom Flash Desk', crew: ['Conn · TD', 'Comms'], resources: ['Wire Service Feed'] },
-];
+// The repeating schedule is a DATA MODEL read from Routes/Schedule/Schedule.json
+// (like the Sources/Destinations trees) — not hardcoded. `loadSchedule()` populates
+// SCHEDULE at boot; it stays a LIVE array (mutated in place) so every importer — the
+// overlay here + the timeline projection (captains-log-timeline-data) — sees the
+// loaded slots. Empty until loaded (zero-backend: a missing file yields no schedule,
+// exactly like a missing Routes tree).
+export const SCHEDULE: Slot[] = [];
+
+/** Fetch + populate the schedule from Routes/Schedule/Schedule.json. Mutates SCHEDULE
+ *  in place and seeds each show's identity colour in file order. Call once at boot. */
+export async function loadSchedule(): Promise<void> {
+  try {
+    const res = await fetch('Routes/Schedule/Schedule.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json() as { slots?: Slot[]; colors?: Record<string, string> } | Slot[];
+    const slots = Array.isArray(data) ? data : data.slots;
+    const colors = Array.isArray(data) ? undefined : data.colors;
+    // Show identity colours are part of the data model: seed them from the file so a
+    // show reads the same hue everywhere. Shows without an explicit colour fall back
+    // to the palette (assign-on-first-seen, in file order).
+    if (colors) for (const [show, c] of Object.entries(colors)) setShowColor(show, c);
+    if (Array.isArray(slots) && slots.length) {
+      SCHEDULE.length = 0;
+      SCHEDULE.push(...slots);
+      for (const sl of SCHEDULE) showColor(sl.show);
+    }
+  } catch { /* zero-backend: no schedule file → empty schedule */ }
+}
 
 // Every production/show earns its OWN identity colour, stable across the app so the
 // same show reads the same hue on the schedule overlay AND the timeline (its room lane
@@ -52,7 +52,8 @@ export function showColor(show: string): string {
   if (!showColorMap.has(show)) showColorMap.set(show, SHOW_COLORS[showColorMap.size % SHOW_COLORS.length]!);
   return showColorMap.get(show)!;
 }
-for (const sl of SCHEDULE) showColor(sl.show);   // deterministic seed in schedule order
+/** Set a show's identity colour explicitly (used to seed from the schedule data model). */
+export function setShowColor(show: string, color: string): void { showColorMap.set(show, color); }
 
 const fmt = (h: number): string => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 
