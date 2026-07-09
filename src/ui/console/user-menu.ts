@@ -34,7 +34,7 @@ const UM_CSS = `
   padding:2px 4px;}
 /* Adopted chrome buttons: strip their fixed-corner positioning, make each a
    full-width menu row. Their own colours/handlers/icon tiles ride along. */
-.um-panel .tut-help,.um-panel .rv-btn,.um-panel .chir-toggle,.um-panel .palette-toggle{
+.um-panel .tut-help,.um-panel .rv-btn,.um-panel .chir-toggle,.um-panel .palette-toggle,.um-panel .mrg-launch{
   position:static !important;display:flex !important;align-items:center;justify-content:flex-start;
   gap:10px;width:100%;box-sizing:border-box;text-align:left;border-radius:10px;opacity:1;margin:0;
   padding:9px 14px;line-height:normal;}
@@ -152,7 +152,8 @@ export function initUserMenu(): void {
     n.prepend(img);
   };
   ([['.tut-help', '', 'academy'], ['.rv-btn', '', '1990s-view'],
-    ['.palette-toggle', 'COLOUR & VISION', 'settings'], ['.chir-toggle', 'CHIRALITY', 'chirality']] as const)
+    ['.palette-toggle', 'COLOUR & VISION', 'settings'], ['.chir-toggle', 'CHIRALITY', 'chirality'],
+    ['.mrg-launch', '', 'settings']] as const)
     .forEach(([sel, label, tileId]) => {
       const n = document.querySelector<HTMLElement>(sel);
       if (!n) return;
@@ -197,7 +198,7 @@ export function initUserMenu(): void {
   // chirality relayout, credits) leaves the menu stranded on top of it — close
   // on the way out. The seat row (EXPORT/IMPORT) keeps the menu open.
   panel.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).closest('.tut-help,.rv-btn,.palette-toggle,.chir-toggle,.credit-button')) close();
+    if ((e.target as HTMLElement).closest('.tut-help,.rv-btn,.palette-toggle,.chir-toggle,.credit-button,.mrg-launch')) close();
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 

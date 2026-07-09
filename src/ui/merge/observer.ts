@@ -67,8 +67,5 @@ export function initMergeObserver(): void {
     if (empty) { feed.innerHTML = ''; empty = false; }
     feed.prepend(eventRow(e));
     while (feed.childElementCount > 40) feed.lastElementChild?.remove();
-    if ((e.contested || e.concordant) && !panel.classList.contains('open')) launch.classList.add('contest');
-    launch.textContent = e.contested ? '⚖ CONTESTED' : '⚖ MERGE';
-    if (e.contested) setTimeout(() => { launch.textContent = '⚖ MERGE'; }, 2600);
   });
 }

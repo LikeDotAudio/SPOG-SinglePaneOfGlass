@@ -1,12 +1,13 @@
 // src/ui/merge/observer-styles — LCARS-flavoured chrome for the merge observer.
 export const MERGE_CSS = `
-.mrg-launch{position:fixed;left:12px;bottom:12px;z-index:60;font:800 12px 'Courier New',monospace;letter-spacing:1px;
-  padding:7px 12px;border-radius:14px 14px 14px 4px;background:#2c1a3b;color:#d8b4e2;border:1px solid #5a3a72;cursor:pointer;}
+/* Fallback style if the launcher is NOT adopted into the seat MENU (dev/tests). In
+   the app initUserMenu moves it into the menu, where .um-panel .mrg-launch restyles it. */
+.mrg-launch{position:fixed;left:12px;bottom:88px;z-index:60;font:800 12px 'Courier New',monospace;letter-spacing:1px;
+  padding:7px 12px;border-radius:14px;background:#2c1a3b;color:#d8b4e2;border:1px solid #5a3a72;cursor:pointer;}
 .mrg-launch:hover{background:#3d2650;}
-.mrg-launch.contest{animation:mrg-pulse 1s infinite;}
-@keyframes mrg-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,106,106,.6);}50%{box-shadow:0 0 12px 4px rgba(255,106,106,.6);}}
-.mrg-panel{position:fixed;left:12px;bottom:52px;z-index:60;width:360px;max-height:70vh;display:none;flex-direction:column;
-  background:#0a0712;border:1px solid #5a3a72;border-radius:12px 12px 12px 4px;color:#e7d6f2;font:13px 'Courier New',monospace;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.6);}
+/* The panel opens centred near the top — clear of the CHAT/VOICE docks + sources rail. */
+.mrg-panel{position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:2700;width:360px;max-height:78vh;display:none;flex-direction:column;
+  background:#0a0712;border:1px solid #5a3a72;border-radius:12px;color:#e7d6f2;font:13px 'Courier New',monospace;overflow:hidden;box-shadow:0 14px 50px rgba(0,0,0,.7);}
 .mrg-panel.open{display:flex;}
 .mrg-head{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#2c1a3b;font-weight:800;letter-spacing:1px;}
 .mrg-head .mrg-x{margin-left:auto;cursor:pointer;padding:0 6px;color:#d8b4e2;}

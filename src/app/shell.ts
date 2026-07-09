@@ -145,7 +145,8 @@ export async function buildConsole(BUILD: BuildStamp): Promise<void> {
   initColourScheme();   // palette launcher (left of chirality) → Colour & Vision editor
   initAuthoring();   // single-pane layout editing (EDIT LAYOUT toggle, bottom-left)
   initAcademy();   // first-load quick-start overlay + ACADEMY button (credit-row)
-  initUserMenu();   // seat menu beside the log — adopts academy/1990s/display/chirality/credits
+  initMergeObserver();   // ⚖ MERGE mediator launcher + panel (launcher adopted into the MENU below)
+  initUserMenu();   // seat menu beside the log — adopts academy/1990s/display/chirality/credits/merge
 
   // MQTT projection (audit: docs/Audit /TWIST-MQTT-Advertising-Audit.md). No-op
   // unless a broker is configured via ?mqtt=<host> — the console runs unchanged
@@ -153,9 +154,9 @@ export async function buildConsole(BUILD: BuildStamp): Promise<void> {
   // mirror the operator role; publish a final presence on unload.
   const bus = getBus();
   initMqttTree(bus);   // bottom-right chip (above the clock) → live topic tree + broker config
-  // Merge mediator surfaces: the "⚖ MERGE" observer (bottom-left) + the contested
-  // toast, and a highlighted Captain's Log entry whenever a window held a real fight.
-  initMergeObserver();
+  // Merge mediator surfaces: the contested toast + a highlighted Captain's Log entry
+  // whenever a window held a real fight. (The ⚖ observer launcher is created above and
+  // adopted into the seat MENU by initUserMenu; the panel opens centred on demand.)
   initMergeBadge();
   mergeManager.onEvent((e) => { if (e.contested || e.concordant) logAction(`⚖ ${describeEvent(e)}`); });
   initChromeIcons();   // ICON-face tiles for the chrome buttons (after ALL chrome inits)
