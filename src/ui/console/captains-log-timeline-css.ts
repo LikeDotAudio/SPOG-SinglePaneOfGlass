@@ -50,5 +50,8 @@ export const TL_CSS = `
 .tl-nav-mark{position:absolute;top:6px;height:22px;width:1.5px;border-radius:1px;opacity:.85;}
 .tl-nav-now{position:absolute;top:0;bottom:0;width:2px;background:#ff3b3b;}
 .tl-nav-view{position:absolute;top:0;bottom:0;background:rgba(111,200,240,.18);border:1px solid #6FC8F0;border-radius:3px;cursor:grab;}
+.tl-nav-h{position:absolute;top:0;bottom:0;width:8px;background:#6FC8F0;border-radius:2px;cursor:ew-resize;opacity:.85;}
+.tl-nav-h[data-h="l"]{left:-4px;} .tl-nav-h[data-h="r"]{right:-4px;}
+.tl-nav-h:hover{opacity:1;}
 .tl-nav-cap{position:absolute;left:5px;bottom:2px;font:8px 'Courier New',monospace;color:#7e93b5;letter-spacing:1px;pointer-events:none;}
 `;

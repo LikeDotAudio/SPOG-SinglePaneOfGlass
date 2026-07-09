@@ -10,14 +10,18 @@
 import { el, addStyles } from '../dom.js';
 import { buildLanes, type Lane } from './captains-log-timeline-data.js';
 import { TL_CSS } from './captains-log-timeline-css.js';
+import { wireNav } from './captains-log-timeline-nav.js';
 
 const PLAN = '#5a6a8c';
-const PX_PER_MIN = 5, MIN_SPAN_MIN = 60, GUTTER = 220;
+const MIN_SPAN_MIN = 60, GUTTER = 220;
+let pxPerMin = 5;          // horizontal zoom (px per minute) — driven by wheel + nav handles
+let curWidth = 0;          // last rendered content width (for the nav zoom maths)
 const hm = (ts: number): string => new Date(ts).toISOString().slice(11, 16);
 const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] ?? c));
 
 let panel: HTMLElement | null = null;
 const collapsed = new Set<string>();
+const selectedGroups = new Set<string>();   // multi-select room chips (stack / union)
 let filter = '';
 let evList: { ts: number; text: string; op: string; rev: boolean; color: string }[] = [];
 
@@ -33,19 +37,23 @@ function updateNavView(): void {
 
 function renderInto(body: HTMLElement, resetScroll = true): void {
   const { lanes: all, opColor, t0, t1 } = buildLanes();
-  // Filter: keep only lanes/events that match the query (lane name/group, or any
-  // keyframe text/operator, or a scheduled show label). Empty groups/sections then
-  // simply don't emit a header, since the render loop walks the filtered set.
+  // Filter in two stages: (1) the selected room chips (a UNION — a lane is kept if it
+  // belongs to ANY selected group, matched by group / lane name / event text); then
+  // (2) the free-text box. Empty groups/sections don't emit a header, since the render
+  // loop walks the filtered set.
+  const sel = [...selectedGroups];
+  const inSel = (ln: Lane): boolean => sel.length === 0 || sel.some((g) => ln.group.toLowerCase().includes(g) || ln.name.toLowerCase().includes(g) || ln.kf.some((k) => k.text.toLowerCase().includes(g)));
   const hit = (s: string): boolean => !filter || s.toLowerCase().includes(filter);
-  const lanes = all.map((ln) => {
+  const lanes = all.filter(inSel).map((ln) => {
     const laneHit = hit(ln.name) || hit(ln.group);
     return { ...ln, kf: laneHit ? ln.kf : ln.kf.filter((k) => hit(k.text) || hit(k.op)), plans: laneHit ? ln.plans : ln.plans.filter((p) => hit(p.label)), keep: laneHit };
   }).filter((ln) => ln.keep || ln.kf.length || ln.plans.length) as (Lane & { keep: boolean })[];
-  if (!lanes.length) { body.replaceChildren(el('div', { class: 'tl-empty' }, [filter ? `— no timeline items match “${filter}” —` : '— no log events or schedule yet — routing decisions and booked shows plot here —'])); return; }
+  if (!lanes.length) { body.replaceChildren(el('div', { class: 'tl-empty' }, [(filter || sel.length) ? '— no timeline items match the current filter —' : '— no log events or schedule yet — routing decisions and booked shows plot here —'])); return; }
   const spanMin = Math.max(MIN_SPAN_MIN, (t1 - t0) / 60000);
-  const width = Math.ceil(GUTTER + spanMin * PX_PER_MIN) + 20;
+  const width = Math.ceil(GUTTER + spanMin * pxPerMin) + 20;
+  curWidth = width;
   const now = Date.now();
-  const x = (ts: number): number => GUTTER + ((ts - t0) / 60000) * PX_PER_MIN;
+  const x = (ts: number): number => GUTTER + ((ts - t0) / 60000) * pxPerMin;
   evList = [];
 
   let html = '', curSec = '', curGrp = '';
@@ -90,10 +98,10 @@ function renderInto(body: HTMLElement, resetScroll = true): void {
   if (chips) {
     const twists = [...document.querySelectorAll<HTMLElement>('.twist-container')];
     const groups = [...new Set(all.filter((l) => l.section === 'where' && l.group !== 'SCHEDULED — ROOMS').map((l) => l.group))];
-    chips.innerHTML = groups.map((g) => {
+    chips.innerHTML = `<button class="tl-chip all${!selectedGroups.size && !filter ? ' on' : ''}" data-group="">◎ SHOW ALL</button>` + groups.map((g) => {
       const tw = twists.find((t) => (t.dataset['prodName'] || '').toUpperCase() === g);
       const c = (tw && getComputedStyle(tw).getPropertyValue('--lcars-color').trim()) || '#3FC1C9';
-      return `<button class="tl-chip${filter === g.toLowerCase() ? ' on' : ''}" data-group="${esc(g)}" style="--c:${c}">${esc(g)}</button>`;
+      return `<button class="tl-chip${selectedGroups.has(g.toLowerCase()) ? ' on' : ''}" data-group="${esc(g)}" style="--c:${c}">${esc(g)}</button>`;
     }).join('');
   }
   // Minimap: the whole span compressed, with event marks, a NOW tick, and a viewport box.
@@ -101,7 +109,7 @@ function renderInto(body: HTMLElement, resetScroll = true): void {
   if (nav) {
     const pct = (ts: number): string => ((x(ts) / width) * 100).toFixed(2);
     nav.innerHTML = evList.map((e) => `<div class="tl-nav-mark" style="left:${pct(e.ts)}%;background:${e.color};"></div>`).join('')
-      + `<div class="tl-nav-now" style="left:${pct(now)}%;"></div><div class="tl-nav-view"></div><div class="tl-nav-cap">NAV · drag</div>`;
+      + `<div class="tl-nav-now" style="left:${pct(now)}%;"></div><div class="tl-nav-view"><span class="tl-nav-h" data-h="l"></span><span class="tl-nav-h" data-h="r"></span></div><div class="tl-nav-cap">NAV · drag · handles/wheel = zoom</div>`;
   }
   if (resetScroll) body.scrollLeft = Math.max(0, x(now) - body.clientWidth * 0.6);
   updateNavView();
@@ -136,8 +144,8 @@ export function openTimeline(): void {
     groupsEl.addEventListener('click', (e) => {
       const chip = (e.target as HTMLElement).closest<HTMLElement>('[data-group]'); if (!chip) return;
       const g = chip.dataset['group'] ?? '';
-      const on = !g || filter === g.toLowerCase();          // empty = SHOW ALL; re-click a room = clear
-      filter = on ? '' : g.toLowerCase(); filterEl.value = on ? '' : g;
+      if (!g) { selectedGroups.clear(); filter = ''; filterEl.value = ''; }   // SHOW ALL
+      else { const k = g.toLowerCase(); selectedGroups.has(k) ? selectedGroups.delete(k) : selectedGroups.add(k); }  // stack / un-stack
       const sx = body.scrollLeft; renderInto(body, false); body.scrollLeft = sx;
     });
     const head = el('div', { class: 'tl-head' }, [
@@ -149,10 +157,14 @@ export function openTimeline(): void {
       el('span', { class: 'tl-x', title: 'Close' }, ['✕']),
     ]);
     const chipbar = el('div', { class: 'tl-chipbar' }, [groupsEl]);
-    head.querySelector('.tl-x')!.addEventListener('click', () => panel!.classList.remove('open'));
+    head.querySelector('.tl-x')!.addEventListener('click', () => { panel!.classList.remove('open'); if (isTimelineHash()) history.replaceState(null, '', location.pathname + location.search); });
     (head.querySelectorAll('.tl-btn')[2] as HTMLElement).addEventListener('click', () => renderInto(body));
     nowBtn.addEventListener('click', () => { const n = body.querySelector<HTMLElement>('.tl-now'); if (n) body.scrollLeft = Math.max(0, n.offsetLeft - body.clientWidth * 0.5); });
-    schedBtn.addEventListener('click', () => { const p = body.querySelector<HTMLElement>('.tl-plan'); if (p) body.scrollLeft = Math.max(0, p.offsetLeft - GUTTER - 40); });
+    schedBtn.addEventListener('click', () => {
+      const nowX = body.querySelector<HTMLElement>('.tl-now')?.offsetLeft ?? 0;
+      const future = [...body.querySelectorAll<HTMLElement>('.tl-plan')].map((p) => p.offsetLeft).filter((l) => l > nowX).sort((a, b) => a - b);
+      body.scrollLeft = Math.max(0, (future[0] ?? nowX) - GUTTER - 40);
+    });
     // Delegated clicks: fold a section/group, or open a keyframe's log detail.
     body.addEventListener('click', (e) => {
       const t = e.target as HTMLElement;
@@ -162,17 +174,25 @@ export function openTimeline(): void {
       if (kf) showDetail(Number(kf.dataset['ev']), (e as MouseEvent).clientX, (e as MouseEvent).clientY);
       else panel!.querySelector('.tl-detail')?.remove();
     });
-    // Navigation minimap — drag/click to scroll the main view; tracks the scroll.
-    const nav = el('div', { class: 'tl-nav', title: 'Navigation — click or drag to scroll' });
-    const navTo = (clientX: number): void => { const r = nav.getBoundingClientRect(); const f = Math.max(0, Math.min(1, (clientX - r.left) / r.width)); body.scrollLeft = f * body.scrollWidth - body.clientWidth / 2; };
-    let navDrag = false;
-    nav.addEventListener('pointerdown', (e) => { navDrag = true; nav.setPointerCapture(e.pointerId); navTo(e.clientX); });
-    nav.addEventListener('pointermove', (e) => { if (navDrag) navTo(e.clientX); });
-    nav.addEventListener('pointerup', () => { navDrag = false; });
+    // Navigation minimap — drag to scroll, drag the box handles or mouse-wheel to zoom.
+    const nav = el('div', { class: 'tl-nav', title: 'Navigation — drag to scroll · handles or wheel to zoom' });
+    wireNav(body, nav, {
+      width: () => curWidth,
+      px: () => pxPerMin,
+      setPx: (v) => { pxPerMin = v; },
+      rerender: () => renderInto(body, false),
+    });
     body.addEventListener('scroll', () => updateNavView());
     panel.append(head, chipbar, body, nav);
     document.body.appendChild(panel);
   }
   renderInto(panel.querySelector('.tl-body') as HTMLElement);
   panel.classList.add('open');
+  try { history.replaceState(null, '', '#timeline'); } catch { /* ignore */ }   // shareable URL
 }
+
+/** True when the URL addresses the timeline (`#timeline`). */
+const isTimelineHash = (): boolean => /^#\/?timeline\b/i.test(location.hash);
+/** Open the timeline if the current URL asks for it (boot + hashchange deep-link). */
+export function openTimelineIfHashed(): void { if (isTimelineHash()) openTimeline(); }
+if (typeof window !== 'undefined') window.addEventListener('hashchange', openTimelineIfHashed);

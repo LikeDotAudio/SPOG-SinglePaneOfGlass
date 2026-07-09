@@ -14,7 +14,7 @@ import { getBus } from '../../platform/mqtt/index.js';
 import { hydrateLog, emitLog, onLogEntry, persistEntry } from './captains-log-persist.js';
 import { signed, reverseSelected, observeRoot, narrationFromLabels } from './captains-log-narrate.js';
 import { render, setListEl, CL_CSS } from './captains-log-view.js';
-import { openTimeline } from './captains-log-timeline.js';
+import { openTimeline, openTimelineIfHashed } from './captains-log-timeline.js';
 
 // Re-exported so importers of './captains-log.js' stay byte-identical.
 export { onLogEntry };
@@ -172,8 +172,7 @@ export function initCaptainsLog(): void {
   // The log survives the session: hydrate this seat's history (read-only rows)
   // and say so on the button — the operator knows nothing was lost.
   void hydrateLog().then((n) => {
-    if (!n) return;
-    const b = document.querySelector<HTMLElement>('.cl-btn');
-    if (b) b.title = `Log restored — ${n} entr${n === 1 ? 'y' : 'ies'} from this seat's history`;
+    if (n) { const b = document.querySelector<HTMLElement>('.cl-btn'); if (b) b.title = `Log restored — ${n} entr${n === 1 ? 'y' : 'ies'} from this seat's history`; }
+    openTimelineIfHashed();   // a `#timeline` deep link opens the viewer once the log is ready
   });
 }
