@@ -41,6 +41,8 @@ export const TL_CSS = `
 .tl-lanelabel{position:sticky;left:0;z-index:4;display:inline-flex;align-items:center;height:100%;width:220px;box-sizing:border-box;padding:0 8px 0 30px;font:11px 'Courier New',monospace;color:#9fb6cc;background:#0a0c14;border-right:1px solid #1d2942;box-shadow:2px 0 6px rgba(0,0,0,.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .tl-band{position:absolute;top:11px;height:8px;border-radius:4px;opacity:.5;}
 .tl-plan{position:absolute;top:7px;height:16px;border-radius:5px;border:1.5px dashed #5a6a8c;background:rgba(90,106,140,.18);color:#aeb9d0;font:9px 'Courier New',monospace;line-height:16px;padding:0 6px;overflow:hidden;white-space:nowrap;box-sizing:border-box;}
+.tl-plan.reh{border-style:dotted;border-color:#4a566e;background:rgba(90,106,140,.09);color:#7a879e;font-style:italic;}
+.tl-conflict{font-style:normal;font-weight:900;color:#ff6a6a;margin-left:5px;}
 .tl-kf{position:absolute;top:8px;width:12px;height:12px;margin-left:-6px;border-radius:50%;border:2px solid #06070c;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.6);z-index:3;}
 .tl-kf:hover{transform:scale(1.4);z-index:6;}
 .tl-kf.rev{opacity:.35;}

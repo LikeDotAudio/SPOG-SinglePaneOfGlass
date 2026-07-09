@@ -4,7 +4,8 @@
 // it still emits a COMPOSITE lane aggregating all its events, so nothing vanishes on
 // fold. Split out of captains-log-timeline (200-line rule).
 export interface RKf { ts: number; text: string; rev: boolean; op: string; color: string }
-export interface RLane { section: 'where' | 'who'; group: string; name: string; kf: RKf[]; plans: { s: number; e: number; label: string }[] }
+export interface RPlan { s: number; e: number; label: string; reh?: boolean }
+export interface RLane { section: 'where' | 'who'; group: string; name: string; kf: RKf[]; plans: RPlan[] }
 export interface REv { ts: number; text: string; op: string; rev: boolean; color: string }
 
 const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] ?? c));
@@ -20,11 +21,19 @@ export function buildGrid(lanes: RLane[], x: (ts: number) => number, width: numb
     (aggG.get(gk) ?? aggG.set(gk, []).get(gk)!).push(...ln.kf);
     (aggS.get(sk) ?? aggS.set(sk, []).get(sk)!).push(...ln.kf);
   }
-  const laneHtml = (label: string, kf: RKf[], plans: RLane['plans'], cls = ''): string => {
-    let h = `<div class="tl-lane ${cls}"><span class="tl-lanelabel" title="${esc(label)}">${esc(label)}</span>`;
+  const laneHtml = (label: string, kf: RKf[], plans: RPlan[], cls = ''): string => {
+    // Pack overlapping plans into sub-rows (greedy interval colouring): a booking clash
+    // grows the lane into a SECOND line, and the label gets a ×N badge = how many people
+    // / rooms that slot demands at peak. Non-overlapping plans keep one row (30px).
+    const sp = [...plans].sort((a, b) => a.s - b.s);
+    const rowEnd: number[] = [];
+    const rowOf = sp.map((p) => { let r = rowEnd.findIndex((e) => p.s >= e); if (r === -1) { r = rowEnd.length; rowEnd.push(0); } rowEnd[r] = p.e; return r; });
+    const rows = Math.max(1, rowEnd.length);
+    const conflict = rows > 1 ? ` <em class="tl-conflict" title="peak concurrent bookings — needs ${rows} people/rooms">×${rows}</em>` : '';
+    let h = `<div class="tl-lane ${cls}" style="height:${30 + (rows - 1) * 18}px"><span class="tl-lanelabel" title="${esc(label)}">${esc(label)}${conflict}</span>`;
     const s = [...kf].sort((a, b) => a.ts - b.ts);
     s.forEach((k, i) => { const sx = x(k.ts), ex = i + 1 < s.length ? x(s[i + 1]!.ts) : sx; if (ex > sx) h += `<div class="tl-band" style="left:${sx}px;width:${ex - sx}px;background:${k.color};"></div>`; });
-    for (const p of plans) h += `<div class="tl-plan" style="left:${x(p.s)}px;width:${x(p.e) - x(p.s)}px;" title="${esc(p.label)} · scheduled">${esc(p.label)}</div>`;
+    sp.forEach((p, i) => { h += `<div class="tl-plan${p.reh ? ' reh' : ''}" style="left:${x(p.s)}px;width:${x(p.e) - x(p.s)}px;top:${7 + rowOf[i]! * 18}px;" title="${esc(p.label)} · scheduled">${esc(p.label)}</div>`; });
     for (const k of s) { const idx = ev.push({ ts: k.ts, text: k.text, op: k.op, rev: k.rev, color: k.color }) - 1; h += `<div class="tl-kf${k.rev ? ' rev' : ''}" data-ev="${idx}" style="left:${x(k.ts)}px;background:${k.color};" title="${esc(hm(k.ts) + '  ' + k.text)}"></div>`; }
     return h + '</div>';
   };

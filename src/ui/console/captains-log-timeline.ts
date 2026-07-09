@@ -126,7 +126,9 @@ export function openTimeline(): void {
     groupsEl.addEventListener('click', (e) => {
       const chip = (e.target as HTMLElement).closest<HTMLElement>('[data-group]'); if (!chip) return;
       const g = chip.dataset['group'] ?? '';
-      if (!g) { selectedGroups.clear(); filter = ''; filterEl.value = ''; }   // SHOW ALL
+      // SHOW ALL resets to the compact overview: clear selection AND any drilled-down
+      // groups/sections, so everything tucks back up to folded headers.
+      if (!g) { selectedGroups.clear(); expandedGroups.clear(); collapsed.clear(); filter = ''; filterEl.value = ''; }
       else { const k = g.toLowerCase(); selectedGroups.has(k) ? selectedGroups.delete(k) : selectedGroups.add(k); }  // stack / un-stack
       const sx = body.scrollLeft; renderInto(body, false); body.scrollLeft = sx;
     });

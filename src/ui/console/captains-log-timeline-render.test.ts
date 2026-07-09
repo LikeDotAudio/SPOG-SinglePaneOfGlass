@@ -28,3 +28,23 @@ describe('timeline render — folded room header', () => {
     expect(html).not.toContain('tl-count');
   });
 });
+
+describe('timeline render — overlap stacking', () => {
+  const overlapLane: RLane = {
+    section: 'who', group: 'CREW / ROLES', name: 'Ops', kf: [],
+    plans: [{ s: 0, e: 10, label: 'Sports' }, { s: 5, e: 15, label: 'Weather' }],
+  };
+  it('two overlapping bookings stack into a taller lane with a ×2 conflict badge', () => {
+    const { html } = buildGrid([overlapLane], x, 100, 0, 20, 0, new Set());
+    expect(html).toContain('height:48px');   // 30 + 1*18 → a second row
+    expect(html).toContain('tl-conflict');
+    expect(html).toContain('×2');
+    expect(html).toContain('top:25px');       // 7 + 1*18 → the stacked band sits on row 2
+  });
+  it('non-overlapping bookings stay a single 30px row with no badge', () => {
+    const solo: RLane = { ...overlapLane, plans: [{ s: 0, e: 5, label: 'A' }, { s: 5, e: 10, label: 'B' }] };
+    const { html } = buildGrid([solo], x, 100, 0, 20, 0, new Set());
+    expect(html).toContain('height:30px');
+    expect(html).not.toContain('tl-conflict');
+  });
+});

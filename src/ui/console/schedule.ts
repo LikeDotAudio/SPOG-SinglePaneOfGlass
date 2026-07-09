@@ -7,11 +7,33 @@ import { addStyles } from '../dom.js';
 
 export interface Slot { s: number; e: number; show: string; room: string; crew: string[]; resources?: string[] }
 
+// A 24-hour global news operation — world bureaus staggered across time zones, a
+// prime-time PEAK of five concurrent productions (18:30–19:30 across five rooms),
+// and a deliberate crew clash: Sports Tonight and Evening Weather BOTH need Ops at
+// 19:00 (and the Flash desk pulls a second Comms) — an overlap the timeline flags
+// as "impossible without another person". Every slot also earns a 45-minute
+// rehearsal band, added by the timeline projection (captains-log-timeline-data).
 export const SCHEDULE: Slot[] = [
-  { s: 6, e: 9, show: 'Morning Show', room: 'Primary Control Room', crew: ['First Officer · Director', 'Conn · TD', 'Chief Engineer', 'Comms', 'Ops'], resources: ['Correspondent Live Shot', 'Remote Cam 3'] },
-  { s: 12, e: 12.5, show: 'News at Noon', room: 'Studio 2 · 2nd Floor', crew: ['First Officer · Director', 'Conn · TD', 'Chief Engineer', 'Tactical', 'Comms'], resources: ['Guest Skype Feed'] },
-  { s: 14, e: 16, show: 'Sports Weekly', room: 'Studio 3 · 3rd Floor', crew: ['Captain · EP', 'First Officer · Director', 'Conn · TD', 'Chief Engineer', 'Tactical', 'Comms', 'Ops', 'Science'], resources: ['Stadium Feed A', 'Stadium Feed B'] },
+  { s: 0, e: 5, show: 'Overnight Desk', room: 'Newsroom Flash Desk', crew: ['Conn · TD', 'Comms'], resources: ['Wire Service Feed'] },
+  { s: 1, e: 2, show: 'World News · Tokyo', room: 'Studio 5 · Tokyo Bureau', crew: ['First Officer · Director', 'Conn · TD', 'Comms'], resources: ['Tokyo Bureau Fiber'] },
+  { s: 3, e: 4, show: 'World News · Sydney', room: 'Studio 2 · 2nd Floor', crew: ['First Officer · Director', 'Conn · TD', 'Ops'], resources: ['Sydney Bureau Fiber'] },
+  { s: 5, e: 6, show: 'First Light', room: 'Studio 3 · 3rd Floor', crew: ['First Officer · Director', 'Chief Engineer', 'Comms'], resources: ['Sunrise Roof Cam'] },
+  { s: 6, e: 9, show: 'Morning Show · East', room: 'Primary Control Room', crew: ['Captain · EP', 'First Officer · Director', 'Conn · TD', 'Chief Engineer', 'Comms', 'Ops'], resources: ['Correspondent Live Shot', 'Remote Cam 3'] },
+  { s: 7, e: 8, show: 'World News · London', room: 'Studio 4 · London Bureau', crew: ['First Officer · Director', 'Conn · TD', 'Comms'], resources: ['London Bureau Fiber'] },
+  { s: 9, e: 9.5, show: 'Market Watch', room: 'Studio 2 · 2nd Floor', crew: ['First Officer · Director', 'Science'], resources: ['Exchange Data Feed'] },
+  { s: 10, e: 11, show: 'Midmorning Report', room: 'Studio 3 · 3rd Floor', crew: ['First Officer · Director', 'Conn · TD', 'Tactical'], resources: ['Traffic Chopper'] },
+  { s: 12, e: 12.5, show: 'News at Noon', room: 'Primary Control Room', crew: ['First Officer · Director', 'Conn · TD', 'Chief Engineer', 'Comms'], resources: ['Guest Skype Feed'] },
+  { s: 12, e: 13, show: 'World News · London', room: 'Studio 4 · London Bureau', crew: ['First Officer · Director', 'Conn · TD', 'Comms'], resources: ['London Bureau Fiber'] },
+  { s: 14, e: 15, show: 'Afternoon Briefing', room: 'Studio 2 · 2nd Floor', crew: ['First Officer · Director', 'Tactical', 'Ops'], resources: ['Press Room Pool'] },
+  { s: 17, e: 18, show: 'Early Evening News', room: 'Primary Control Room', crew: ['First Officer · Director', 'Conn · TD', 'Chief Engineer', 'Comms'], resources: ['Correspondent Live Shot'] },
+  { s: 18, e: 20, show: 'Sports Tonight', room: 'Studio 3 · 3rd Floor', crew: ['Captain · EP', 'First Officer · Director', 'Conn · TD', 'Chief Engineer', 'Tactical', 'Comms', 'Ops', 'Science'], resources: ['Stadium Feed A', 'Stadium Feed B'] },
+  { s: 18.5, e: 19.5, show: 'World News · London', room: 'Studio 4 · London Bureau', crew: ['First Officer · Director', 'Conn · TD', 'Comms'], resources: ['London Bureau Fiber'] },
   { s: 19, e: 21, show: 'Prime Time News', room: 'Primary Control Room', crew: ['Captain · EP', 'First Officer · Director', 'Conn · TD', 'Chief Engineer', 'Tactical', 'Comms'], resources: ['Helicopter Cam', 'White House Briefing'] },
+  { s: 19, e: 19.5, show: 'Evening Weather', room: 'Weather Center', crew: ['First Officer · Director', 'Ops'], resources: ['Doppler Radar Array'] },
+  { s: 19.25, e: 19.5, show: 'Flash Update', room: 'Newsroom Flash Desk', crew: ['First Officer · Director', 'Comms'], resources: ['Breaking Wire'] },
+  { s: 21, e: 22, show: 'Late Edition', room: 'Studio 2 · 2nd Floor', crew: ['First Officer · Director', 'Conn · TD', 'Comms'], resources: ['Late Guest Feed'] },
+  { s: 22, e: 23, show: 'World News · Tokyo AM', room: 'Studio 5 · Tokyo Bureau', crew: ['First Officer · Director', 'Conn · TD', 'Comms'], resources: ['Tokyo Bureau Fiber'] },
+  { s: 23, e: 24, show: 'Overnight Handoff', room: 'Newsroom Flash Desk', crew: ['Conn · TD', 'Comms'], resources: ['Wire Service Feed'] },
 ];
 
 const fmt = (h: number): string => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
