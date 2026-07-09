@@ -9,7 +9,7 @@
 // -narrate (mutation → entry + Reverse Course), -view (CSS + render).
 import { addStyles } from '../dom.js';
 import { role, onRoleChange } from '../../platform/auth.js';
-import { ensureNarrative, nextEid, nextNid, nid, setCurrent, narratives, selected, entryById, narById, raiseNid, raiseEid, type Entry, type Narrative, type LogEntryEvent } from './captains-log-state.js';
+import { ensureNarrative, nextEid, nextNid, nid, setCurrent, narratives, selected, entryById, narById, narByKeyStr, raiseNid, raiseEid, selfOrigin, narByOriginVoyage, type Entry, type Narrative, type LogEntryEvent } from './captains-log-state.js';
 import { hydrateLog, emitLog, onLogEntry, persistEntry } from './captains-log-persist.js';
 import { signed, reverseSelected, observeRoot } from './captains-log-narrate.js';
 import { render, setListEl, CL_CSS } from './captains-log-view.js';
@@ -31,27 +31,34 @@ export function logAction(text: string, undo?: () => void): void {
   render();
 }
 
-/** Inject a log entry received from the MQTT bridge into the local state. */
-export function receiveNetworkLog(e: LogEntryEvent): void {
-  let nar = narratives.find((n) => n.id === e.voyage);
-  if (!nar) { 
-    nar = { id: e.voyage, title: `Voyage ${e.voyage}`, entries: [] }; 
-    narratives.push(nar); 
+/** Inject a log entry received from the MQTT bridge into the local state. `origin`
+ *  is the publishing console (the full_id prefix) — the UNIFIED log keeps every
+ *  seat's voyages distinct, so entries never collide or drop as false duplicates. */
+export function receiveNetworkLog(e: LogEntryEvent, origin?: string): void {
+  const org = origin ?? 'local';
+  let nar = narByOriginVoyage(org, e.voyage);
+  if (!nar) {
+    const mine = org === selfOrigin();
+    nar = { id: e.voyage, origin: org, title: mine ? `Voyage ${e.voyage}` : `Voyage ${e.voyage} · ${org.slice(0, 4)}`, entries: [] };
+    narratives.push(nar);
   }
-  if (nar.entries.some((x) => x.id === e.entry)) return;
+  // A reversal updates the flag on an entry we already hold; a fresh id is new.
+  const existing = nar.entries.find((x) => x.id === e.entry);
+  if (existing) { if (e.reversed) { existing.reversed = true; render(); } return; }
 
   const entry: Entry = {
     id: e.entry, ts: e.ts, twist: null, dest: e.dest, prod: e.prod,
     added: [], removed: [], text: e.text, reversed: e.reversed,
-    restored: true
+    restored: true, origin: org
   };
   nar.entries.push(entry);
   nar.entries.sort((a, b) => a.id - b.id);
-  narratives.sort((a, b) => a.id - b.id);
-  raiseNid(e.voyage);
-  raiseEid(e.entry);
-  
-  persistEntry(e);
+  // Sort narratives by earliest entry time so the merged log reads chronologically.
+  narratives.sort((a, b) => (a.entries[0]?.ts ?? 0) - (b.entries[0]?.ts ?? 0) || a.id - b.id);
+  // Only our OWN origin advances our local sequence counters.
+  if (org === selfOrigin()) { raiseNid(e.voyage); raiseEid(e.entry); }
+
+  persistEntry(e, org);
   render();
 }
 
@@ -80,7 +87,7 @@ function build(): HTMLElement {
   panel.querySelector('.cl-rev')?.addEventListener('click', reverseSelected);
   panel.querySelector('.cl-new')?.addEventListener('click', () => {
     const title = prompt('Name this voyage:', `Voyage ${nid() + 1}`);
-    const nar: Narrative = { id: nextNid(), title: (title || `Voyage ${nid()}`).trim(), entries: [] };
+    const nar: Narrative = { id: nextNid(), origin: selfOrigin(), title: (title || `Voyage ${nid()}`).trim(), entries: [] };
     setCurrent(nar); narratives.push(nar); render();
   });
   listEl?.addEventListener('click', (e) => {
@@ -88,11 +95,11 @@ function build(): HTMLElement {
     const nh = target.closest<HTMLElement>('.cl-nar-h');
     if (nh?.dataset.nar) {
       if (target.classList.contains('cl-edit')) {
-        const n = narById(Number(nh.dataset.nar));
+        const n = narByKeyStr(nh.dataset.nar);
         if (n) { const t = prompt('Rename voyage:', n.title); if (t != null) { n.title = t.trim() || n.title; render(); } }
         return;
       }
-      const n = narById(Number(nh.dataset.nar));
+      const n = narByKeyStr(nh.dataset.nar);
       if (!n) return;
       const ids = n.entries.filter((x) => !x.reversed && !x.restored).map((x) => x.id);
       const allSel = ids.length > 0 && ids.every((id) => selected.has(id));

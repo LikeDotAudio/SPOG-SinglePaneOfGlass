@@ -1,7 +1,7 @@
 // src/ui/console/captains-log-view — the Captain's Log CSS + the list renderer.
 // Owns the `listEl` DOM ref (set by the orchestrator's build()); render() reads
 // the shared narratives / selected state and repaints the panel + the badge.
-import { narratives, selected } from './captains-log-state.js';
+import { narratives, selected, narKey } from './captains-log-state.js';
 
 const ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
 const esc = (s: string): string => String(s).replace(/[&<>"]/g, (c) => ESC[c] ?? c);
@@ -54,7 +54,7 @@ export function render(): void {
   let html = '';
   [...narratives].reverse().forEach((n) => {
     const color = VOY_COLORS[narratives.indexOf(n) % VOY_COLORS.length] ?? '#C2B74B';
-    html += `<div class="cl-nar"><div class="cl-nar-h" data-nar="${n.id}" style="background:${color}">${esc(n.title)}<span class="cl-edit">row=select · header=all · ✎</span></div>`;
+    html += `<div class="cl-nar"><div class="cl-nar-h" data-nar="${narKey(n.origin, n.id)}" style="background:${color}">${esc(n.title)}<span class="cl-edit">row=select · header=all · ✎</span></div>`;
     [...n.entries].reverse().forEach((e) => {
       html += `<div class="cl-entry${selected.has(e.id) ? ' sel' : ''}${e.reversed ? ' reversed' : ''}" data-entry="${e.id}">
         <div class="cl-cap" style="background:${color}"></div>

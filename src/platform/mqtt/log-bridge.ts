@@ -17,6 +17,7 @@ import type { TwistBus, LogMsg } from './types.js';
  * time (the old behaviour) left the bridge permanently dead if MQTT wasn't up yet.
  * mqtt.js buffers any pre-`connect` publishes and flushes them on connect. */
 export function startLogBridge(bus: TwistBus): () => void {
+  const origin = (bus.sessionId || '').split(':')[0];
   const unsubLocal = onLogEntry((e: LogEntryEvent) => {
     if (!bus.status().enabled) return;
     const msg: Omit<LogMsg, 'full_id'> = {
@@ -24,18 +25,24 @@ export function startLogBridge(bus: TwistBus): () => void {
       dest: e.dest, prod: e.prod, added: e.added, removed: e.removed,
       text: e.text, reversed: e.reversed,
     };
-    bus.publishRaw(`log/${e.voyage}/${e.entry}`, { ...msg, full_id: bus.sessionId });
-    bus.publishRaw('log/latest', { ...msg, full_id: bus.sessionId });
+    // Namespaced by ORIGIN so two consoles' `voyage/entry` numbers never collide
+    // (each seat owns its own retained subtree) — the key to a unified, complete log.
+    bus.publishRaw(`log/${origin}/${e.voyage}/${e.entry}`, { ...msg, full_id: bus.sessionId });
   });
 
-  const unsubRemote = bus.subscribe('log/latest', (_topic, payload) => {
+  // Subscribe to the WHOLE retained per-entry tree: the broker replays every retained
+  // `log/<origin>/<voyage>/<entry>` on connect, so a console that joins late catches
+  // up on the ENTIRE unified log (audit §7.3 gap: no history replay). The topic's
+  // origin segment keeps every seat's voyages distinct.
+  const unsubRemote = bus.subscribe('log/+/+/+', (topic, payload) => {
     const msg = payload as LogMsg | null;
     if (!msg || msg.full_id === bus.sessionId) return;
+    const org = (msg.full_id || '').split(':')[0] || topic.split('/')[1];
     receiveNetworkLog({
       voyage: msg.voyage, entry: msg.entry, ts: msg.ts,
       dest: msg.dest, prod: msg.prod, added: msg.added, removed: msg.removed,
       text: msg.text, reversed: msg.reversed,
-    });
+    }, org);
   });
 
   return () => { unsubLocal(); unsubRemote(); };

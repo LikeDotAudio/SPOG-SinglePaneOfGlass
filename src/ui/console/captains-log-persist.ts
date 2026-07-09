@@ -3,23 +3,25 @@
 // W2); hydrateLog restores it as read-only rows; emitLog fans every entry out
 // to subscribers (the MQTT bridge) after persisting it.
 import { idbPut, idbGetAll } from '../../platform/store-idb.js';
-import { narratives, setCurrent, raiseNid, raiseEid, type StoredEntry, type LogEntryEvent } from './captains-log-state.js';
+import { narratives, setCurrent, raiseNid, raiseEid, selfOrigin, narByOriginVoyage, type StoredEntry, type LogEntryEvent } from './captains-log-state.js';
 import { render } from './captains-log-view.js';
 
 let hydrating = false;
-export function persistEntry(e: LogEntryEvent): void {
+export function persistEntry(e: LogEntryEvent, origin?: string): void {
   if (hydrating) return;
-  const voyTitle = narratives.find((n) => n.id === e.voyage)?.title ?? `Voyage ${e.voyage}`;
+  const org = origin ?? selfOrigin();
+  const key = `${org}:${e.voyage}:${e.entry}`;
+  const voyTitle = narByOriginVoyage(org, e.voyage)?.title ?? `Voyage ${e.voyage}`;
   if (e.reversed) {
     // A reversal updates the ORIGINAL record's flag; the "Course reversed" text
     // is session commentary, not a new history row.
     void idbGetAll<StoredEntry>('log').then((all) => {
-      const rec = all.find((r) => r.k === `${e.voyage}:${e.entry}`);
+      const rec = all.find((r) => r.k === key);
       if (rec) void idbPut('log', { ...rec, reversed: true });
     });
     return;
   }
-  void idbPut('log', { k: `${e.voyage}:${e.entry}`, voyage: e.voyage, voyTitle, entry: e.entry, ts: e.ts, dest: e.dest, prod: e.prod, text: e.text, reversed: e.reversed });
+  void idbPut('log', { k: key, origin: org, voyage: e.voyage, voyTitle, entry: e.entry, ts: e.ts, dest: e.dest, prod: e.prod, text: e.text, reversed: e.reversed });
 }
 
 export async function hydrateLog(): Promise<number> {
@@ -29,13 +31,18 @@ export async function hydrateLog(): Promise<number> {
   try {
     rows.sort((a, b) => a.ts - b.ts || a.entry - b.entry);
     for (const r of rows) {
-      let nar = narratives.find((n) => n.id === r.voyage);
-      if (!nar) { nar = { id: r.voyage, title: r.voyTitle, entries: [] }; narratives.push(nar); }
-      nar.entries.push({ id: r.entry, ts: r.ts, twist: null, dest: r.dest, prod: r.prod, added: [], removed: [], text: r.text, reversed: r.reversed, restored: true });
-      raiseNid(r.voyage);
-      raiseEid(r.entry);
+      const org = r.origin ?? selfOrigin();   // legacy rows predate origins → treat as ours
+      let nar = narByOriginVoyage(org, r.voyage);
+      if (!nar) {
+        const mine = org === selfOrigin();
+        nar = { id: r.voyage, origin: org, title: mine ? r.voyTitle : `${r.voyTitle} · ${org.slice(0, 4)}`, entries: [] };
+        narratives.push(nar);
+      }
+      nar.entries.push({ id: r.entry, ts: r.ts, twist: null, dest: r.dest, prod: r.prod, added: [], removed: [], text: r.text, reversed: r.reversed, restored: true, origin: org });
+      if (org === selfOrigin()) { raiseNid(r.voyage); raiseEid(r.entry); }
     }
-    narratives.sort((a, b) => a.id - b.id);
+    // Chronological across the merged log.
+    narratives.sort((a, b) => (a.entries[0]?.ts ?? 0) - (b.entries[0]?.ts ?? 0) || a.id - b.id);
     // New work lands in a NEW voyage, not appended to a dead session's narrative.
     setCurrent(null);
     render();
