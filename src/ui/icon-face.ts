@@ -13,6 +13,17 @@ import { tileDataUrl, hasTile } from './icon-tiles.js';
 
 const slug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
+// Group RENAMES (e.g. "STUDIOS" → "STUDIO") orphaned the glyph keys, which are
+// keyed by the original names. Map the renamed labels back onto the existing glyph
+// ids so icon-face keeps its tiles. Add an entry here whenever a group is renamed.
+const ALIASES: Record<string, string> = {
+  studio: 'studios', 'studio-spaces': 'studios',
+  remote: 'remotes', stream: 'streams', graphic: 'graphics',
+  production: 'prod', player: 'play',
+};
+/** slug(), then fold any known rename back to its canonical glyph id. */
+const iconId = (label: string): string => { const s = slug(label); return ALIASES[s] ?? s; };
+
 export type IconKind = 'src' | 'dest' | 'chrome';
 
 // Every stamped element, so a palette change can re-tint the whole face.
@@ -30,7 +41,7 @@ function paint(target: HTMLElement, id: string): void {
 /** Stamp an element with the tile for `label` (kind kept for call-site clarity —
  *  the glyph namespace is shared). No-op when no glyph exists for the label. */
 export function stampIcon(target: HTMLElement, _kind: IconKind, label: string): void {
-  const id = slug(label);
+  const id = iconId(label);
   if (!hasTile(id)) return;
   STAMPED.set(target, id);
   paint(target, id);
