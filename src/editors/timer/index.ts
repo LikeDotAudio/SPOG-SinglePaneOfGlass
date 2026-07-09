@@ -150,8 +150,6 @@ const plugin: EditorPlugin = {
     if (ctx.production.id) {
       getBus().subscribe(`destinations/${ctx.production.id}/counters_timer`, (v: any) => {
         if (v && v.A && v.B) {
-          const dt = Math.abs(v.A.unix - timeSync.now());
-          if (dt < 300) return; // Prevent local echo loop
           S.channels.A.running = v.A.running; S.channels.A.value = v.A.valueFrames;
           S.channels.B.running = v.B.running; S.channels.B.value = v.B.valueFrames;
           engine['changed'](null);
