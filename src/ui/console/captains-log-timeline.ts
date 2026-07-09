@@ -93,7 +93,11 @@ function renderInto(body: HTMLElement, resetScroll = true): void {
     nav.innerHTML = evList.map((e) => `<div class="tl-nav-mark" style="left:${pct(e.ts)}%;background:${e.color};"></div>`).join('')
       + `<div class="tl-nav-now" style="left:${pct(now)}%;"></div><div class="tl-nav-view"><span class="tl-nav-h" data-h="l"></span><span class="tl-nav-h" data-h="r"></span></div><div class="tl-nav-cap">NAV · drag · handles/wheel = zoom</div>`;
   }
-  if (resetScroll) body.scrollLeft = Math.max(0, x(now) - body.clientWidth * 0.6);
+  // Open anchored on NOW near the LEFT (just past the label gutter + a sliver of
+  // past), so most of the view looks forward into the rest of the day. Deferred to
+  // the next frame: on first open renderInto runs while the panel is still
+  // display:none, and scrollLeft is ignored on a hidden element.
+  if (resetScroll) { const target = Math.max(0, x(now) - GUTTER - 60); requestAnimationFrame(() => { body.scrollLeft = target; updateNavView(); }); }
   updateNavView();
 }
 
