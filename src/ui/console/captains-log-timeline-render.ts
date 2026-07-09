@@ -36,7 +36,7 @@ export function buildGrid(lanes: RLane[], x: (ts: number) => number, width: numb
     if (ln.section !== curSec) {
       curSec = ln.section; curGrp = '';
       const c = collapsed.has(secKey), label = ln.section === 'where' ? 'WHERE — DESTINATIONS &amp; ROOMS' : 'WHO — OPERATORS &amp; BOOKED CREW';
-      html += `<div class="tl-sec ${ln.section}" data-fold="${secKey}">${c ? '▸' : '▾'} ${label}</div>`;
+      html += `<div class="tl-sec ${ln.section}" data-fold="${secKey}"><span class="tl-hd-in">${c ? '▸' : '▾'} ${label}</span></div>`;
       if (c) html += laneHtml(comp((aggS.get(secKey) ?? []).length), aggS.get(secKey) ?? [], [], 'tl-comp');
     }
     if (collapsed.has(secKey)) continue;
@@ -47,7 +47,7 @@ export function buildGrid(lanes: RLane[], x: (ts: number) => number, width: numb
       // (2 events)") — no separate composite lane, so a folded room is a single compact row.
       const n = (aggG.get(grpKey) ?? []).length;
       const count = c ? ` <span class="tl-count">(${n} event${n === 1 ? '' : 's'})</span>` : '';
-      html += `<div class="tl-group${c ? ' folded' : ''}" data-fold="${esc(grpKey)}">${c ? '▸' : '▾'} ${esc(ln.group)}${count}</div>`;
+      html += `<div class="tl-group${c ? ' folded' : ''}" data-fold="${esc(grpKey)}"><span class="tl-hd-in">${c ? '▸' : '▾'} ${esc(ln.group)}${count}</span></div>`;
     }
     if (collapsed.has(grpKey)) continue;
     html += laneHtml(ln.name, ln.kf, ln.plans);

@@ -23,11 +23,16 @@ export const TL_CSS = `
 .tl-x{cursor:pointer;font-weight:900;padding:0 6px;}
 .tl-body{flex:1;min-height:0;overflow:auto;position:relative;background:#06070c;}
 .tl-grid{position:relative;}
-.tl-sec,.tl-group{cursor:pointer;user-select:none;}
-.tl-sec{position:sticky;left:0;z-index:5;height:19px;display:flex;align-items:center;gap:6px;padding:0 8px;font:900 10px sans-serif;letter-spacing:2px;color:#06070c;}
+.tl-sec,.tl-group{cursor:pointer;user-select:none;height:19px;}
+.tl-sec{font:900 10px sans-serif;letter-spacing:2px;color:#06070c;}
 .tl-sec.where{background:#6FC8F0;} .tl-sec.who{background:#A06EB4;}
-.tl-group{position:sticky;left:0;z-index:4;height:19px;display:flex;align-items:center;gap:6px;padding:0 8px 0 18px;color:#9a8845;font:9px 'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;background:#0a0805;}
+.tl-group{color:#9a8845;font:9px 'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;background:#0a0805;}
 .tl-group.folded{color:#7f8fa6;}
+/* The header TEXT (title + fold flap) sticks to the left edge — like the lane labels —
+   so it stays put while the graph scrolls horizontally. The full-width bar behind it is
+   a solid colour, so the row still reads correctly at any scroll offset. */
+.tl-hd-in{position:sticky;left:0;z-index:6;display:inline-flex;align-items:center;gap:6px;height:100%;padding:0 8px;box-sizing:border-box;}
+.tl-group .tl-hd-in{padding-left:18px;}
 .tl-count{color:#6FC8F0;font-style:italic;text-transform:none;letter-spacing:0;}
 .tl-lane{position:relative;height:30px;border-bottom:1px solid #10141f;}
 .tl-lane:nth-of-type(even){background:rgba(255,255,255,.015);}
