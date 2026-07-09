@@ -8,6 +8,7 @@ import { openOverlay } from '../../platform/overlay.js';
 import { getScheme, setScheme, sameScheme } from './colour-engine.js';
 import { PALETTES, PRESETS, AXES } from './colour-palettes.js';
 import { STYLE_ID, CSS } from './colour-editor-css.js';
+import { isLcarsPulseOn, setLcarsPulse } from './lcars-pulse.js';
 
 /** Build the editor body: presets, the vision/chroma axes, the palette gallery, and a live preview. */
 function buildEditor(body: HTMLElement): void {
@@ -128,7 +129,20 @@ function buildEditor(body: HTMLElement): void {
     ]),
   ]);
 
-  body.append(presetSec, axisSec, palSec, prevSec);
+  // ── DISPLAY EXTRAS ─────────────────────────────────────────────────────────
+  const hbCheck = el('input', { class: 'cse-hb-check', type: 'checkbox' }) as HTMLInputElement;
+  hbCheck.checked = isLcarsPulseOn();
+  hbCheck.addEventListener('change', () => setLcarsPulse(hbCheck.checked));
+  const displaySec = el('div', { class: 'cse-sec' }, [
+    el('h3', { class: 'ed-h' }, ['Display']),
+    el('label', { class: 'cse-row', style: 'cursor:pointer;align-items:center;gap:12px;' }, [
+      hbCheck,
+      el('span', { class: 'cse-lab' }, ['Heartbeat monitor']),
+      el('span', { class: 'cse-hint' }, ['Animated LCARS data-pulse column down the screen edge. Off by default.']),
+    ]),
+  ]);
+
+  body.append(presetSec, axisSec, palSec, displaySec, prevSec);
 
   /** Reflect the current scheme onto every control's pressed state. */
   function sync(): void {

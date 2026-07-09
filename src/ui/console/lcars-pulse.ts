@@ -1,10 +1,21 @@
-// src/ui/console/lcars-pulse — a 20px LCARS "data pulse" column down the right edge
-// (port of js/lcars-pulse.js). Dim/blue data lines with a cyan pulse sweeping up and
-// random flicker — the mewho.com/trek readout look. Purely decorative
-// (pointer-events:none); nudges the bottom-right corner widgets inward past it.
+// src/ui/console/lcars-pulse — the "Heartbeat monitor": a 20px LCARS "data pulse"
+// column down the right edge (port of js/lcars-pulse.js). Dim/blue data lines with a
+// cyan pulse sweeping up and random flicker — the mewho.com/trek readout look. Purely
+// decorative (pointer-events:none); nudges the bottom-right corner widgets inward.
+//
+// OFF by default — enabled per-seat via the Colour & Vision editor (setLcarsPulse),
+// persisted in prefs.ui.heartbeat.
 import { addStyles } from '../dom.js';
+import { getPrefs, patchPrefs } from '../../platform/prefs.js';
 
 const WIDTH = 20;
+
+let flickerTimer: ReturnType<typeof setInterval> | undefined;
+let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+let onResize: (() => void) | undefined;
+
+/** Whether the Heartbeat monitor is enabled on this seat (default off). */
+export function isLcarsPulseOn(): boolean { return getPrefs().ui.heartbeat === true; }
 
 const PULSE_CSS = `
 .lcp-strip{position:fixed;top:0;right:0;height:100vh;height:100dvh;width:${WIDTH}px;z-index:950;background:#050505;display:flex;flex-direction:column;overflow:hidden;pointer-events:none;}
@@ -26,7 +37,8 @@ const PULSE_CSS = `
 .mqt{right:${WIDTH + 14}px !important;}
 @media (prefers-reduced-motion: reduce){ .lcp-lines::after{animation:none;} }`;
 
-export function initLcarsPulse(): void {
+/** Build + start the pulse strip. Idempotent. */
+function mount(): void {
   if (document.querySelector('.lcp-strip')) return;
   addStyles('lcars-pulse-styles', PULSE_CSS);
   const strip = document.createElement('div');
@@ -54,7 +66,25 @@ export function initLcarsPulse(): void {
     }
   };
   fillLines();
-  setInterval(flicker, 130);
-  let resizeTimer: ReturnType<typeof setTimeout> | undefined;
-  window.addEventListener('resize', () => { if (resizeTimer) clearTimeout(resizeTimer); resizeTimer = setTimeout(fillLines, 200); });
+  flickerTimer = setInterval(flicker, 130);
+  onResize = (): void => { if (resizeTimer) clearTimeout(resizeTimer); resizeTimer = setTimeout(fillLines, 200); };
+  window.addEventListener('resize', onResize);
+}
+
+/** Tear down the pulse strip (stop the timer + drop the DOM). */
+function unmount(): void {
+  if (flickerTimer) { clearInterval(flickerTimer); flickerTimer = undefined; }
+  if (onResize) { window.removeEventListener('resize', onResize); onResize = undefined; }
+  document.querySelector('.lcp-strip')?.remove();
+}
+
+/** Enable/disable the Heartbeat monitor live and persist the choice. */
+export function setLcarsPulse(on: boolean): void {
+  patchPrefs({ ui: { heartbeat: on } });
+  if (on) mount(); else unmount();
+}
+
+/** Mount at boot only if this seat has the Heartbeat monitor enabled. */
+export function initLcarsPulse(): void {
+  if (isLcarsPulseOn()) mount();
 }

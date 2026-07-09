@@ -19,6 +19,8 @@ export interface UiPrefs {
   openGroups?: string[];
   sashPx?: number;
   routerCollapsed?: RouterCollapsed;
+  /** The LCARS "Heartbeat monitor" edge pulse (off by default; toggled in Colour & Vision). */
+  heartbeat?: boolean;
 }
 export interface Prefs {
   v: 1;
