@@ -102,6 +102,8 @@ function build(): HTMLElement {
   const listEl = panel.querySelector<HTMLElement>('.cl-list');
   setListEl(listEl);
   panel.querySelector('.cl-x')?.addEventListener('click', close);
+  // Clicking the yellow header bar closes the log too (matches the other editors).
+  panel.querySelector('.cl-head')?.addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('button, input, select')) return; close(); });
   panel.querySelector('.cl-rev')?.addEventListener('click', reverseSelected);
   panel.querySelector('.cl-tl')?.addEventListener('click', () => { void openTimeline(); });
   panel.querySelector('.cl-new')?.addEventListener('click', () => {
@@ -120,7 +122,7 @@ function build(): HTMLElement {
       }
       const n = narByKeyStr(nh.dataset.nar);
       if (!n) return;
-      const ids = n.entries.filter((x) => !x.reversed && !x.restored).map((x) => x.id);
+      const ids = n.entries.filter((x) => !x.reversed).map((x) => x.id);
       const allSel = ids.length > 0 && ids.every((id) => selected.has(id));
       ids.forEach((id) => (allSel ? selected.delete(id) : selected.add(id)));
       render(); return;
@@ -128,7 +130,7 @@ function build(): HTMLElement {
     const er = target.closest<HTMLElement>('.cl-entry');
     if (er?.dataset.entry) {
       const id = Number(er.dataset.entry), en = entryById(id);
-      if (en && (en.reversed || en.restored)) return;   // restored = read-only history
+      if (en?.reversed) return;   // already reversed → can't re-reverse; restored entries ARE selectable
       selected.has(id) ? selected.delete(id) : selected.add(id);
       render();
     }

@@ -56,6 +56,7 @@ const TOKENS: Record<string, [token: string, fallback: string]> = {
   'test-tools':   ['--state-onair', '#ffaa00'],
   'captains-log': ['--state-onair', '#ffaa00'],
   'chat':         ['--state-ok', '#39d98a'],
+  'voice':        ['--state-alarm', '#ff3366'],
   'mqtt':         ['--sig-program', '#646DCC'],
   'chirality':    ['--sig-video', '#CC99CC'],
   'settings':     ['--sig-program', '#646DCC'],

@@ -141,7 +141,11 @@ export function openTimeline(): void {
       el('span', { class: 'tl-x', title: 'Close' }, ['✕']),
     ]);
     const chipbar = el('div', { class: 'tl-chipbar' }, [groupsEl]);
-    head.querySelector('.tl-x')!.addEventListener('click', () => { panel!.classList.remove('open'); if (isTimelineHash()) history.replaceState(null, '', location.pathname + location.search); });
+    const closeTimeline = (): void => { panel!.classList.remove('open'); if (isTimelineHash()) history.replaceState(null, '', location.pathname + location.search); };
+    // Clicking the yellow header bar closes the viewer (like the other editors) —
+    // except when the click lands on an actual control (buttons, filter, chips, legend).
+    head.addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('button, input, select, .tl-filter, .tl-legend, .tl-groups')) return; closeTimeline(); });
+    head.querySelector('.tl-x')!.addEventListener('click', closeTimeline);
     (head.querySelectorAll('.tl-btn')[2] as HTMLElement).addEventListener('click', () => renderInto(body));
     nowBtn.addEventListener('click', () => { const n = body.querySelector<HTMLElement>('.tl-now'); if (n) body.scrollLeft = Math.max(0, n.offsetLeft - body.clientWidth * 0.5); });
     schedBtn.addEventListener('click', () => {

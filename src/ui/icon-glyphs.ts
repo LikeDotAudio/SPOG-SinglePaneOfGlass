@@ -110,6 +110,14 @@ export const GLYPHS: Record<string, string> = {
     <rect x="178" y="128" width="204" height="204" rx="20" fill="none" stroke-width="16" opacity=".65"><animate attributeName="opacity" values=".65;.25;.65" dur="2.6s" repeatCount="indefinite"/></rect>
     <path d="M 196 146 l 168 168 M 196 208 l 106 106 M 258 146 l 106 106" stroke-width="10" opacity=".45"><animate attributeName="opacity" values=".45;.15;.45" dur="2.6s" repeatCount="indefinite"/></path>
     <rect x="128" y="180" width="204" height="204" rx="20" stroke="none"/>`,
+  // Voice dispatch — a microphone capsule on a stand, with pulsing pickup waves.
+  'voice': `
+    <rect x="216" y="116" width="80" height="180" rx="40" stroke="none"/>
+    <path d="M 176 238 a 80 80 0 0 0 160 0" fill="none" stroke-width="18" stroke-linecap="round"/>
+    <line x1="256" y1="318" x2="256" y2="372" stroke-width="18" stroke-linecap="round"/>
+    <line x1="210" y1="380" x2="302" y2="380" stroke-width="18" stroke-linecap="round"/>
+    <path d="M 150 180 q -20 58 0 116 M 362 180 q 20 58 0 116" fill="none" stroke-width="12" stroke-linecap="round" opacity=".5">
+      <animate attributeName="opacity" values=".5;.15;.5" dur="1.8s" repeatCount="indefinite"/></path>`,
   'prompter': `
     <clipPath id="tp-clip"><rect x="136" y="154" width="240" height="152" rx="10"/></clipPath>
     <rect x="122" y="140" width="268" height="180" rx="20" fill="none" stroke-width="18"/>

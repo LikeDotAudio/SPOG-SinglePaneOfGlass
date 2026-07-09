@@ -10,6 +10,7 @@ import { stampIcon } from '../icon-face.js';
 const CHROME: ReadonlyArray<[selector: string, id: string]> = [
   ['.cl-btn', 'captains-log'],
   ['.chat-launch', 'chat'],
+  ['.voice-launch', 'voice'],
   ['.mq-chip', 'mqtt'],
   ['.chir-toggle', 'chirality'],
   ['.palette-toggle', 'settings'],
