@@ -14,15 +14,23 @@ import { tileDataUrl, hasTile } from './icon-tiles.js';
 const slug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
 // Group RENAMES (e.g. "STUDIOS" → "STUDIO") orphaned the glyph keys, which are
-// keyed by the original names. Map the renamed labels back onto the existing glyph
-// ids so icon-face keeps its tiles. Add an entry here whenever a group is renamed.
+// keyed by the original names. IRREGULAR renames map explicitly here; the regular
+// singular→plural case (studio→studios, encoder→encoders, control-room→
+// control-rooms…) is handled by the `+ 's'` fallback in iconId().
 const ALIASES: Record<string, string> = {
-  studio: 'studios', 'studio-spaces': 'studios',
-  remote: 'remotes', stream: 'streams', graphic: 'graphics',
-  production: 'prod', player: 'play',
+  'studio-spaces': 'studios',
+  production: 'prod',
+  player: 'play',
+  testing: 'test-tools',
 };
-/** slug(), then fold any known rename back to its canonical glyph id. */
-const iconId = (label: string): string => { const s = slug(label); return ALIASES[s] ?? s; };
+/** Resolve a label to a glyph id: explicit alias → exact id → pluralized id. */
+const iconId = (label: string): string => {
+  const s = slug(label);
+  if (ALIASES[s]) return ALIASES[s];
+  if (hasTile(s)) return s;
+  if (hasTile(`${s}s`)) return `${s}s`;   // singular label → plural glyph key
+  return s;
+};
 
 export type IconKind = 'src' | 'dest' | 'chrome';
 
