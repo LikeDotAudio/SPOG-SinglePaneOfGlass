@@ -29,6 +29,8 @@ export const TL_CSS = `
 .tl-group{position:sticky;left:0;z-index:4;height:19px;display:flex;align-items:center;gap:6px;padding:0 8px 0 18px;color:#9a8845;font:9px 'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;background:#0a0805;}
 .tl-lane{position:relative;height:30px;border-bottom:1px solid #10141f;}
 .tl-lane:nth-of-type(even){background:rgba(255,255,255,.015);}
+.tl-lane.tl-comp{background:rgba(111,200,240,.06);}
+.tl-lane.tl-comp .tl-lanelabel{color:#6FC8F0;font-style:italic;padding-left:18px;}
 .tl-lanelabel{position:sticky;left:0;z-index:4;display:inline-flex;align-items:center;height:100%;width:220px;box-sizing:border-box;padding:0 8px 0 30px;font:11px 'Courier New',monospace;color:#9fb6cc;background:#0a0c14;border-right:1px solid #1d2942;box-shadow:2px 0 6px rgba(0,0,0,.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .tl-band{position:absolute;top:11px;height:8px;border-radius:4px;opacity:.5;}
 .tl-plan{position:absolute;top:7px;height:16px;border-radius:5px;border:1.5px dashed #5a6a8c;background:rgba(90,106,140,.18);color:#aeb9d0;font:9px 'Courier New',monospace;line-height:16px;padding:0 6px;overflow:hidden;white-space:nowrap;box-sizing:border-box;}

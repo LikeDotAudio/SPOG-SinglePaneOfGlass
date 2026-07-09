@@ -11,12 +11,12 @@ import { el, addStyles } from '../dom.js';
 import { buildLanes, type Lane } from './captains-log-timeline-data.js';
 import { TL_CSS } from './captains-log-timeline-css.js';
 import { wireNav } from './captains-log-timeline-nav.js';
+import { buildGrid } from './captains-log-timeline-render.js';
 
 const PLAN = '#5a6a8c';
 const MIN_SPAN_MIN = 60, GUTTER = 220;
 let pxPerMin = 5;          // horizontal zoom (px per minute) — driven by wheel + nav handles
 let curWidth = 0;          // last rendered content width (for the nav zoom maths)
-const hm = (ts: number): string => new Date(ts).toISOString().slice(11, 16);
 const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] ?? c));
 
 let panel: HTMLElement | null = null;
@@ -54,38 +54,10 @@ function renderInto(body: HTMLElement, resetScroll = true): void {
   curWidth = width;
   const now = Date.now();
   const x = (ts: number): number => GUTTER + ((ts - t0) / 60000) * pxPerMin;
-  evList = [];
-
-  let html = '', curSec = '', curGrp = '';
-  for (const ln of lanes) {
-    const secKey = `S:${ln.section}`, grpKey = `G:${ln.section}|${ln.group}`;
-    if (ln.section !== curSec) {
-      curSec = ln.section; curGrp = '';
-      const label = ln.section === 'where' ? 'WHERE — DESTINATIONS &amp; ROOMS' : 'WHO — OPERATORS &amp; BOOKED CREW';
-      html += `<div class="tl-sec ${ln.section}" data-fold="${secKey}">${collapsed.has(secKey) ? '▸' : '▾'} ${label}</div>`;
-    }
-    if (collapsed.has(secKey)) continue;
-    if (ln.group !== curGrp) {
-      curGrp = ln.group;
-      html += `<div class="tl-group" data-fold="${esc(grpKey)}">${collapsed.has(grpKey) ? '▸' : '▾'} ${esc(ln.group)}</div>`;
-    }
-    if (collapsed.has(grpKey)) continue;
-    html += `<div class="tl-lane"><span class="tl-lanelabel" title="${esc(ln.name)}">${esc(ln.name)}</span>`;
-    const kf = [...ln.kf].sort((a, b) => a.ts - b.ts);
-    kf.forEach((k, i) => {
-      const sx = x(k.ts), ex = i + 1 < kf.length ? x(kf[i + 1]!.ts) : sx;
-      if (ex > sx) html += `<div class="tl-band" style="left:${sx}px;width:${ex - sx}px;background:${k.color};"></div>`;
-    });
-    for (const p of ln.plans) html += `<div class="tl-plan" style="left:${x(p.s)}px;width:${x(p.e) - x(p.s)}px;" title="${esc(p.label)} · scheduled">${esc(p.label)}</div>`;
-    for (const k of kf) { const idx = evList.push({ ts: k.ts, text: k.text, op: k.op, rev: k.rev, color: k.color }) - 1; html += `<div class="tl-kf${k.rev ? ' rev' : ''}" data-ev="${idx}" style="left:${x(k.ts)}px;background:${k.color};" title="${esc(hm(k.ts) + '  ' + k.text)}"></div>`; }
-    html += `</div>`;
-  }
-  let ticks = '', ruler = '';
-  for (let h = Math.floor(t0 / 3600000) * 3600000; h <= t1; h += 3600000) {
-    const px = x(h); ticks += `<div class="tl-tick" style="left:${px}px;"></div>`;
-    ruler += `<div class="tl-rlabel" style="left:${px}px;">${hm(h)}<b>${new Date(h).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</b></div>`;
-  }
-  html = ticks + html + `<div class="tl-now" style="left:${x(now)}px;" title="now"></div><div class="tl-ruler" style="width:${width}px;">${ruler}</div>`;
+  // Grid HTML (foldable headers with composite rows, dots, bands, ruler) — see
+  // captains-log-timeline-render. `ev` is the click-lookup list.
+  const { html, ev } = buildGrid(lanes, x, width, t0, t1, now, collapsed);
+  evList = ev;
   const grid = el('div', { class: 'tl-grid', style: `width:${width}px;` });
   grid.innerHTML = html;
   body.replaceChildren(grid);
@@ -174,6 +146,13 @@ export function openTimeline(): void {
       if (kf) showDetail(Number(kf.dataset['ev']), (e as MouseEvent).clientX, (e as MouseEvent).clientY);
       else panel!.querySelector('.tl-detail')?.remove();
     });
+    // Middle-button (wheel-click) drag = grab-scrub the timeline on both axes.
+    let mid: { x: number; y: number; sl: number; st: number } | null = null;
+    body.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });   // suppress autoscroll
+    body.addEventListener('pointerdown', (e) => { if (e.button !== 1) return; mid = { x: e.clientX, y: e.clientY, sl: body.scrollLeft, st: body.scrollTop }; body.setPointerCapture(e.pointerId); body.style.cursor = 'grabbing'; });
+    body.addEventListener('pointermove', (e) => { if (!mid) return; body.scrollLeft = mid.sl - (e.clientX - mid.x); body.scrollTop = mid.st - (e.clientY - mid.y); });
+    const endMid = (): void => { mid = null; body.style.cursor = ''; };
+    body.addEventListener('pointerup', endMid); body.addEventListener('pointercancel', endMid);
     // Navigation minimap — drag to scroll, drag the box handles or mouse-wheel to zoom.
     const nav = el('div', { class: 'tl-nav', title: 'Navigation — drag to scroll · handles or wheel to zoom' });
     wireNav(body, nav, {
