@@ -20,7 +20,10 @@ const CSS = `
 .tp-toolbar { display:flex; gap: 8px; padding: 6px 12px; background: #16233d; border-bottom: 1px solid #1d2942; }
 .tp-tool-btn { font: bold 14px monospace; padding: 4px 8px; border-radius: 4px; background: #0a1122; color: #cfe6ff; border: 1px solid #2a3b5c; cursor: pointer; }
 .tp-tool-btn:hover { background: #1d2942; }
-.tp-tool-color { width: 24px; height: 24px; padding: 0; border: none; background: none; cursor: pointer; }
+.tp-tool-sep { width:1px; align-self:stretch; margin:2px 4px; background:#2a3b5c; }
+.tp-tool-hl { width: 24px; height: 24px; padding: 0; border-radius: 4px; border: 1px solid rgba(0,0,0,0.4); cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25); }
+.tp-tool-hl:hover { transform: scale(1.12); }
+.tp-tool-hl.clear { background: #0a1122; color: #cfe6ff; font: bold 16px monospace; box-shadow: inset 0 0 0 1px #2a3b5c; }
 .tp-ctrls{display:flex;flex-wrap:wrap;gap:16px;align-items:center;}
 .tp-btn{font:800 22px 'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;padding:18px 30px;border:none;
   border-radius:20px;background:#16233d;color:#bcd3ee;cursor:pointer;}
@@ -73,29 +76,34 @@ const plugin: EditorPlugin = {
     const gutter = el('div', { class: 'tp-gutter' });
     const scriptContainer = el('div', { class: 'tp-script-container' }, [gutter, script]);
     
+    // Six fixed highlighter pens (+ a clear) — select text, click a pen to wash it.
+    const HIGHLIGHTS = ['#ff5b2e', '#ffd21e', '#39d353', '#2ec5ff', '#c46bff', '#ff5fa2'];
+    const hlPens = HIGHLIGHTS.map(c =>
+      el('button', { class: 'tp-tool-hl', dataset: { hl: c }, style: `background:${c};`, title: `Highlight ${c}` }));
+    const hlClear = el('button', { class: 'tp-tool-hl clear', dataset: { hl: 'transparent' }, title: 'Clear highlight' }, ['⌫']);
+
     const toolbar = el('div', { class: 'tp-toolbar' }, [
        el('button', { class: 'tp-tool-btn', dataset: { cmd: 'bold' } }, ['B']),
        el('button', { class: 'tp-tool-btn', dataset: { cmd: 'italic' }, style: 'font-style:italic;' }, ['I']),
        el('button', { class: 'tp-tool-btn', dataset: { cmd: 'underline' }, style: 'text-decoration:underline;' }, ['U']),
-       el('input', { type: 'color', class: 'tp-tool-color', id: 'fg-color', title: 'Text Color', value: '#ff0000' }),
-       el('input', { type: 'color', class: 'tp-tool-color', id: 'bg-color', title: 'Highlight Color', value: '#ffff00' })
+       el('div', { class: 'tp-tool-sep' }),
+       ...hlPens,
+       hlClear,
     ]);
     const scriptWrapper = el('div', { class: 'tp-script-wrapper' }, [toolbar, scriptContainer]);
 
     toolbar.addEventListener('mousedown', (e) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'BUTTON') {
-         e.preventDefault(); // keep focus on script
-         document.execCommand(target.dataset.cmd!, false, '');
-         rebuild(); saveScript(); ctx.services.publishParam?.('script', script.innerHTML);
+      const target = (e.target as HTMLElement).closest('button');
+      if (!target) return;
+      e.preventDefault(); // keep focus on the script so the selection survives
+      if (target.dataset.hl !== undefined) {
+         // Highlighter: wash the current selection's background.
+         document.execCommand('hiliteColor', false, target.dataset.hl) ||
+           document.execCommand('backColor', false, target.dataset.hl);
+      } else if (target.dataset.cmd) {
+         document.execCommand(target.dataset.cmd, false, '');
       }
-    });
-    toolbar.addEventListener('input', (e) => {
-      const target = e.target as HTMLInputElement;
-      if (target.tagName === 'INPUT') {
-         document.execCommand(target.id === 'fg-color' ? 'foreColor' : 'backColor', false, target.value);
-         script.focus(); rebuild(); saveScript(); ctx.services.publishParam?.('script', script.innerHTML);
-      }
+      script.focus(); rebuild(); saveScript(); ctx.services.publishParam?.('script', script.innerHTML);
     });
 
     const updateGutter = () => {

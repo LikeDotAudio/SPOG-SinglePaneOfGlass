@@ -51,9 +51,13 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
       lcars = acceptColor['audio'] as string;
     }
     const isSmall = !!rowKey;
+    const isMv = plugin?.id === 'multi-viewer';
     // Big (function) twists flow ~3-across (≈⅓ width) and wrap horizontally;
-    // small (row) twists share their row equally.
-    const sizing = isSmall ? 'flex: 1 1 0; min-width: 0;' : 'flex: 1 1 30%; min-width: 240px; max-width: 33%;';
+    // small (row) twists share their row equally. Multiviewers are laid out by
+    // their gang's N-column grid (1/N each) — they carry no flex basis of their own.
+    const sizing = isMv ? 'min-width: 0;'
+      : isSmall ? 'flex: 1 1 0; min-width: 0;'
+      : 'flex: 1 1 30%; min-width: 240px; max-width: 33%;';
     // Production-level (and, via the same path, floor-room + person-level) hover
     // tip authored in the room JSON, plus the floor/category it sits under. Both
     // ride to the editor on the twist element and feed ui/tip's expectation tip.
@@ -129,10 +133,22 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
         <div class="zone-row" style="display:flex;flex-wrap:wrap;gap:6px;width:100%;align-items:flex-start;margin-top:${gang ? 0 : 2}px;">${content}</div>
       </details>`;
   };
+  // Multiviewers split the row EVENLY: N members → N equal columns (⅓ each for 3,
+  // ¼ for 4), all on one row — never wrapping or stacking.
+  const wrapMv = (name: string, content: string, names: string[] = []) => {
+    const count = (content.match(/twist-container/g) || []).length;
+    const gang = isGang(names);
+    const cols = Math.max(1, count);
+    return `
+      <details class="twist-group${gang ? ' gang' : ''}"${openByDefault(count)} style="width: 100%; margin-bottom: 1px; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 1px 4px;${zoneStyle(content)}">
+        ${summaryFor(name, count, gang)}
+        <div class="zone-row" style="display:grid;grid-template-columns:repeat(${cols},minmax(0,1fr));gap:6px;width:100%;align-items:stretch;margin-top:${gang ? 0 : 2}px;">${content}</div>
+      </details>`;
+  };
   if (rows['cameras']) html += wrapGroup('CAMERAS', rows['cameras'], 'camera-row', rowNames['cameras']);
   if (rows['remotes']) html += wrapGroup('REMOTES', rows['remotes'], 'remote-row', rowNames['remotes']);
   if (mixerHtml) html += wrapBig('VISION MIXER / SIGNALING', mixerHtml, mixerNames);
-  if (mvHtml) html += wrapBig('MULTIVIEWER', mvHtml, mvNames);
+  if (mvHtml) html += wrapMv('MULTIVIEWER', mvHtml, mvNames);
   if (bigHtml) html += wrapBig('PRIMARY', bigHtml, bigNames);
   rowOrder.forEach((k) => { if (k !== 'cameras' && k !== 'remotes') html += wrapGroup(k, rows[k]!, '', rowNames[k]); });
   html += `</div></div>`;
