@@ -99,7 +99,7 @@ const plugin: EditorPlugin = {
 
     // Wire the control bar (presets · SENS · layout inspector · source buttons);
     // it returns setStat so the RAF can still surface source-status warnings.
-    const setStat = wireControls({ host, li, editDetector, applyPreset, cardMap, sens, tb, dispose: ctx.dispose });
+    const setStat = wireControls({ host, li, editDetector, applyPreset, cardMap, sens, tb, dispose: ctx.dispose, sources: ctx.sources });
 
     const peak: PeakState = { l: 0, r: 0 };
     const vu = { l: -60, r: -60 };   // ballistic-smoothed dBFS for the analog needles

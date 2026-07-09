@@ -6,7 +6,6 @@
 // docks into the .credit-row beside the byline (like the 1990s-VIEW launcher)
 // and reopens it anytime.
 import { addStyles } from '../dom.js';
-import { exportSeat, importSeat, type SeatExport } from '../../platform/prefs.js';
 import { STEPS, ANCHORS, ACADEMY_CSS, STORE_KEY } from './academy-content.js';
 
 // The build stamp baked in at bundle time (main.ts owns it); shown in the Quick
@@ -71,37 +70,8 @@ function ensure(): HTMLElement {
         <label class="tut-again"><input type="checkbox" data-again>Don’t show this again</label>
         <button class="tut-go" data-go>START</button>
       </div>
-      <div class="tut-seat">MY SEAT —
-        <button data-seat-export title="Download every preference, layout and draft on this seat as one file">EXPORT</button>
-        <button data-seat-import title="Restore a seat file (reloads the console)">IMPORT</button>
-        <span>preferences travel with you</span>
-      </div>
     </div>`;
   document.body.appendChild(overlay);
-
-  // "My seat" — the whole operator setup as one portable blob (audit §3.3).
-  overlay.querySelector('[data-seat-export]')?.addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify(exportSeat(), null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `SPOG-PREF-${new Date().toISOString().slice(0, 10)}.spog`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  });
-  overlay.querySelector('[data-seat-import]')?.addEventListener('click', () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.spog,application/json';   // .spog is JSON inside; old .json exports still import
-    input.addEventListener('change', () => {
-      const f = input.files?.[0];
-      if (!f) return;
-      void f.text().then((txt) => {
-        const n = importSeat(JSON.parse(txt) as SeatExport);
-        if (n) location.reload();
-      }).catch(() => { /* unreadable file — leave the seat untouched */ });
-    });
-    input.click();
-  });
 
   // Hovering a step lights its marker on the console beneath.
   overlay.querySelectorAll<HTMLElement>('.tut-step').forEach((step) => {

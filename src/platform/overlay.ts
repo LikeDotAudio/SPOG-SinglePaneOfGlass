@@ -135,7 +135,12 @@ export function openOverlay(
   }
 
   prevHash = location.hash;
-  history.replaceState(null, '', '#/' + [slug(opts.prodName), slug(opts.twistName)].filter(Boolean).join('/'));
+  // Preserve any deep-link query (?TSG=/?Input=/?LAYOUT=…) when canonicalising the
+  // hash: the editor reads its params off location.hash during build() below, and a
+  // shared URL of the open editor should carry its input selection too.
+  const qIdx = location.hash.indexOf('?');
+  const query = qIdx >= 0 ? location.hash.slice(qIdx) : '';
+  history.replaceState(null, '', '#/' + [slug(opts.prodName), slug(opts.twistName)].filter(Boolean).join('/') + query);
   build(h.body, dispose);
   h.root.classList.add('open');
   return dispose;

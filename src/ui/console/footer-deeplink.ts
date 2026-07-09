@@ -38,24 +38,42 @@ export function navigateToDest(segments: string[]): boolean {
   const segs = segments.map(destSlug).filter(Boolean);
   if (!segs.length) return false;
   const prod = segs[segs.length - 1], floors = segs.slice(0, -1);
-  for (const tab of document.querySelectorAll<HTMLElement>('.lcars-tab')) {
-    if (destSlug(tab.innerText) !== prod) continue;
-    const g = groupOfTab(tab), chain = chainSlugs(g);
-    let ci = 0;
-    const ok = floors.every((f) => { while (ci < chain.length && chain[ci] !== f) ci++; return ci++ < chain.length; });
-    if (!ok) continue;
+  const select = (tab: HTMLElement): true => {
+    const g = groupOfTab(tab);
     if (g) openGroupPath(g.path);
     tab.click();
     expandProductionGroups(tab.dataset['tabId'] ?? '');   // navigated-to production opens EXPANDED
     tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     return true;
+  };
+  const tabs = [...document.querySelectorAll<HTMLElement>('.lcars-tab')].filter((t) => destSlug(t.innerText) === prod);
+  // Prefer a tab whose group chain contains every floor segment (ordered subsequence),
+  // so a production name shared across floors still disambiguates by category.
+  for (const tab of tabs) {
+    const chain = chainSlugs(groupOfTab(tab));
+    let ci = 0;
+    if (floors.every((f) => { while (ci < chain.length && chain[ci] !== f) ci++; return ci++ < chain.length; })) return select(tab);
   }
-  return false;
+  // …but never fail silently on a floor mismatch — a stale, renamed, or singular/plural
+  // link ("control-rooms" vs "control-room") should still honour the production asked
+  // for. Production tab labels are unique, so falling back to the name alone is safe.
+  return tabs.length ? select(tabs[0]!) : false;
 }
 
 /** Handle an `#on/…` deep link in the current URL. Returns true if it matched. */
 export function handleDestDeepLink(): boolean {
   const h = location.hash || '';
   if (!/^#on\//i.test(h)) return false;
-  return navigateToDest(h.replace(/^#on\//i, '').split('/').filter(Boolean).map(decodeURIComponent));
+  const segs = h.replace(/^#on\//i, '').split('/').filter(Boolean).map(decodeURIComponent);
+  if (navigateToDest(segs)) return true;
+  // Destination tabs render on demand (async fetch), so the target may not exist yet on
+  // first paint — retry briefly, but bail if the operator has since navigated elsewhere.
+  let tries = 0;
+  const retry = (): void => {
+    if (location.hash !== h) return;
+    if (navigateToDest(segs) || tries++ >= 14) return;
+    setTimeout(retry, 150);
+  };
+  setTimeout(retry, 150);
+  return false;
 }

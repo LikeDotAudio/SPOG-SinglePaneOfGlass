@@ -29,6 +29,21 @@ export function patternForLabel(label: string | undefined): TsgPattern {
   return PATTERNS.find((p) => norm(p.label) === norm(label)) ?? DEFAULT_TSG;
 }
 
+/** Resolve a FRIENDLY query — the stable id, the routable label, OR the display name,
+ *  in any case/spacing — to a pattern. Unlike patternById / patternForLabel (which
+ *  fall back to DEFAULT_TSG), this returns null when nothing matches, so a deep-link
+ *  handler can tell a typo apart from a real pattern and warn instead of silently
+ *  showing bars. Exact match wins; a prefix match is the fallback (e.g. "plasma" →
+ *  "PLASMA (BURN-IN)"). */
+export function findPattern(query: string | undefined): TsgPattern | null {
+  const norm = (s: string): string => s.toUpperCase().replace(/[^A-Z0-9]+/g, '');
+  const q = norm(query || '');
+  if (!q) return null;
+  return PATTERNS.find((p) => norm(p.id) === q || norm(p.label) === q || norm(p.name) === q)
+    ?? PATTERNS.find((p) => norm(p.id).startsWith(q) || norm(p.name).startsWith(q) || norm(p.label).startsWith(q))
+    ?? null;
+}
+
 /** Patterns grouped for the gallery (SDR then HDR), preserving order within a group. */
 export function byGroup(): Array<[TsgGroup, TsgPattern[]]> {
   const groups: TsgGroup[] = ['SDR', 'HDR'];

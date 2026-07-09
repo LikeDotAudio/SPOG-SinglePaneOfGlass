@@ -60,11 +60,6 @@ export const ACADEMY_CSS = `
 .tut-new{margin:0 22px 10px;padding:9px 12px;border-radius:10px;background:#0d1322;
   color:#9fb6cc;font-size:11px;line-height:1.5;}
 .tut-new b{color:var(--tut-color,#FF9C63);letter-spacing:1px;}
-.tut-seat{display:flex;gap:8px;align-items:center;padding:0 22px 16px;color:#7e93b5;font-size:11px;}
-.tut-seat button{border:none;border-radius:12px;padding:7px 14px;cursor:pointer;
-  font-weight:900;letter-spacing:1px;font-size:10px;text-transform:uppercase;
-  background:#16233d;color:#bcd3ee;}
-.tut-seat button:hover{filter:brightness(1.25);}
 /* ACADEMY button: static pill — rides the credit-row or the seat menu. */
 .credit-row .tut-help,.um-panel .tut-help{position:static;border:none;border-radius:18px 6px 6px 18px;
   background:var(--tut-color,#FF9C63);color:#000;font-weight:900;letter-spacing:2px;

@@ -8,7 +8,7 @@ import { patternById, DEFAULT_TSG } from './catalog.js';
 import type { TsgPattern } from './types.js';
 
 export * from './types.js';
-export { PATTERNS, DEFAULT_TSG, patternById, patternForLabel, byGroup } from './catalog.js';
+export { PATTERNS, DEFAULT_TSG, patternById, patternForLabel, findPattern, byGroup } from './catalog.js';
 
 /** The localStorage key a twist's chosen TSG pattern is persisted under. Shared by
  *  the TSG editor (writer) and the SIGNALING studio frame (reader). */

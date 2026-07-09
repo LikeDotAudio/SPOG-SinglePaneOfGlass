@@ -8,6 +8,7 @@
 import { addStyles } from '../dom.js';
 import type { Capability, Role } from '../../model/index.js';
 import { ROLES, role, setRole, onRoleChange, operator, setOperator } from '../../platform/auth.js';
+import { exportSeat, importSeat, type SeatExport } from '../../platform/prefs.js';
 import { logAction } from './captains-log.js';
 import { stampIcon } from '../icon-face.js';
 
@@ -39,6 +40,13 @@ const AUTH_CSS = `
 .au-name{flex:1;background:#03060f;border:1px solid #35507a;border-radius:6px;color:#e0f0ff;
   padding:9px 12px;font:14px Arial;}
 .au-name:focus{outline:none;border-color:var(--rc,#F2B74B);}
+/* MY SEAT — portable-preferences export/import (moved out of the Academy). */
+.au-seat{display:flex;align-items:center;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid #1d2942;
+  font:900 10px sans-serif;letter-spacing:2px;color:#8fb4d8;}
+.au-seat button{border:1px solid #35507a;background:#0c1730;color:#EAF2FF;cursor:pointer;
+  font:900 10px sans-serif;letter-spacing:1px;text-transform:uppercase;padding:7px 13px;border-radius:6px 12px 12px 6px;}
+.au-seat button:hover{filter:brightness(1.3);}
+.au-seat span{font-weight:normal;letter-spacing:1px;color:#7e93b5;text-transform:none;}
 /* RIGHTS + LOG OUT corner pills — head of the sources rail, ONE row with the
    log button (captains-log.ts seats .cl-btn as this row's first child). */
 .au-corner{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:stretch;}
@@ -106,7 +114,12 @@ export function initAuthPanel(): void {
   login.className = 'au-overlay';
   login.innerHTML = `<div class="au-box"><h2>SPOG · SINGLE PANE OF GLASS</h2><p>SELECT ROLE · context-aware scope loads for the live production</p>
     <label class="au-namerow">OPERATOR NAME<input class="au-name" type="text" placeholder="Who is taking this seat?" spellcheck="false" maxlength="40"></label>
-    <div class="au-roles"></div></div>`;
+    <div class="au-roles"></div>
+    <div class="au-seat">MY SEAT —
+      <button data-seat-export title="Download every preference, layout and draft on this seat as one file">EXPORT</button>
+      <button data-seat-import title="Restore a seat file (reloads the console)">IMPORT</button>
+      <span>preferences travel with you</span>
+    </div></div>`;
   const nameInput = login.querySelector<HTMLInputElement>('.au-name')!;
   nameInput.value = operator();
   const rolesHost = login.querySelector<HTMLElement>('.au-roles')!;
@@ -128,6 +141,30 @@ export function initAuthPanel(): void {
     roleCards.push(card);
   });
   login.addEventListener('click', (e) => { if (e.target === login) login.classList.remove('open'); });
+  // "My seat" — the whole operator setup as one portable blob (audit §3.3). Lives on
+  // the seat/login overlay now (was in the Academy quick-start).
+  login.querySelector('[data-seat-export]')?.addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(exportSeat(), null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `SPOG-PREF-${new Date().toISOString().slice(0, 10)}.spog`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  login.querySelector('[data-seat-import]')?.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.spog,application/json';   // .spog is JSON inside; old .json exports still import
+    input.addEventListener('change', () => {
+      const f = input.files?.[0];
+      if (!f) return;
+      void f.text().then((txt) => {
+        const n = importSeat(JSON.parse(txt) as SeatExport);
+        if (n) location.reload();
+      }).catch(() => { /* unreadable file — leave the seat untouched */ });
+    });
+    input.click();
+  });
   document.body.appendChild(login);
 
   // rights overlay (roles × capabilities matrix)

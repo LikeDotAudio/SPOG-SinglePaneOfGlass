@@ -7,7 +7,8 @@ import type { EditDetector } from './edit-detector.js';
 import type { ToolbarRefs } from './toolbar.js';
 import type { Disposer } from '../../ui/timers.js';
 import { buildTsgGallery } from '../../ui/tsg-gallery.js';
-import { patternById } from '../../domain/tsg/index.js';
+import { findPattern, type TsgPattern } from '../../domain/tsg/index.js';
+import type { Feed } from '../../domain/routing-core/index.js';
 
 export interface SensRef { v: number; }
 export type SetStat = (t: string, warn?: boolean) => void;
@@ -21,6 +22,7 @@ export interface ControlDeps {
   sens: SensRef;              // shared edit-detection threshold (RAF reads sens.v)
   tb: ToolbarRefs;
   dispose: Disposer;          // editor lifecycle bag — the TSG selector ticker rides here
+  sources: Feed[];            // feeds routed into this twist — resolve ?Input=<name> against these
 }
 
 const TSG_POP_CSS = `
@@ -35,7 +37,7 @@ const TSG_POP_CSS = `
 // Wire every control-bar interaction and return `setStat` so the render loop can
 // still surface source-status messages (e.g. a tainted cross-origin warning).
 export function wireControls(deps: ControlDeps): SetStat {
-  const { host, li, editDetector, applyPreset, cardMap, sens, tb, dispose } = deps;
+  const { host, li, editDetector, applyPreset, cardMap, sens, tb, dispose, sources } = deps;
   const { bBars, bTsg, bCap, bFile, url, bUrl, file, pDef, pAud, pVid, pCol, pLum, sSub, sNorm, sHard, bLayout, stat } = tb;
 
   const presetBtns: Array<[HTMLElement, string]> = [[pDef, 'default'], [pAud, 'audio'], [pVid, 'video'], [pCol, 'colour'], [pLum, 'luma']];
@@ -114,23 +116,48 @@ export function wireControls(deps: ControlDeps): SetStat {
       .catch((e: Error) => setStat('load failed: ' + e.message, true));
   });
 
-  // ── Deep-link params: #/…/meter-input?TSG=<id|bars>&LAYOUT=<preset> opens the
-  //    bench on a specific test signal + layout, so a URL can be shipped with the
-  //    exact source pre-selected (e.g. …?TSG=nit1000&LAYOUT=video). ──
+  // ── Deep-link params: #/…/meter-input?TSG=<name|id>&Input=<source name>&LAYOUT=<preset>
+  //    open the bench on a specific INPUT — a TSG test pattern (?TSG=) or a named routed
+  //    source (?Input=) — plus a layout, so a URL ships with the exact source
+  //    pre-selected (e.g. …?TSG=PLASMA&LAYOUT=video, or …?Input=CAM%203). Keys are
+  //    matched case-insensitively (?tsg=/?input= work too). ──
   const q = new URLSearchParams(location.hash.split('?')[1] || '');
-  const tsgParam = q.get('TSG');
+  const getCI = (key: string): string | null => {
+    for (const [k, v] of q) if (k.toLowerCase() === key.toLowerCase()) return v;
+    return null;
+  };
+  const norm = (s: string): string => s.toUpperCase().replace(/[^A-Z0-9]+/g, '');
+  const showPattern = (p: TsgPattern, note = ''): void => {
+    li.useBars(); li.setTsgPattern(p.id); editDetector.reset();
+    bBars.classList.remove('on'); bTsg.classList.add('on');
+    setStat(`source: TSG · ${p.name} (${p.group})${note}`);
+  };
+  const showBars = (): void => {
+    li.useBars(); li.setTsgPattern(null); editDetector.reset();
+    bBars.classList.add('on'); bTsg.classList.remove('on');
+    setStat('source: test pattern (SMPTE colour bars)');
+  };
+  const tsgParam = getCI('TSG');
+  const inputParam = getCI('Input');
   if (tsgParam) {
-    li.useBars(); editDetector.reset();
-    if (/^(bars|smpte|none)$/i.test(tsgParam)) {
-      li.setTsgPattern(null); bBars.classList.add('on'); bTsg.classList.remove('on');
-      setStat('source: test pattern (SMPTE colour bars)');
-    } else {
-      const p = patternById(tsgParam);
-      li.setTsgPattern(p.id); bBars.classList.remove('on'); bTsg.classList.add('on');
-      setStat(`source: TSG · ${p.name} (${p.group})`);
+    if (/^(bars|smpte|none)$/i.test(tsgParam)) showBars();
+    else {
+      const p = findPattern(tsgParam);
+      if (p) showPattern(p);
+      else { showBars(); setStat(`TSG "${tsgParam}" not found — showing SMPTE bars`, true); }
     }
+  } else if (inputParam) {
+    // Match the named source among the twist's routed feeds. A routed feed carries no
+    // playable media in-sim, so resolve the input NAME (or the matched feed's label) to
+    // its TSG pattern and meter that as the stand-in signal.
+    const feed = sources.find((f) => norm(f.label) === norm(inputParam))
+      ?? sources.find((f) => norm(f.label).startsWith(norm(inputParam)));
+    const p = findPattern(feed?.label ?? inputParam);
+    if (p) showPattern(p, feed ? ` · input ${feed.label}` : '');
+    else if (feed) { showBars(); setStat(`input: ${feed.label} (no test-pattern mapping)`); }
+    else setStat(`input "${inputParam}" not found`, true);
   }
-  const layoutParam = (q.get('LAYOUT') || '').toLowerCase();
+  const layoutParam = (getCI('LAYOUT') || '').toLowerCase();
   if (layoutParam && presetBtns.some(([, n]) => n === layoutParam)) selectPreset(layoutParam);
 
   return setStat;
