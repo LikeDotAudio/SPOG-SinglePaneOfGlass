@@ -9,6 +9,11 @@ import { addStyles } from '../dom.js';
 import { exportSeat, importSeat, type SeatExport } from '../../platform/prefs.js';
 import { STEPS, ANCHORS, ACADEMY_CSS, STORE_KEY } from './academy-content.js';
 
+// The build stamp baked in at bundle time (main.ts owns it); shown in the Quick
+// Start header so operators can read the running version at a glance.
+declare const __BUILD_ID__: { short: string; full: string } | undefined;
+const BUILD_VERSION = (typeof __BUILD_ID__ !== 'undefined' && __BUILD_ID__) ? __BUILD_ID__.short : 'dev';
+
 let overlay: HTMLElement | null = null;
 
 function placeMarks(): void {
@@ -51,7 +56,7 @@ function ensure(): HTMLElement {
   overlay.innerHTML = `
     <div class="tut-marks"></div>
     <div class="tut-card" role="dialog" aria-label="Quick start">
-      <div class="tut-head"><span class="tut-title">SPOGFLEET Academy — Quick Start</span><span class="tut-x" title="Close">&times;</span></div>
+      <div class="tut-head"><span class="tut-title">SPOGFLEET Academy — Quick Start <span class="tut-ver" style="opacity:.7;font-weight:normal;font-size:.8em;">· ${BUILD_VERSION}</span></span><span class="tut-x" title="Close">&times;</span></div>
       <div class="tut-body">
         ${STEPS.map((s, i) => `
           <div class="tut-step" data-n="${i + 1}">
