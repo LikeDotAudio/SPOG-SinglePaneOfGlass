@@ -174,6 +174,15 @@ export namespace spog {
         /** ValueMsg fullId. */
         fullId: string;
 
+        /** ValueMsg valueList. */
+        valueList: string[];
+
+        /** ValueMsg originId. */
+        originId: number;
+
+        /** ValueMsg tsMs. */
+        tsMs: (number|Long);
+
         /**
          * Creates a new ValueMsg instance using the specified properties.
          * @param [properties] Properties to set
@@ -267,6 +276,15 @@ export namespace spog {
             /** ValueMsg fullId */
             fullId?: (string|null);
 
+            /** ValueMsg valueList */
+            valueList?: (string[]|null);
+
+            /** ValueMsg originId */
+            originId?: (number|null);
+
+            /** ValueMsg tsMs */
+            tsMs?: (number|Long|null);
+
             /** Unknown fields preserved while decoding when enabled */
             $unknowns?: Uint8Array[];
         }
@@ -276,6 +294,9 @@ export namespace spog {
           value?: spog.ParamValue.$Shape|null;
           ts?: number|null;
           fullId?: string|null;
+          valueList?: string[]|null;
+          originId?: number|null;
+          tsMs?: number|Long|null;
           $unknowns?: Uint8Array[];
         };
     }
@@ -307,6 +328,9 @@ export namespace spog {
 
         /** PresenceMsg ts. */
         ts: number;
+
+        /** PresenceMsg originId. */
+        originId: number;
 
         /**
          * Creates a new PresenceMsg instance using the specified properties.
@@ -401,6 +425,9 @@ export namespace spog {
             /** PresenceMsg ts */
             ts?: (number|null);
 
+            /** PresenceMsg originId */
+            originId?: (number|null);
+
             /** Unknown fields preserved while decoding when enabled */
             $unknowns?: Uint8Array[];
         }
@@ -436,6 +463,9 @@ export namespace spog {
 
         /** RateMsg fullId. */
         fullId: string;
+
+        /** RateMsg originId. */
+        originId: number;
 
         /**
          * Creates a new RateMsg instance using the specified properties.
@@ -529,6 +559,9 @@ export namespace spog {
 
             /** RateMsg fullId */
             fullId?: (string|null);
+
+            /** RateMsg originId */
+            originId?: (number|null);
 
             /** Unknown fields preserved while decoding when enabled */
             $unknowns?: Uint8Array[];

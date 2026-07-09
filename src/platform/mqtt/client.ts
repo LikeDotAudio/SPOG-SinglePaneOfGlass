@@ -12,6 +12,8 @@ import type { TwistBus, ConfigMsg, ValueMsg } from './types.js';
 import { getBrokerConfig, resolveBrokerUrl } from './config.js';
 import { loadMqtt, type MqttClient } from './mqtt-load.js';
 import { encodeAndEncrypt, decryptAndDecode } from './crypto.js';
+import { makeThrottler } from './throttle.js';
+import { topicMatches } from './topics.js';
 
 // Re-exported so consumers (barrel index.ts) keep importing broker config from
 // client.js after the config/loader extraction — public bus API is unchanged.
@@ -54,6 +56,7 @@ function noopBus(sessionId: string): TwistBus {
  */
 export function createTwistBus(): TwistBus {
   const sessionId = makeSessionId();
+  const myOrigin = sessionId.split(':')[0];   // 8-hex prefix — the v2 self-echo identity
   const url = resolveBrokerUrl();
   if (!url) { dbg('no broker configured — no-op bus'); return noopBus(sessionId); }
 
@@ -79,17 +82,20 @@ export function createTwistBus(): TwistBus {
 
   const send = async (topic: string, payload: any, retain = true): Promise<void> => {
     if (!client) return;                       // mqtt.js buffers pre-connect and flushes on connect
-    try { 
+    try {
       let outPayload: string | Uint8Array;
       if (getBrokerConfig().plaintext) {
         outPayload = typeof payload === 'string' ? payload : JSON.stringify(payload);
       } else {
         outPayload = await encodeAndEncrypt(payload);
       }
-      client.publish(topic, outPayload as any, { retain, qos: 0 }); 
+      client.publish(topic, outPayload as any, { retain, qos: 0 });
       messageCounter++;
     } catch (e) { dbg('publish failed', topic, e); }
   };
+
+  // Wire-rate throttle (audit F4): coalesce rapid param publishes per-topic — see throttle.ts.
+  const throttler = makeThrottler((topic, payload) => void send(topic, payload));
 
   let resolveReady!: () => void;
   const ready = new Promise<void>((r) => { resolveReady = r; });
@@ -133,9 +139,11 @@ export function createTwistBus(): TwistBus {
       // Cache before the echo check (empty retained payload = tombstone → evict).
       if (payload.length === 0 || parsed === null) lastValue.delete(rel);
       else lastValue.set(rel, parsed);
-      // Self-echo suppression: drop anything we published (matches comMQTT full_id check).
-      if (parsed && typeof parsed === 'object' && (parsed as { full_id?: string }).full_id === sessionId) return;
-      for (const s of subs) if (matches(s.filter, rel)) s.cb(rel, parsed);
+      // Self-echo suppression by ORIGIN (v2 carries only the 4-byte origin, not the
+      // full "<hex>:TWIST:<birth>" string; the decoder rebuilds it for both formats).
+      const pOrigin = String((parsed as { full_id?: string } | null)?.full_id ?? '').split(':')[0];
+      if (pOrigin && pOrigin === myOrigin) return;
+      for (const s of subs) if (topicMatches(s.filter, rel)) s.cb(rel, parsed);
     });
   });
 
@@ -151,7 +159,11 @@ export function createTwistBus(): TwistBus {
 
     publishValue<T>(suffix: string, value: T, opts?: { throttle?: boolean }): void {
       const topic = full(suffix);
-      send(topic, { value, ts: Date.now(), full_id: sessionId } satisfies ValueMsg<T>);
+      const payload = { value, ts: Date.now(), full_id: sessionId } satisfies ValueMsg<T>;
+      // Throttled by default (editor-services passes throttle:true unless a caller
+      // opts out for a discrete one-shot); coalesce rapid drags on the trailing edge.
+      if (opts?.throttle === false) void send(topic, payload);
+      else throttler.push(topic, payload);
     },
 
     publishRaw(suffix, payload, opts): void {
@@ -165,7 +177,7 @@ export function createTwistBus(): TwistBus {
       // re-enters the caller mid-registration).
       queueMicrotask(() => {
         if (!subs.has(entry)) return;
-        for (const [t, p] of lastValue) if (matches(entry.filter, t)) { try { entry.cb(t, p); } catch { /* applier */ } }
+        for (const [t, p] of lastValue) if (topicMatches(entry.filter, t)) { try { entry.cb(t, p); } catch { /* applier */ } }
       });
       return () => subs.delete(entry);
     },
@@ -176,6 +188,7 @@ export function createTwistBus(): TwistBus {
       clearTimeout(readyTimer);
       if (heartbeat) clearInterval(heartbeat);
       if (rateTimer) clearInterval(rateTimer);
+      throttler.dispose();
       subs.clear();
       if (client) {
         send(presenceTopic, { active: false, full_id: sessionId });
@@ -183,16 +196,4 @@ export function createTwistBus(): TwistBus {
       }
     },
   };
-}
-
-/** MQTT topic-filter match (`+` single level, `#` multi level), on Twist-relative topics. */
-function matches(filter: string, topic: string): boolean {
-  if (filter === '#') return true;
-  const f = filter.split('/'), t = topic.split('/');
-  for (let i = 0; i < f.length; i++) {
-    if (f[i] === '#') return true;
-    if (f[i] === '+') { if (t[i] === undefined) return false; continue; }
-    if (f[i] !== t[i]) return false;
-  }
-  return f.length === t.length;
 }

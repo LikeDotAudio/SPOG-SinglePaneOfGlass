@@ -51,6 +51,7 @@ export interface LogMsg {
   reversed: boolean;
   reversedBy?: string;
   reversedTs?: number;
+  by?: string;
   full_id: string;
 }
 

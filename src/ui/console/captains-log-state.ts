@@ -19,7 +19,7 @@ export type { Removed };
 // IndexedDB row shape (audit §8 W2): the log is the audit trail.
 export interface StoredEntry { k: string; origin?: string; voyage: number; voyTitle: string; entry: number; ts: number; dest: string; prod: string; text: string; reversed: boolean; reversedBy?: string; reversedTs?: number }
 /** A log entry surfaced to external listeners (the MQTT bridge, audit §4.6). */
-export interface LogEntryEvent { voyage: number; entry: number; ts: number; dest: string; prod: string; added: string[]; removed: string[]; text: string; reversed: boolean; reversedBy?: string; reversedTs?: number }
+export interface LogEntryEvent { voyage: number; entry: number; ts: number; dest: string; prod: string; added: string[]; removed: string[]; text: string; reversed: boolean; reversedBy?: string; reversedTs?: number; by?: string }
 
 // The one true copies of the mutable state. Arrays/sets are exported by
 // reference (mutated in place); the scalar counters + `current` are private and

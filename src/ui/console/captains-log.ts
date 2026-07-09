@@ -12,7 +12,7 @@ import { role, onRoleChange } from '../../platform/auth.js';
 import { ensureNarrative, nextEid, nextNid, nid, setCurrent, narratives, selected, entryById, narByKeyStr, raiseNid, raiseEid, selfOrigin, setSelfOrigin, originOf, narByOriginVoyage, type Entry, type Narrative, type LogEntryEvent } from './captains-log-state.js';
 import { getBus } from '../../platform/mqtt/index.js';
 import { hydrateLog, emitLog, onLogEntry, persistEntry } from './captains-log-persist.js';
-import { signed, reverseSelected, observeRoot } from './captains-log-narrate.js';
+import { signed, reverseSelected, observeRoot, narrationFromLabels } from './captains-log-narrate.js';
 import { render, setListEl, CL_CSS } from './captains-log-view.js';
 
 // Re-exported so importers of './captains-log.js' stay byte-identical.
@@ -56,9 +56,16 @@ export function receiveNetworkLog(e: LogEntryEvent, origin?: string): void {
     return;
   }
 
+  // F3: routing entries arrive WITHOUT the English narration — rebuild it locally
+  // from the structured fields (+ operator), identical to the authoring console.
+  let text = e.text;
+  if (!text && (e.added.length || e.removed.length)) {
+    text = narrationFromLabels(e.dest, e.prod, e.removed, e.added, e.ts);
+    if (e.by) text += ` · by ${e.by}`;
+  }
   const entry: Entry = {
     id: e.entry, ts: e.ts, twist: null, dest: e.dest, prod: e.prod,
-    added: [], removed: [], text: e.text, reversed: e.reversed,
+    added: [], removed: [], text, reversed: e.reversed,
     restored: true, origin: org
   };
   nar.entries.push(entry);
@@ -68,7 +75,7 @@ export function receiveNetworkLog(e: LogEntryEvent, origin?: string): void {
   // Only our OWN origin advances our local sequence counters.
   if (org === selfOrigin()) { raiseNid(e.voyage); raiseEid(e.entry); }
 
-  persistEntry(e, org);
+  persistEntry({ ...e, text }, org);   // store the rebuilt narration, not the empty wire text
   render();
 }
 

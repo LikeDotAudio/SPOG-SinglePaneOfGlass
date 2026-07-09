@@ -20,10 +20,16 @@ export function startLogBridge(bus: TwistBus): () => void {
   const origin = (bus.sessionId || '').split(':')[0];
   const unsubLocal = onLogEntry((e: LogEntryEvent) => {
     if (!bus.status().enabled) return;
+    // F3: a routing entry's English narration is deterministic — each console
+    // rebuilds it from {dest, prod, added, removed, by}. Drop `text` from the wire
+    // for those (the frequent case); keep it for reversals + semantic logAction
+    // entries whose text isn't derivable.
+    const derivable = !e.reversed && (e.added.length > 0 || e.removed.length > 0);
     const msg: Omit<LogMsg, 'full_id'> = {
       voyage: e.voyage, entry: e.entry, ts: e.ts,
       dest: e.dest, prod: e.prod, added: e.added, removed: e.removed,
-      text: e.text, reversed: e.reversed, reversedBy: e.reversedBy, reversedTs: e.reversedTs,
+      text: derivable ? '' : e.text, by: e.by,
+      reversed: e.reversed, reversedBy: e.reversedBy, reversedTs: e.reversedTs,
     };
     // Namespaced by ORIGIN so two consoles' `voyage/entry` numbers never collide
     // (each seat owns its own retained subtree) — the key to a unified, complete log.
@@ -41,7 +47,7 @@ export function startLogBridge(bus: TwistBus): () => void {
     receiveNetworkLog({
       voyage: msg.voyage, entry: msg.entry, ts: msg.ts,
       dest: msg.dest, prod: msg.prod, added: msg.added, removed: msg.removed,
-      text: msg.text, reversed: msg.reversed, reversedBy: msg.reversedBy, reversedTs: msg.reversedTs,
+      text: msg.text, by: msg.by, reversed: msg.reversed, reversedBy: msg.reversedBy, reversedTs: msg.reversedTs,
     }, org);
   });
 

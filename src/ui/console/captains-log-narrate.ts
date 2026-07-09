@@ -43,13 +43,22 @@ function destInfo(twist: HTMLElement): { dest: string; prod: string } {
   return { dest: name, prod };
 }
 
-function narrate(dest: string, prod: string, removed: Element[], added: Element[], ts: number): string {
+/** Build the narration sentence from LABEL strings (audit F3): the log wire format
+ *  no longer ships this English text — each console rebuilds it from the structured
+ *  {dest, prod, added[], removed[]} fields it already receives. Kept deterministic so
+ *  every seat renders an identical line. */
+export function narrationFromLabels(dest: string, prod: string, removed: string[], added: string[], ts: number): string {
   const head = `The destination of ${dest}${prod ? ` (${prod})` : ''}`;
   const t = utc(ts);
-  if (removed.length && added.length) return `${head} that previously contained the ${labelsOf(removed)} was replaced with the ${labelsOf(added)} by the user at ${t}.`;
-  if (added.length) return `${head}, previously empty, received the ${labelsOf(added)} by the user at ${t}.`;
-  return `${head} that previously contained the ${labelsOf(removed)} was cleared by the user at ${t}.`;
+  const rl = removed.filter(Boolean).join(', ') || 'nothing';
+  const al = added.filter(Boolean).join(', ') || 'nothing';
+  if (removed.length && added.length) return `${head} that previously contained the ${rl} was replaced with the ${al} by the user at ${t}.`;
+  if (added.length) return `${head}, previously empty, received the ${al} by the user at ${t}.`;
+  return `${head} that previously contained the ${rl} was cleared by the user at ${t}.`;
 }
+
+const narrate = (dest: string, prod: string, removed: Element[], added: Element[], ts: number): string =>
+  narrationFromLabels(dest, prod, removed.map(nodeLabel), added.map(nodeLabel), ts);
 
 export function onMutations(records: MutationRecord[]): void {
   if (paused) return;
@@ -74,7 +83,7 @@ export function onMutations(records: MutationRecord[]): void {
     const { dest, prod } = destInfo(twist);
     const entry: Entry = { id: nextEid(), ts, twist, dest, prod, added: ch.added.slice(), removed: ch.removed.slice(), text: signed(narrate(dest, prod, ch.removed.map((r) => r.node), ch.added, ts)), reversed: false };
     nar.entries.push(entry);
-    emitLog({ voyage: nar.id, entry: entry.id, ts, dest, prod, added: ch.added.map(nodeLabel).filter(Boolean), removed: ch.removed.map((r) => nodeLabel(r.node)).filter(Boolean), text: entry.text, reversed: false });
+    emitLog({ voyage: nar.id, entry: entry.id, ts, dest, prod, added: ch.added.map(nodeLabel).filter(Boolean), removed: ch.removed.map((r) => nodeLabel(r.node)).filter(Boolean), text: entry.text, reversed: false, by: operator() || undefined });
     changed = true;
   });
   if (changed) render();

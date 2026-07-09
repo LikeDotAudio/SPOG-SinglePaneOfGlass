@@ -9,22 +9,30 @@ message ParamValue {
   }
 }
 
+// v2 (audit F1/F2/F5) adds COMPACT fields alongside the legacy ones so an old
+// decoder still reads the message (it skips unknown tags) and a new decoder
+// prefers the compact form. Encoders write ONLY the compact fields.
 message ValueMsg {
   ParamValue value = 1;
-  double ts = 2;
-  string full_id = 3;
+  double ts = 2;                    // legacy wall-clock ms (double)
+  string full_id = 3;              // legacy "<hex8>:TWIST:<birth-ms>"
+  repeated string value_list = 4;  // F2: routing crosspoints as repeated strings (not JSON-in-a-string)
+  fixed32 origin_id = 5;           // F1: 4-byte session origin (the hex8 prefix)
+  uint64 ts_ms = 6;                // F5: wall-clock ms as a varint
 }
 
 message PresenceMsg {
   bool active = 1;
   string full_id = 2;
   double ts = 3;
+  fixed32 origin_id = 4;           // F1
 }
 
 message RateMsg {
   int32 messagesPerMinute = 1;
   double ts = 2;
   string full_id = 3;
+  fixed32 origin_id = 4;           // F1
 }
 
 message PayloadWrapper {

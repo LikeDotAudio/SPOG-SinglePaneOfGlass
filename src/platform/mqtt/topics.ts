@@ -100,3 +100,15 @@ export function configForSource(s: SourceLeaf): Omit<ConfigMsg, 'full_id'> {
     params: channels.length ? [{ name: 'channels', type: 'enum', values: channels, writable: false }] : [],
   };
 }
+
+/** MQTT topic-filter match (`+` single level, `#` multi level), on Twist-relative topics. */
+export function topicMatches(filter: string, topic: string): boolean {
+  if (filter === '#') return true;
+  const f = filter.split('/'), t = topic.split('/');
+  for (let i = 0; i < f.length; i++) {
+    if (f[i] === '#') return true;
+    if (f[i] === '+') { if (t[i] === undefined) return false; continue; }
+    if (f[i] !== t[i]) return false;
+  }
+  return f.length === t.length;
+}

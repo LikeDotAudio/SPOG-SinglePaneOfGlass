@@ -3,7 +3,7 @@ import $protobuf from "protobufjs/minimal.js";
 
 // Common aliases
 const $Reader = $protobuf.Reader, $Writer = $protobuf.Writer, $util = $protobuf.util;
-const $Object = $util.global.Object, $undefined = $util.global.undefined, $Error = $util.global.Error, $TypeError = $util.global.TypeError, $Number = $util.global.Number, $String = $util.global.String, $Boolean = $util.global.Boolean, $isFinite = $util.global.isFinite;
+const $Object = $util.global.Object, $undefined = $util.global.undefined, $Error = $util.global.Error, $TypeError = $util.global.TypeError, $Number = $util.global.Number, $String = $util.global.String, $Boolean = $util.global.Boolean, $isFinite = $util.global.isFinite, $Array = $util.global.Array, $parseInt = $util.global.parseInt, $BigInt = $util.global.BigInt;
 
 // Exported root namespace
 const $root = $protobuf.roots["default"] || ($protobuf.roots["default"] = {});
@@ -372,6 +372,9 @@ export const spog = $root.spog = (() => {
          * @property {spog.ParamValue.$Properties|null} [value] ValueMsg value
          * @property {number|null} [ts] ValueMsg ts
          * @property {string|null} [fullId] ValueMsg fullId
+         * @property {Array.<string>|null} [valueList] ValueMsg valueList
+         * @property {number|null} [originId] ValueMsg originId
+         * @property {number|Long|null} [tsMs] ValueMsg tsMs
          * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
          */
 
@@ -389,6 +392,9 @@ export const spog = $root.spog = (() => {
          *   value?: spog.ParamValue.$Shape|null;
          *   ts?: number|null;
          *   fullId?: string|null;
+         *   valueList?: Array.<string>|null;
+         *   originId?: number|null;
+         *   tsMs?: number|Long|null;
          *   $unknowns?: Array.<Uint8Array>;
          * }} spog.ValueMsg.$Shape
          */
@@ -402,6 +408,7 @@ export const spog = $root.spog = (() => {
          * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
          */
         const ValueMsg = function (properties) {
+            this.valueList = [];
             if (properties)
                 for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
                     if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -431,6 +438,30 @@ export const spog = $root.spog = (() => {
          * @instance
          */
         ValueMsg.prototype.fullId = "";
+
+        /**
+         * ValueMsg valueList.
+         * @member {Array.<string>} valueList
+         * @memberof spog.ValueMsg
+         * @instance
+         */
+        ValueMsg.prototype.valueList = $util.emptyArray;
+
+        /**
+         * ValueMsg originId.
+         * @member {number} originId
+         * @memberof spog.ValueMsg
+         * @instance
+         */
+        ValueMsg.prototype.originId = 0;
+
+        /**
+         * ValueMsg tsMs.
+         * @member {number|Long} tsMs
+         * @memberof spog.ValueMsg
+         * @instance
+         */
+        ValueMsg.prototype.tsMs = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
 
         /**
          * Creates a new ValueMsg instance using the specified properties.
@@ -470,6 +501,13 @@ export const spog = $root.spog = (() => {
                 writer.uint32(/* id 2, wireType 1 =*/17).double(message.ts);
             if (message.fullId != null && $Object.hasOwnProperty.call(message, "fullId") && message.fullId !== "")
                 writer.uint32(/* id 3, wireType 2 =*/26).string(message.fullId);
+            if (message.valueList != null && message.valueList.length)
+                for (let i = 0; i < message.valueList.length; ++i)
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.valueList[i]);
+            if (message.originId != null && $Object.hasOwnProperty.call(message, "originId") && message.originId !== 0)
+                writer.uint32(/* id 5, wireType 5 =*/45).fixed32(message.originId);
+            if (message.tsMs != null && $Object.hasOwnProperty.call(message, "tsMs") && (typeof message.tsMs === "object" ? message.tsMs.low || message.tsMs.high : message.tsMs !== 0))
+                writer.uint32(/* id 6, wireType 0 =*/48).uint64(message.tsMs);
             if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                 for (let i = 0; i < message.$unknowns.length; ++i)
                     writer.raw(message.$unknowns[i]);
@@ -541,6 +579,32 @@ export const spog = $root.spog = (() => {
                             delete message.fullId;
                         continue;
                     }
+                case 4: {
+                        if (wireType !== 2)
+                            break;
+                        if (!(message.valueList && message.valueList.length))
+                            message.valueList = [];
+                        message.valueList.push(reader.stringVerify());
+                        continue;
+                    }
+                case 5: {
+                        if (wireType !== 5)
+                            break;
+                        if (value = reader.fixed32())
+                            message.originId = value;
+                        else
+                            delete message.originId;
+                        continue;
+                    }
+                case 6: {
+                        if (wireType !== 0)
+                            break;
+                        if (typeof (value = reader.uint64()) === "object" ? value.low || value.high : value !== 0)
+                            message.tsMs = value;
+                        else
+                            delete message.tsMs;
+                        continue;
+                    }
                 }
                 reader.skipType(wireType, _depth, tag);
                 if (!reader.discardUnknown) {
@@ -595,6 +659,19 @@ export const spog = $root.spog = (() => {
             if (message.fullId != null && $Object.hasOwnProperty.call(message, "fullId"))
                 if (!$util.isString(message.fullId))
                     return "fullId: string expected";
+            if (message.valueList != null && $Object.hasOwnProperty.call(message, "valueList")) {
+                if (!$Array.isArray(message.valueList))
+                    return "valueList: array expected";
+                for (let i = 0; i < message.valueList.length; ++i)
+                    if (!$util.isString(message.valueList[i]))
+                        return "valueList: string[] expected";
+            }
+            if (message.originId != null && $Object.hasOwnProperty.call(message, "originId"))
+                if (!$util.isInteger(message.originId))
+                    return "originId: integer expected";
+            if (message.tsMs != null && $Object.hasOwnProperty.call(message, "tsMs"))
+                if (!$util.isInteger(message.tsMs) && !(message.tsMs && $util.isInteger(message.tsMs.low) && $util.isInteger(message.tsMs.high)))
+                    return "tsMs: integer|Long expected";
             return null;
         };
 
@@ -627,6 +704,26 @@ export const spog = $root.spog = (() => {
             if (object.fullId != null)
                 if (typeof object.fullId !== "string" || object.fullId.length)
                     message.fullId = $String(object.fullId);
+            if (object.valueList) {
+                if (!$Array.isArray(object.valueList))
+                    throw $TypeError(".spog.ValueMsg.valueList: array expected");
+                message.valueList = $Array(object.valueList.length);
+                for (let i = 0; i < object.valueList.length; ++i)
+                    message.valueList[i] = $String(object.valueList[i]);
+            }
+            if (object.originId != null)
+                if ($Number(object.originId) !== 0)
+                    message.originId = object.originId >>> 0;
+            if (object.tsMs != null)
+                if (typeof object.tsMs === "object" ? object.tsMs.low || object.tsMs.high : $Number(object.tsMs) !== 0)
+                    if ($util.Long)
+                        message.tsMs = $util.Long.fromValue(object.tsMs, true);
+                    else if (typeof object.tsMs === "string")
+                        message.tsMs = $parseInt(object.tsMs, 10);
+                    else if (typeof object.tsMs === "number")
+                        message.tsMs = object.tsMs;
+                    else if (typeof object.tsMs === "object")
+                        message.tsMs = new $util.LongBits(object.tsMs.low >>> 0, object.tsMs.high >>> 0).toNumber(true);
             return message;
         };
 
@@ -647,10 +744,18 @@ export const spog = $root.spog = (() => {
             if (_depth > $util.recursionLimit)
                 throw $Error("max depth exceeded");
             let object = {};
+            if (options.arrays || options.defaults)
+                object.valueList = [];
             if (options.defaults) {
                 object.value = null;
                 object.ts = 0;
                 object.fullId = "";
+                object.originId = 0;
+                if ($util.Long) {
+                    let long = new $util.Long(0, 0, true);
+                    object.tsMs = options.longs === $String ? long.toString() : options.longs === $Number ? long.toNumber() : typeof $BigInt !== "undefined" && options.longs === $BigInt ? long.toBigInt() : long;
+                } else
+                    object.tsMs = options.longs === $String ? "0" : typeof $BigInt !== "undefined" && options.longs === $BigInt ? $BigInt("0") : 0;
             }
             if (message.value != null && $Object.hasOwnProperty.call(message, "value"))
                 object.value = $root.spog.ParamValue.toObject(message.value, options, _depth + 1);
@@ -658,6 +763,20 @@ export const spog = $root.spog = (() => {
                 object.ts = options.json && !$isFinite(message.ts) ? $String(message.ts) : message.ts;
             if (message.fullId != null && $Object.hasOwnProperty.call(message, "fullId"))
                 object.fullId = message.fullId;
+            if (message.valueList && message.valueList.length) {
+                object.valueList = $Array(message.valueList.length);
+                for (let j = 0; j < message.valueList.length; ++j)
+                    object.valueList[j] = message.valueList[j];
+            }
+            if (message.originId != null && $Object.hasOwnProperty.call(message, "originId"))
+                object.originId = message.originId;
+            if (message.tsMs != null && $Object.hasOwnProperty.call(message, "tsMs"))
+                if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                    object.tsMs = typeof message.tsMs === "number" ? $BigInt(message.tsMs) : $util.Long.fromBits(message.tsMs.low >>> 0, message.tsMs.high >>> 0, true).toBigInt();
+                else if (typeof message.tsMs === "number")
+                    object.tsMs = options.longs === $String ? $String(message.tsMs) : message.tsMs;
+                else
+                    object.tsMs = options.longs === $String ? $util.Long.prototype.toString.call(message.tsMs) : options.longs === $Number ? new $util.LongBits(message.tsMs.low >>> 0, message.tsMs.high >>> 0).toNumber(true) : message.tsMs;
             return object;
         };
 
@@ -697,6 +816,7 @@ export const spog = $root.spog = (() => {
          * @property {boolean|null} [active] PresenceMsg active
          * @property {string|null} [fullId] PresenceMsg fullId
          * @property {number|null} [ts] PresenceMsg ts
+         * @property {number|null} [originId] PresenceMsg originId
          * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
          */
 
@@ -753,6 +873,14 @@ export const spog = $root.spog = (() => {
         PresenceMsg.prototype.ts = 0;
 
         /**
+         * PresenceMsg originId.
+         * @member {number} originId
+         * @memberof spog.PresenceMsg
+         * @instance
+         */
+        PresenceMsg.prototype.originId = 0;
+
+        /**
          * Creates a new PresenceMsg instance using the specified properties.
          * @function create
          * @memberof spog.PresenceMsg
@@ -790,6 +918,8 @@ export const spog = $root.spog = (() => {
                 writer.uint32(/* id 2, wireType 2 =*/18).string(message.fullId);
             if (message.ts != null && $Object.hasOwnProperty.call(message, "ts") && !$Object.is(message.ts, 0))
                 writer.uint32(/* id 3, wireType 1 =*/25).double(message.ts);
+            if (message.originId != null && $Object.hasOwnProperty.call(message, "originId") && message.originId !== 0)
+                writer.uint32(/* id 4, wireType 5 =*/37).fixed32(message.originId);
             if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                 for (let i = 0; i < message.$unknowns.length; ++i)
                     writer.raw(message.$unknowns[i]);
@@ -864,6 +994,15 @@ export const spog = $root.spog = (() => {
                             delete message.ts;
                         continue;
                     }
+                case 4: {
+                        if (wireType !== 5)
+                            break;
+                        if (value = reader.fixed32())
+                            message.originId = value;
+                        else
+                            delete message.originId;
+                        continue;
+                    }
                 }
                 reader.skipType(wireType, _depth, tag);
                 if (!reader.discardUnknown) {
@@ -916,6 +1055,9 @@ export const spog = $root.spog = (() => {
             if (message.ts != null && $Object.hasOwnProperty.call(message, "ts"))
                 if (typeof message.ts !== "number")
                     return "ts: number expected";
+            if (message.originId != null && $Object.hasOwnProperty.call(message, "originId"))
+                if (!$util.isInteger(message.originId))
+                    return "originId: integer expected";
             return null;
         };
 
@@ -946,6 +1088,9 @@ export const spog = $root.spog = (() => {
             if (object.ts != null)
                 if (!$Object.is($Number(object.ts), 0))
                     message.ts = $Number(object.ts);
+            if (object.originId != null)
+                if ($Number(object.originId) !== 0)
+                    message.originId = object.originId >>> 0;
             return message;
         };
 
@@ -970,6 +1115,7 @@ export const spog = $root.spog = (() => {
                 object.active = false;
                 object.fullId = "";
                 object.ts = 0;
+                object.originId = 0;
             }
             if (message.active != null && $Object.hasOwnProperty.call(message, "active"))
                 object.active = message.active;
@@ -977,6 +1123,8 @@ export const spog = $root.spog = (() => {
                 object.fullId = message.fullId;
             if (message.ts != null && $Object.hasOwnProperty.call(message, "ts"))
                 object.ts = options.json && !$isFinite(message.ts) ? $String(message.ts) : message.ts;
+            if (message.originId != null && $Object.hasOwnProperty.call(message, "originId"))
+                object.originId = message.originId;
             return object;
         };
 
@@ -1016,6 +1164,7 @@ export const spog = $root.spog = (() => {
          * @property {number|null} [messagesPerMinute] RateMsg messagesPerMinute
          * @property {number|null} [ts] RateMsg ts
          * @property {string|null} [fullId] RateMsg fullId
+         * @property {number|null} [originId] RateMsg originId
          * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
          */
 
@@ -1072,6 +1221,14 @@ export const spog = $root.spog = (() => {
         RateMsg.prototype.fullId = "";
 
         /**
+         * RateMsg originId.
+         * @member {number} originId
+         * @memberof spog.RateMsg
+         * @instance
+         */
+        RateMsg.prototype.originId = 0;
+
+        /**
          * Creates a new RateMsg instance using the specified properties.
          * @function create
          * @memberof spog.RateMsg
@@ -1109,6 +1266,8 @@ export const spog = $root.spog = (() => {
                 writer.uint32(/* id 2, wireType 1 =*/17).double(message.ts);
             if (message.fullId != null && $Object.hasOwnProperty.call(message, "fullId") && message.fullId !== "")
                 writer.uint32(/* id 3, wireType 2 =*/26).string(message.fullId);
+            if (message.originId != null && $Object.hasOwnProperty.call(message, "originId") && message.originId !== 0)
+                writer.uint32(/* id 4, wireType 5 =*/37).fixed32(message.originId);
             if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                 for (let i = 0; i < message.$unknowns.length; ++i)
                     writer.raw(message.$unknowns[i]);
@@ -1183,6 +1342,15 @@ export const spog = $root.spog = (() => {
                             delete message.fullId;
                         continue;
                     }
+                case 4: {
+                        if (wireType !== 5)
+                            break;
+                        if (value = reader.fixed32())
+                            message.originId = value;
+                        else
+                            delete message.originId;
+                        continue;
+                    }
                 }
                 reader.skipType(wireType, _depth, tag);
                 if (!reader.discardUnknown) {
@@ -1235,6 +1403,9 @@ export const spog = $root.spog = (() => {
             if (message.fullId != null && $Object.hasOwnProperty.call(message, "fullId"))
                 if (!$util.isString(message.fullId))
                     return "fullId: string expected";
+            if (message.originId != null && $Object.hasOwnProperty.call(message, "originId"))
+                if (!$util.isInteger(message.originId))
+                    return "originId: integer expected";
             return null;
         };
 
@@ -1265,6 +1436,9 @@ export const spog = $root.spog = (() => {
             if (object.fullId != null)
                 if (typeof object.fullId !== "string" || object.fullId.length)
                     message.fullId = $String(object.fullId);
+            if (object.originId != null)
+                if ($Number(object.originId) !== 0)
+                    message.originId = object.originId >>> 0;
             return message;
         };
 
@@ -1289,6 +1463,7 @@ export const spog = $root.spog = (() => {
                 object.messagesPerMinute = 0;
                 object.ts = 0;
                 object.fullId = "";
+                object.originId = 0;
             }
             if (message.messagesPerMinute != null && $Object.hasOwnProperty.call(message, "messagesPerMinute"))
                 object.messagesPerMinute = message.messagesPerMinute;
@@ -1296,6 +1471,8 @@ export const spog = $root.spog = (() => {
                 object.ts = options.json && !$isFinite(message.ts) ? $String(message.ts) : message.ts;
             if (message.fullId != null && $Object.hasOwnProperty.call(message, "fullId"))
                 object.fullId = message.fullId;
+            if (message.originId != null && $Object.hasOwnProperty.call(message, "originId"))
+                object.originId = message.originId;
             return object;
         };
 
