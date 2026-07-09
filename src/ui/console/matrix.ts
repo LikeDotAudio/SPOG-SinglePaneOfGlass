@@ -12,7 +12,7 @@ import { updateTwistVisuals, toggleHelix } from './helix.js';
 import { parseConfig, enforceTwistLimits, ensureDropZone, acceptsFor, buildDroppedGroup, rid } from './matrix-groups.js';
 import { refreshCrosspoints } from './matrix-crosspoints.js';
 import { publishCrosspoints, applyCrosspointsFromNetwork } from './matrix-place.js';
-import { fanOutToInputs, fanOutProductionToStudio } from './matrix-cascade.js';
+import { fanOutToInputs, fanOutProductionToStudio, fanOutHostToCamera } from './matrix-cascade.js';
 import { getBus } from '../../platform/mqtt/index.js';
 import { twistTopic } from '../../platform/mqtt/topics.js';
 

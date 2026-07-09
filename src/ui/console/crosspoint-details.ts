@@ -33,6 +33,61 @@ const kindOf = (node: HTMLElement): string =>
   : node.classList.contains('audio') ? 'Audio'
   : node.classList.contains('camera') ? 'Camera' : 'Signal';
 
+/** The clean label of a source-panel header (first <span>, minus the fold caret). */
+function headerLabel(header: Element | null): string {
+  if (!header) return '';
+  const span = header.querySelector('span:not(.fold-icon)');
+  const raw = (span?.textContent ?? header.textContent ?? '').replace(/[▼▶►◀]/g, '').trim();
+  return raw.split('\n')[0]?.trim() ?? '';
+}
+
+/** Find a routed feed's source-of-truth node back in the sources panel (by name). */
+function findPanelSource(name: string): HTMLElement | null {
+  const matches = [...document.querySelectorAll<HTMLElement>('.signal-node')]
+    .filter((n) => !n.closest('.twist-container') && ((n.textContent ?? '').trim().split('\n')[0] === name));
+  return matches.find((n) => n.dataset.origin) ?? matches[0] ?? null;
+}
+
+/** Walk a source node's ancestry into a top-down family tree
+ *  (category › folder › device/person). */
+function breadcrumb(src: HTMLElement): string[] {
+  const crumbs: string[] = [];
+  let el: HTMLElement | null = src.parentElement;
+  while (el && el !== document.body) {
+    if (el.classList.contains('super-pool-container')) {
+      const t = headerLabel(el.querySelector(':scope > .super-pool-title'));
+      if (t) crumbs.push(t);
+    } else if (el.classList.contains('media-group')) {
+      const t = headerLabel(el.querySelector(':scope > .media-group-header'));
+      if (t) crumbs.push(t);
+    } else if (el.classList.contains('input-group')) {
+      const t = headerLabel(el.querySelector(':scope > .foldable-header'));
+      if (t) crumbs.push(t);
+    }
+    el = el.parentElement;
+  }
+  return crumbs.reverse();
+}
+
+interface Lineage { family: string; tree: string; source: string; kind: string; }
+
+/** Resolve the full provenance of a routed crosspoint: which family/tree it comes
+ *  from and the specific source (studio wall, person/host, camera…) that feeds it. */
+function lineageFor(node: HTMLElement): Lineage {
+  const name = (node.textContent ?? '').trim().split('\n')[0] ?? 'source';
+  const panel = findPanelSource(name);
+  const ref = panel ?? node;                                   // panel node has the richest ancestry
+  const isPerson = ref.className.includes('person');
+  // Origin string ("Studio A — N Wall") is a reliable lineage even for network /
+  // 1990s-view feeds that never carried a panel ancestor.
+  const origin = ref.dataset.origin || node.dataset.origin || '';
+  const crumbs = panel ? breadcrumb(panel) : origin.split(' — ').map((s) => s.trim()).filter(Boolean);
+  const family = crumbs[0] || (isPerson ? 'Person' : kindOf(node));
+  const source = crumbs[crumbs.length - 1] || origin.split(' — ').pop() || name;
+  const tree = crumbs.length ? crumbs.join(' › ') : (origin || '—');
+  return { family, tree, source, kind: kindOf(node) };
+}
+
 let openCard: HTMLElement | null = null;
 function closeCard(): void { openCard?.remove(); openCard = null; }
 
@@ -48,16 +103,18 @@ function showDetails(node: HTMLElement, x: number, y: number): void {
   addStyles('xp-details-styles', CSS);
   closeCard();
   const name = (node.textContent ?? '').trim().split('\n')[0] ?? 'source';
-  const family = node.dataset.origin || kindOf(node);
-  const row = (label: string, val: string): string => `<dt>${label}</dt><dd>${val}</dd>`;
+  const esc = (s: string): string => s.replace(/[&<>]/g, (c) => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'));
+  const { family, tree, source, kind } = lineageFor(node);
+  const row = (label: string, val: string): string => `<dt>${label}</dt><dd>${esc(val)}</dd>`;
   const card = document.createElement('div');
   card.className = 'xp-details';
   card.innerHTML = `
     <div class="xp-details-h">Details<span class="xp-details-x" title="Close">✕</span></div>
     <dl class="xp-details-body">
       ${row('Family', family)}
-      ${row('Full name', name)}
-      ${row('Kind', kindOf(node))}
+      ${row('Source', source)}
+      ${row('Signal', `${name} · ${kind}`)}
+      ${row('Feeds from', tree)}
       ${row('Routed', fmtTs(node.dataset.routedTs))}
       ${row('By', node.dataset.routedBy || '—')}
     </dl>`;

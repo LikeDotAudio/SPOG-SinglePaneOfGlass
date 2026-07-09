@@ -51,6 +51,10 @@ export function updateTwistVisuals(twist: HTMLElement): void {
   const dropZone = twist.querySelector<HTMLElement>('.drop-zone');
   const svg = twist.querySelector<SVGSVGElement>('svg');
   const isMonitor = twist.classList.contains('monitor-twist');
+  // Gang members (e.g. the multiviewers) are sized by their group's N-column grid
+  // — the helix must fit its OWN cell, never re-inflate to the full row width (which
+  // would overflow and overlap its neighbours). Treat them like monitors: self-sized.
+  const selfSized = isMonitor || !!twist.closest('.twist-group.gang');
 
   const swimmers = dropZone ? Array.from(dropZone.querySelectorAll<HTMLElement>('.signal-node:not(.dropped-group)')) : [];
   const totalCount = swimmers.length;
@@ -69,14 +73,17 @@ export function updateTwistVisuals(twist: HTMLElement): void {
   if (placeholderBox) placeholderBox.style.display = totalCount > 0 ? 'none' : '';
 
   if (totalCount === 0) {
-    if (!isMonitor) { twist.style.minWidth = '200px'; twist.style.width = ''; }
+    if (selfSized) { twist.style.minWidth = ''; twist.style.width = ''; }
+    else { twist.style.minWidth = '200px'; twist.style.width = ''; }
     if (svg) { svg.innerHTML = ''; svg.style.height = '0'; svg.style.marginTop = '0'; }
     return;
   }
 
   const cycles = totalCount;
   let width: number;
-  if (isMonitor) {
+  if (selfSized) {
+    // Fit the cell the grid/monitor-row gave us; clear any stale forced width.
+    twist.style.minWidth = ''; twist.style.width = '';
     width = Math.max(120, Math.floor(twist.clientWidth) - 40);
   } else {
     const avail = twist.parentElement?.clientWidth || 600;

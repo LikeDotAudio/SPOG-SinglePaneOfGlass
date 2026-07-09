@@ -93,9 +93,10 @@ export function renderPrograms(pgm: Production, pane: HTMLElement, openEditor?: 
     return bases.every((b) => b.length > 0 && b !== names[0]?.toUpperCase() && b === bases[0]);
   };
 
-  // Every group starts UNFOLDED — the operator tucks banks up themselves; a
-  // fresh load must never hide twists behind a closed bar.
-  const openByDefault = (_count: number): string => ' open';
+  // Fresh load with nothing selected → everything folded in. Every twist group
+  // starts COLLAPSED (just its bar showing); the operator unfolds the banks they
+  // want. (source-filter.ts force-opens groups that a source/filter targets.)
+  const openByDefault = (_count: number): string => '';
   // The gang elbow paints in the members' own LCARS colour (first twist's).
   const zoneStyle = (content: string): string => {
     const c = (content.match(/--lcars-color:\s*([^;"']+)/) || [])[1];
