@@ -35,7 +35,7 @@ export function createDashboard(twistName: string, modules: Record<string, HTMLE
   const initPositions: Record<string, {x:number, y:number}> = {
     pgm: {x: 16, y: 16}, pvw: {x: 350, y: 16}, transitions: {x: 680, y: 16}, keyers: {x: 1000, y: 16},
     buses: {x: 16, y: 350}, macros: {x: 680, y: 220}, dsks: {x: 1000, y: 220},
-    scenes: {x: 680, y: 400}, me: {x: 1000, y: 400}, aux: {x: 1000, y: 500}, dve: {x: 16, y: 550}
+    scenes: {x: 680, y: 400}, me: {x: 1000, y: 400}, aux: {x: 1000, y: 500}, dve: {x: 16, y: 550}, preroute: {x: 1000, y: 620}
   };
 
   let currentLayout: ScreenLayout = {

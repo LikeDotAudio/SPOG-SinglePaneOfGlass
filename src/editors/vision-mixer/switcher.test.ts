@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { DEFAULT_SWITCHER } from './schema.js';
 import { newME, take, srcLabel, reentryOf, tallySet, applyPreset, capturePreset } from './me.js';
 import { captureScene, recallScene } from './scenes.js';
+import { graphicsInputs, dskSource, dskLabel } from './preroute.js';
 import { lerpKf, poseAt } from './dve.js';
 import { FULL } from './schema.js';
 import type { SwitcherDef } from '../../model/index.js';
@@ -94,5 +95,20 @@ describe('DVE math', () => {
     const a = { x: 0, y: 0, z: 0, scale: 100, rotX: 0, rotY: 0, rotZ: 0 };
     expect(poseAt(a, s, 0, 1000).x).toBe(40);
     expect(poseAt(a, { ...s, ms: 0 }, 0, 0).x).toBe(40);
+  });
+});
+
+describe('graphics pre-route', () => {
+  const fake = (dskSrc?: number[]) => ({ def, state: { mes: [], dsks: [], auxes: [], dskSrc } }) as unknown as import('./surface.js').Surface;
+  it('graphicsInputs are the hard-wired DSK sources', () => {
+    expect([...graphicsInputs(fake())].sort((a, b) => a - b)).toEqual([18, 19, 20, 21, 22, 23]);
+  });
+  it('dskSource defaults to the hard-wired feed, else the operator override', () => {
+    expect(dskSource(fake(), 0)).toBe(18);
+    expect(dskSource(fake([5, 19, 20, 21, 22, 23]), 0)).toBe(5);
+  });
+  it('dskLabel keeps the DSK name at default, shows the re-route when shifted', () => {
+    expect(dskLabel(fake(), 0)).toBe('DSK 1 · GRAPHICS 1');
+    expect(dskLabel(fake([2, 19, 20, 21, 22, 23]), 0)).toContain('⟵');
   });
 });

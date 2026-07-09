@@ -40,6 +40,10 @@ const ALLOWLIST = new Set([
   'src/ui/console/dest-fixtures-counters.ts',
   'src/ui/console/user-menu.ts',
   'src/ui/console/mqtt-tree.ts',
+  // The switcher's free-form dashboard layout engine (ScreenLayout + persistence +
+  // drag/resize observer) — one cohesive module; splitting the drag maths from the
+  // layout model fragments a tightly-coupled unit.
+  'src/editors/vision-mixer/dashboard.ts',
 ]);
 
 function walk(dir, out) {

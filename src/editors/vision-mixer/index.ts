@@ -34,6 +34,7 @@ import { buildSceneEditor } from './scene-editor.js';
 import { createDashboard } from './dashboard.js';
 import { buildLayoutDrawer } from './layout-drawer.js';
 import { buildAuxRow, buildMacroRow } from './panels.js';
+import { buildPreRoute } from './preroute.js';
 import { buildStage } from './stage.js';
 import { wireKeyboard } from './keyboard.js';
 import { buildTransition, type AutoToken } from './transition.js';
@@ -55,6 +56,7 @@ function render(host: HTMLElement, ctx: EditorContext): void {
     mes: Array.from({ length: def.mes }, (_, i) => newME(def, i + 1)),
     dsks: def.dsks.map(() => false),
     auxes: Array.from({ length: def.auxes ?? 6 }, () => 0),
+    dskSrc: def.dsks.map((d) => d.source ?? 0),   // graphics PRE-ROUTE (hard-wired defaults)
   };
   let delegate = 0;                       // which M/E the surface controls
   let shift = false;                      // bus shift bank (shift12 layout)
@@ -73,7 +75,7 @@ function render(host: HTMLElement, ctx: EditorContext): void {
     const raw = localStorage.getItem(STATE_KEY);
     if (raw) {
       const s = JSON.parse(raw) as SwitcherState;
-      if (s.mes?.length === def.mes) { state.mes = s.mes; state.dsks = def.dsks.map((_, i) => !!s.dsks?.[i]); state.auxes = s.auxes || Array.from({ length: def.auxes ?? 6 }, () => 0); }
+      if (s.mes?.length === def.mes) { state.mes = s.mes; state.dsks = def.dsks.map((_, i) => !!s.dsks?.[i]); state.auxes = s.auxes || Array.from({ length: def.auxes ?? 6 }, () => 0); state.dskSrc = def.dsks.map((d, i) => s.dskSrc?.[i] ?? d.source ?? 0); }
     }
   } catch { /* fall through to defaults */ }
   const persist = (): void => { try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch { /* ignore */ } };
@@ -176,6 +178,8 @@ function render(host: HTMLElement, ctx: EditorContext): void {
   // ---- aux + macro panels (panels.ts) -------------------------------------------
   const { auxRow, auxSelects } = buildAuxRow(surface);
   const { macroRow } = buildMacroRow(surface);
+  // Graphics PRE-ROUTE: shift which hard-wired control-room graphic feeds each DSK.
+  const { preRow } = buildPreRoute(surface, dskBtns);
 
   // ---- DVE editor drawer -----------------------------------------------------------
   const dveDrawer = buildDveEditor({
@@ -219,6 +223,10 @@ function render(host: HTMLElement, ctx: EditorContext): void {
     el('p', { class: 'ed-h' }, ['DOWNSTREAM KEYERS']),
     el('div', { class: 'vm-keyrow' }, dskBtns),
   ]);
+  const preSec = el('div', { class: 'vm-sec' }, [
+    el('p', { class: 'ed-h' }, ['GRAPHICS PRE-ROUTE']),
+    preRow,
+  ]);
   const meSec = el('div', { class: 'vm-sec' }, [
     el('p', { class: 'ed-h' }, ['M/E LOOKS']),
     meRow,
@@ -230,7 +238,7 @@ function render(host: HTMLElement, ctx: EditorContext): void {
 
   const modules: Record<string, HTMLElement> = {
     macros: macroSec, pgm: pgmMon, buses: busesMod, tbar: tbarWrap, pvw: pvwMon, scenes: sceneSec,
-    transitions: transSec, keyers: keyerSec, dsks: dskSec, me: meSec, aux: auxSec, dve: dveSec
+    transitions: transSec, keyers: keyerSec, dsks: dskSec, preroute: preSec, me: meSec, aux: auxSec, dve: dveSec
   };
 
   // ---- dashboard canvas + drawers -----------------------------------------------

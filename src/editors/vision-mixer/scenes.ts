@@ -8,7 +8,14 @@
 import type { SceneDef, SwitcherDef } from '../../model/index.js';
 import { applyPreset, capturePreset, type MEState } from './me.js';
 
-export interface SwitcherState { mes: MEState[]; dsks: boolean[]; auxes: number[]; }
+export interface SwitcherState {
+  mes: MEState[];
+  dsks: boolean[];
+  auxes: number[];
+  /** Per-DSK source override (the graphics PRE-ROUTE): which input feeds each
+   *  downstream keyer. Absent → each DSK uses its hard-wired `def.dsks[i].source`. */
+  dskSrc?: number[];
+}
 
 const LS_KEY = (twist: string): string => `twist.vm.scenes.${twist}`;
 
