@@ -27,9 +27,9 @@ export function logAction(text: string, undo?: () => void): void {
   const ts = Date.now();
   const nar = ensureNarrative();
   const line = signed(text);
-  const entry: Entry = { id: nextEid(), ts, twist: null, dest: '', prod: '', added: [], removed: [], text: line, reversed: false, undo };
+  const entry: Entry = { id: nextEid(), ts, twist: null, dest: '', prod: '', added: [], removed: [], text: line, reversed: false, undo, role: role().name };
   nar.entries.push(entry);
-  emitLog({ voyage: nar.id, entry: entry.id, ts, dest: '', prod: '', added: [], removed: [], text: line, reversed: false });
+  emitLog({ voyage: nar.id, entry: entry.id, ts, dest: '', prod: '', added: [], removed: [], text: line, reversed: false, role: role().name });
   render();
 }
 
@@ -67,7 +67,7 @@ export function receiveNetworkLog(e: LogEntryEvent, origin?: string): void {
   const entry: Entry = {
     id: e.entry, ts: e.ts, twist: null, dest: e.dest, prod: e.prod,
     added: [], removed: [], text, reversed: e.reversed,
-    restored: true, origin: org
+    restored: true, origin: org, role: e.role
   };
   nar.entries.push(entry);
   nar.entries.sort((a, b) => a.id - b.id);

@@ -21,7 +21,7 @@ export function persistEntry(e: LogEntryEvent, origin?: string): void {
     });
     return;
   }
-  void idbPut('log', { k: key, origin: org, voyage: e.voyage, voyTitle, entry: e.entry, ts: e.ts, dest: e.dest, prod: e.prod, text: e.text, reversed: e.reversed });
+  void idbPut('log', { k: key, origin: org, voyage: e.voyage, voyTitle, entry: e.entry, ts: e.ts, dest: e.dest, prod: e.prod, text: e.text, reversed: e.reversed, by: e.by, role: e.role });
 }
 
 export async function hydrateLog(): Promise<number> {
@@ -38,7 +38,7 @@ export async function hydrateLog(): Promise<number> {
         nar = { id: r.voyage, origin: org, title: mine ? r.voyTitle : `${r.voyTitle} · ${org.slice(0, 4)}`, entries: [] };
         narratives.push(nar);
       }
-      nar.entries.push({ id: r.entry, ts: r.ts, twist: null, dest: r.dest, prod: r.prod, added: [], removed: [], text: r.text, reversed: r.reversed, reversedBy: r.reversedBy, reversedTs: r.reversedTs, restored: true, origin: org });
+      nar.entries.push({ id: r.entry, ts: r.ts, twist: null, dest: r.dest, prod: r.prod, added: [], removed: [], text: r.text, reversed: r.reversed, reversedBy: r.reversedBy, reversedTs: r.reversedTs, restored: true, origin: org, role: r.role });
       if (org === selfOrigin()) { raiseNid(r.voyage); raiseEid(r.entry); }
     }
     // Chronological across the merged log.

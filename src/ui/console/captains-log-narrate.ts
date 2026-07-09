@@ -5,7 +5,7 @@
 import { updateTwistVisuals } from './helix.js';
 import { refreshCrosspoints } from './matrix-crosspoints.js';
 import { publishCrosspoints } from './matrix-place.js';
-import { operator } from '../../platform/auth.js';
+import { operator, role } from '../../platform/auth.js';
 import { emitLog } from './captains-log-persist.js';
 import { render } from './captains-log-view.js';
 import { narratives, selected, ensureNarrative, nextEid, type Entry, type Removed } from './captains-log-state.js';
@@ -81,9 +81,9 @@ export function onMutations(records: MutationRecord[]): void {
   byTwist.forEach((ch, twist) => {
     if (!ch.added.length && !ch.removed.length) return;
     const { dest, prod } = destInfo(twist);
-    const entry: Entry = { id: nextEid(), ts, twist, dest, prod, added: ch.added.slice(), removed: ch.removed.slice(), text: signed(narrate(dest, prod, ch.removed.map((r) => r.node), ch.added, ts)), reversed: false };
+    const entry: Entry = { id: nextEid(), ts, twist, dest, prod, added: ch.added.slice(), removed: ch.removed.slice(), text: signed(narrate(dest, prod, ch.removed.map((r) => r.node), ch.added, ts)), reversed: false, role: role().name };
     nar.entries.push(entry);
-    emitLog({ voyage: nar.id, entry: entry.id, ts, dest, prod, added: ch.added.map(nodeLabel).filter(Boolean), removed: ch.removed.map((r) => nodeLabel(r.node)).filter(Boolean), text: entry.text, reversed: false, by: operator() || undefined });
+    emitLog({ voyage: nar.id, entry: entry.id, ts, dest, prod, added: ch.added.map(nodeLabel).filter(Boolean), removed: ch.removed.map((r) => nodeLabel(r.node)).filter(Boolean), text: entry.text, reversed: false, by: operator() || undefined, role: role().name });
     changed = true;
   });
   if (changed) render();
