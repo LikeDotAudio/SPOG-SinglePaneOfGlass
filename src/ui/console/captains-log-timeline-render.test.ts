@@ -16,7 +16,8 @@ describe('timeline render — folded room header', () => {
     expect(html).toContain('tl-count');
     expect(html).toContain('(2 events)');
     expect(html).not.toContain('tl-comp');          // no separate "N events (folded)" row
-    expect(html).not.toContain('ROOM 1 · LANE');     // the lane itself is hidden while folded
+    expect(html).toContain('tl-kf tl-sum');          // but a SUMMARY event line stays on the header row
+    expect(html).not.toContain('ROOM 1 · LANE');     // the lane label itself is hidden while folded
   });
   it('singular event count reads "(1 event)"', () => {
     const { html } = buildGrid([lane('1ST FLOOR — ROOM 2', 1)], x, 100, 0, 2, 0, new Set(['G:where|1ST FLOOR — ROOM 2']));

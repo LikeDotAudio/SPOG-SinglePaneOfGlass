@@ -23,7 +23,7 @@ export const TL_CSS = `
 .tl-x{cursor:pointer;font-weight:900;padding:0 6px;}
 .tl-body{flex:1;min-height:0;overflow:auto;position:relative;background:#06070c;}
 .tl-grid{position:relative;}
-.tl-sec,.tl-group{cursor:pointer;user-select:none;height:19px;}
+.tl-sec,.tl-group{cursor:pointer;user-select:none;height:19px;position:relative;}
 .tl-sec{font:900 10px sans-serif;letter-spacing:2px;color:#06070c;}
 .tl-sec.where{background:#6FC8F0;} .tl-sec.who{background:#A06EB4;}
 .tl-group{color:#9a8845;font:9px 'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;background:#0a0805;}
@@ -31,8 +31,11 @@ export const TL_CSS = `
 /* The header TEXT (title + fold flap) sticks to the left edge — like the lane labels —
    so it stays put while the graph scrolls horizontally. The full-width bar behind it is
    a solid colour, so the row still reads correctly at any scroll offset. */
-.tl-hd-in{position:sticky;left:0;z-index:6;display:inline-flex;align-items:center;gap:6px;height:100%;padding:0 8px;box-sizing:border-box;}
+.tl-hd-in{position:sticky;left:0;z-index:6;display:inline-flex;align-items:center;gap:6px;height:100%;padding:0 8px;box-sizing:border-box;background:inherit;}
 .tl-group .tl-hd-in{padding-left:18px;}
+/* Summary marks on a folded group/section header row — thin bands + small dots. */
+.tl-band.tl-sum{top:7px;height:5px;opacity:.55;}
+.tl-kf.tl-sum{top:5px;width:8px;height:8px;margin-left:-4px;border-width:1.5px;}
 .tl-count{color:#6FC8F0;font-style:italic;text-transform:none;letter-spacing:0;}
 .tl-lane{position:relative;height:30px;border-bottom:1px solid #10141f;}
 .tl-lane:nth-of-type(even){background:rgba(255,255,255,.015);}

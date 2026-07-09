@@ -37,7 +37,16 @@ export function buildGrid(lanes: RLane[], x: (ts: number) => number, width: numb
     for (const k of s) { const idx = ev.push({ ts: k.ts, text: k.text, op: k.op, rev: k.rev, color: k.color }) - 1; h += `<div class="tl-kf${k.rev ? ' rev' : ''}" data-ev="${idx}" style="left:${x(k.ts)}px;background:${k.color};" title="${esc(hm(k.ts) + '  ' + k.text)}"></div>`; }
     return h + '</div>';
   };
-  const comp = (n: number): string => `⋯ ${n} event${n === 1 ? '' : 's'} (folded)`;
+  // Aggregated activity for a FOLDED group's own header row: thin occupancy bands +
+  // small event dots (still click-through to detail), so a folded topic keeps a
+  // one-line summary on the timeline instead of vanishing.
+  const summaryMarks = (kf: RKf[]): string => {
+    let h = '';
+    const s = [...kf].sort((a, b) => a.ts - b.ts);
+    s.forEach((k, i) => { const sx = x(k.ts), ex = i + 1 < s.length ? x(s[i + 1]!.ts) : sx; if (ex > sx) h += `<div class="tl-band tl-sum" style="left:${sx}px;width:${ex - sx}px;background:${k.color};"></div>`; });
+    for (const k of s) { const idx = ev.push({ ts: k.ts, text: k.text, op: k.op, rev: k.rev, color: k.color }) - 1; h += `<div class="tl-kf tl-sum${k.rev ? ' rev' : ''}" data-ev="${idx}" style="left:${x(k.ts)}px;background:${k.color};" title="${esc(hm(k.ts) + '  ' + k.text)}"></div>`; }
+    return h;
+  };
 
   let html = '', curSec = '', curGrp = '';
   for (const ln of lanes) {
@@ -45,18 +54,20 @@ export function buildGrid(lanes: RLane[], x: (ts: number) => number, width: numb
     if (ln.section !== curSec) {
       curSec = ln.section; curGrp = '';
       const c = collapsed.has(secKey), label = ln.section === 'where' ? 'WHERE — DESTINATIONS &amp; ROOMS' : 'WHO — OPERATORS &amp; BOOKED CREW';
-      html += `<div class="tl-sec ${ln.section}" data-fold="${secKey}"><span class="tl-hd-in">${c ? '▸' : '▾'} ${label}</span></div>`;
-      if (c) html += laneHtml(comp((aggS.get(secKey) ?? []).length), aggS.get(secKey) ?? [], [], 'tl-comp');
+      const aggsec = aggS.get(secKey) ?? [];
+      const scount = c ? ` <span class="tl-count">(${aggsec.length} event${aggsec.length === 1 ? '' : 's'})</span>` : '';
+      html += `<div class="tl-sec ${ln.section}" data-fold="${secKey}"><span class="tl-hd-in">${c ? '▸' : '▾'} ${label}${scount}</span>${c ? summaryMarks(aggsec) : ''}</div>`;
     }
     if (collapsed.has(secKey)) continue;
     if (ln.group !== curGrp) {
       curGrp = ln.group;
       const c = collapsed.has(grpKey);
-      // Folded rooms show their event count INLINE in the header (e.g. "▸ 1ST FLOOR — ROOM 1
-      // (2 events)") — no separate composite lane, so a folded room is a single compact row.
-      const n = (aggG.get(grpKey) ?? []).length;
-      const count = c ? ` <span class="tl-count">(${n} event${n === 1 ? '' : 's'})</span>` : '';
-      html += `<div class="tl-group${c ? ' folded' : ''}" data-fold="${esc(grpKey)}"><span class="tl-hd-in">${c ? '▸' : '▾'} ${esc(ln.group)}${count}</span></div>`;
+      // Folded rooms show their count INLINE (e.g. "▸ 1ST FLOOR — ROOM 1 (2 events)")
+      // AND a one-line summary of their events on the same header row — no separate
+      // composite lane, so a folded topic stays compact but never vanishes from the graph.
+      const agg = aggG.get(grpKey) ?? [];
+      const count = c ? ` <span class="tl-count">(${agg.length} event${agg.length === 1 ? '' : 's'})</span>` : '';
+      html += `<div class="tl-group${c ? ' folded' : ''}" data-fold="${esc(grpKey)}"><span class="tl-hd-in">${c ? '▸' : '▾'} ${esc(ln.group)}${count}</span>${c ? summaryMarks(agg) : ''}</div>`;
     }
     if (collapsed.has(grpKey)) continue;
     html += laneHtml(ln.name, ln.kf, ln.plans);
