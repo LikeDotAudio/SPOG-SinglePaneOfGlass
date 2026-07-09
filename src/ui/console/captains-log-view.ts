@@ -56,9 +56,12 @@ export function render(): void {
     const color = VOY_COLORS[narratives.indexOf(n) % VOY_COLORS.length] ?? '#C2B74B';
     html += `<div class="cl-nar"><div class="cl-nar-h" data-nar="${narKey(n.origin, n.id)}" style="background:${color}">${esc(n.title)}<span class="cl-edit">row=select · header=all · ✎</span></div>`;
     [...n.entries].reverse().forEach((e) => {
+      const revTag = e.reversed
+        ? ` <span class="cl-rb">[course reversed${e.reversedBy ? ` by ${esc(e.reversedBy)}` : ''}${e.reversedTs ? ` at ${hms(e.reversedTs)} UTC` : ''}]</span>`
+        : '';
       html += `<div class="cl-entry${selected.has(e.id) ? ' sel' : ''}${e.reversed ? ' reversed' : ''}" data-entry="${e.id}">
         <div class="cl-cap" style="background:${color}"></div>
-        <div class="cl-mid">${esc(e.text)}${e.reversed ? ' <span class="cl-rb">[course reversed]</span>' : ''}</div>
+        <div class="cl-mid">${esc(e.text)}${revTag}</div>
         <div class="cl-val">${hms(e.ts)}<small>UTC</small></div></div>`;
     });
     html += `</div>`;

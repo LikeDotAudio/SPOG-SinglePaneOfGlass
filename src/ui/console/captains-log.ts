@@ -9,7 +9,8 @@
 // -narrate (mutation → entry + Reverse Course), -view (CSS + render).
 import { addStyles } from '../dom.js';
 import { role, onRoleChange } from '../../platform/auth.js';
-import { ensureNarrative, nextEid, nextNid, nid, setCurrent, narratives, selected, entryById, narById, narByKeyStr, raiseNid, raiseEid, selfOrigin, narByOriginVoyage, type Entry, type Narrative, type LogEntryEvent } from './captains-log-state.js';
+import { ensureNarrative, nextEid, nextNid, nid, setCurrent, narratives, selected, entryById, narByKeyStr, raiseNid, raiseEid, selfOrigin, setSelfOrigin, originOf, narByOriginVoyage, type Entry, type Narrative, type LogEntryEvent } from './captains-log-state.js';
+import { getBus } from '../../platform/mqtt/index.js';
 import { hydrateLog, emitLog, onLogEntry, persistEntry } from './captains-log-persist.js';
 import { signed, reverseSelected, observeRoot } from './captains-log-narrate.js';
 import { render, setListEl, CL_CSS } from './captains-log-view.js';
@@ -42,9 +43,18 @@ export function receiveNetworkLog(e: LogEntryEvent, origin?: string): void {
     nar = { id: e.voyage, origin: org, title: mine ? `Voyage ${e.voyage}` : `Voyage ${e.voyage} · ${org.slice(0, 4)}`, entries: [] };
     narratives.push(nar);
   }
-  // A reversal updates the flag on an entry we already hold; a fresh id is new.
+  // A reversal updates the flag (+ who/when reversed) on an entry we already hold.
   const existing = nar.entries.find((x) => x.id === e.entry);
-  if (existing) { if (e.reversed) { existing.reversed = true; render(); } return; }
+  if (existing) {
+    if (e.reversed && !existing.reversed) {
+      existing.reversed = true;
+      existing.reversedBy = e.reversedBy;
+      existing.reversedTs = e.reversedTs;
+      persistEntry(e, org);
+      render();
+    }
+    return;
+  }
 
   const entry: Entry = {
     id: e.entry, ts: e.ts, twist: null, dest: e.dest, prod: e.prod,
@@ -122,6 +132,9 @@ function close(): void { panel?.classList.remove('open'); }
 
 export function initCaptainsLog(): void {
   addStyles('captains-log-styles', CL_CSS);
+  // Tag this seat's own entries with its session origin so the unified log keeps
+  // our voyages distinct from every other console's (must run before hydrate).
+  try { setSelfOrigin(originOf(getBus().sessionId)); } catch { /* no bus → stays 'local' */ }
   if (!document.querySelector('.cl-btn')) {
     const b = document.createElement('button');
     b.className = 'cl-btn';

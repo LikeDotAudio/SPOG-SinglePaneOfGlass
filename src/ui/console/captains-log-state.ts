@@ -11,15 +11,15 @@ interface Removed { node: HTMLElement; parent: Node; next: Node | null }
 // `restored` marks entries hydrated from IndexedDB — read-only history: the DOM
 // nodes / undo callbacks they narrated died with the previous session, so they
 // can't be selected for Reverse Course (audit §7.3 gap 3).
-export interface Entry { id: number; ts: number; twist: HTMLElement | null; dest: string; prod: string; added: HTMLElement[]; removed: Removed[]; text: string; reversed: boolean; undo?: () => void; restored?: boolean; origin?: string }
+export interface Entry { id: number; ts: number; twist: HTMLElement | null; dest: string; prod: string; added: HTMLElement[]; removed: Removed[]; text: string; reversed: boolean; reversedBy?: string; reversedTs?: number; undo?: () => void; restored?: boolean; origin?: string }
 // A narrative is identified by (origin session, voyage number): a UNIFIED log
 // merges every console's voyages, so two seats' "Voyage 1" stay distinct entries.
 export interface Narrative { id: number; title: string; entries: Entry[]; origin?: string }
 export type { Removed };
 // IndexedDB row shape (audit §8 W2): the log is the audit trail.
-export interface StoredEntry { k: string; origin?: string; voyage: number; voyTitle: string; entry: number; ts: number; dest: string; prod: string; text: string; reversed: boolean }
+export interface StoredEntry { k: string; origin?: string; voyage: number; voyTitle: string; entry: number; ts: number; dest: string; prod: string; text: string; reversed: boolean; reversedBy?: string; reversedTs?: number }
 /** A log entry surfaced to external listeners (the MQTT bridge, audit §4.6). */
-export interface LogEntryEvent { voyage: number; entry: number; ts: number; dest: string; prod: string; added: string[]; removed: string[]; text: string; reversed: boolean }
+export interface LogEntryEvent { voyage: number; entry: number; ts: number; dest: string; prod: string; added: string[]; removed: string[]; text: string; reversed: boolean; reversedBy?: string; reversedTs?: number }
 
 // The one true copies of the mutable state. Arrays/sets are exported by
 // reference (mutated in place); the scalar counters + `current` are private and

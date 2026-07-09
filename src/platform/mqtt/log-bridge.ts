@@ -23,7 +23,7 @@ export function startLogBridge(bus: TwistBus): () => void {
     const msg: Omit<LogMsg, 'full_id'> = {
       voyage: e.voyage, entry: e.entry, ts: e.ts,
       dest: e.dest, prod: e.prod, added: e.added, removed: e.removed,
-      text: e.text, reversed: e.reversed,
+      text: e.text, reversed: e.reversed, reversedBy: e.reversedBy, reversedTs: e.reversedTs,
     };
     // Namespaced by ORIGIN so two consoles' `voyage/entry` numbers never collide
     // (each seat owns its own retained subtree) — the key to a unified, complete log.
@@ -41,7 +41,7 @@ export function startLogBridge(bus: TwistBus): () => void {
     receiveNetworkLog({
       voyage: msg.voyage, entry: msg.entry, ts: msg.ts,
       dest: msg.dest, prod: msg.prod, added: msg.added, removed: msg.removed,
-      text: msg.text, reversed: msg.reversed,
+      text: msg.text, reversed: msg.reversed, reversedBy: msg.reversedBy, reversedTs: msg.reversedTs,
     }, org);
   });
 

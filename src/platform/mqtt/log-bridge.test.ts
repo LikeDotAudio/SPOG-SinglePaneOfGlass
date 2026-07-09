@@ -30,17 +30,17 @@ function fakeBus(getEnabled: () => boolean): { bus: TwistBus; pubs: Pub[] } {
 }
 
 describe('startLogBridge', () => {
-  it('publishes each entry to log/<voyage>/<entry> AND log/latest', () => {
+  it('publishes each entry to log/<origin>/<voyage>/<entry>, namespaced by origin', () => {
     const { bus, pubs } = fakeBus(() => true);
     const stop = startLogBridge(bus);
     logAction('Layout · PROD 7 — renamed container');
     stop();
 
-    const latest = pubs.find((p) => p.topic === 'log/latest');
-    expect(latest).toBeTruthy();
-    expect((latest!.payload as { text: string }).text).toContain('renamed container');
-    expect((latest!.payload as { full_id: string }).full_id).toBe('abcd:TWIST:1');
-    expect(pubs.some((p) => /^log\/\d+\/\d+$/.test(p.topic))).toBe(true);
+    // Origin-namespaced retained topic (abcd = the full_id prefix) — no shared latest.
+    const entry = pubs.find((p) => /^log\/abcd\/\d+\/\d+$/.test(p.topic));
+    expect(entry).toBeTruthy();
+    expect((entry!.payload as { text: string }).text).toContain('renamed container');
+    expect((entry!.payload as { full_id: string }).full_id).toBe('abcd:TWIST:1');
   });
 
   it('stays silent while the bus is disabled (no broker configured)', () => {

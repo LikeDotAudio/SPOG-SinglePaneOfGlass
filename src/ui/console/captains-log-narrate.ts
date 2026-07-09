@@ -82,12 +82,16 @@ export function onMutations(records: MutationRecord[]): void {
 
 function reverseEntry(entry: Entry): void {
   if (entry.reversed) return;
+  const who = operator();
+  const when = Date.now();
+  entry.reversedBy = who || undefined;
+  entry.reversedTs = when;
   // Semantic (layout) entry: run its undo callback instead of restoring nodes.
   if (entry.undo) {
     try { entry.undo(); } catch { /* a failed undo must not wedge the log */ }
     entry.reversed = true;
     const v = narratives.find((n) => n.entries.includes(entry))?.id ?? 0;
-    emitLog({ voyage: v, entry: entry.id, ts: Date.now(), dest: entry.dest, prod: entry.prod, added: [], removed: [], text: `Course reversed: ${entry.text}`, reversed: true });
+    emitLog({ voyage: v, entry: entry.id, ts: when, dest: entry.dest, prod: entry.prod, added: [], removed: [], text: `Course reversed: ${entry.text}`, reversed: true, reversedBy: who || undefined, reversedTs: when });
     return;
   }
   entry.added.forEach((n) => { if (n.parentNode) n.parentNode.removeChild(n); });
@@ -109,7 +113,7 @@ function reverseEntry(entry: Entry): void {
   }
   entry.reversed = true;
   const voyage = narratives.find((n) => n.entries.includes(entry))?.id ?? 0;
-  emitLog({ voyage, entry: entry.id, ts: Date.now(), dest: entry.dest, prod: entry.prod, added: entry.added.map(nodeLabel).filter(Boolean), removed: entry.removed.map((r) => nodeLabel(r.node)).filter(Boolean), text: `Course reversed: ${entry.text}`, reversed: true });
+  emitLog({ voyage, entry: entry.id, ts: when, dest: entry.dest, prod: entry.prod, added: entry.added.map(nodeLabel).filter(Boolean), removed: entry.removed.map((r) => nodeLabel(r.node)).filter(Boolean), text: `Course reversed: ${entry.text}`, reversed: true, reversedBy: who || undefined, reversedTs: when });
 }
 
 export function reverseSelected(): void {
