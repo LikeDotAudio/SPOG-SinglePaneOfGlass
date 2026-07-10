@@ -4,7 +4,7 @@ import { putDraft } from '../../platform/routes-store.js';
 import { role } from '../../platform/auth.js';
 import { SCHED_CSS } from './schedule-css.js';
 
-export interface Slot { s: number; e: number; show: string; room: string; crew: string[]; resources?: string[] }
+export interface Slot { s: number; e: number; show: string; room: string; floor?: string; controlRoom?: string; crew: string[]; resources?: string[] }
 
 export const SCHEDULE: Slot[] = [];
 let RAW_SCHEDULE_DATA: any = null;
@@ -116,8 +116,24 @@ function renderEditor(sl: Slot, idx: number, list: HTMLElement): void {
         <label>End (decimal hr) <input type="number" step="0.25" class="ed-e" value="${sl.e}" /></label>
       </div>
       <label>Show Name <input type="text" class="ed-show" value="${sl.show}" /></label>
-      <label>Room <input type="text" class="ed-room" value="${sl.room}" /></label>
-      <label>Crew (comma separated) <input type="text" class="ed-crew" value="${(sl.crew||[]).join(', ')}" /></label>
+      <div style="display:flex;gap:8px;">
+        <label style="flex:1">Floor
+          <select class="ed-floor" style="width:100%">
+            ${['', '1st Floor', '2nd Floor', '3rd Floor', '4th Floor', '5th Floor'].map(f => `<option value="${f}" ${sl.floor===f?'selected':''}>${f||'-- None --'}</option>`).join('')}
+          </select>
+        </label>
+        <label style="flex:1">Control Room
+          <select class="ed-cr" style="width:100%">
+             ${['', 'CR 1', 'CR 2', 'CR 3', 'CR 4', 'NOC', 'Remote'].map(c => `<option value="${c}" ${sl.controlRoom===c?'selected':''}>${c||'-- None --'}</option>`).join('')}
+          </select>
+        </label>
+      </div>
+      <label>Room (legacy) <input type="text" class="ed-room" value="${sl.room||''}" /></label>
+      <label style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
+        Crew Members 
+        <button type="button" class="add-crew-btn" style="padding:4px 8px;font-size:10px;background:#39D353;color:#000;border:none;border-radius:4px;cursor:pointer;">+ Add Crew</button>
+      </label>
+      <div class="crew-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
       <label>Resources (comma separated) <input type="text" class="ed-res" value="${(sl.resources||[]).join(', ')}" /></label>
       <div class="sc-editor-actions">
         <button class="save">Save Slot</button>
@@ -126,12 +142,39 @@ function renderEditor(sl: Slot, idx: number, list: HTMLElement): void {
     </div>
   `;
   
+  const crewList = elBox.querySelector('.crew-list') as HTMLElement;
+  const addCrewBtn = elBox.querySelector('.add-crew-btn') as HTMLButtonElement;
+  const roles = ['TD', 'Director', 'Producer', 'Audio (A1)', 'Audio (A2)', 'Video (V1)', 'Video (V2)', 'Graphics', 'Engineer', 'Comm', 'Prompter', 'Camera', 'Conn', 'Helm'];
+  
+  const renderCrewSelect = (val = '') => {
+    const row = document.createElement('div');
+    row.style.display = 'flex'; row.style.gap = '4px';
+    const sel = document.createElement('select');
+    sel.className = 'ed-crew-sel';
+    sel.style.flex = '1';
+    sel.innerHTML = `<option value="">-- Select Role --</option>` + roles.map(r => `<option value="${r}" ${val===r?'selected':''}>${r}</option>`).join('');
+    const del = document.createElement('button');
+    del.type = 'button'; del.textContent = 'X'; 
+    del.style.padding = '4px 8px'; del.style.background = '#B46757'; del.style.color = '#fff'; del.style.border = 'none'; del.style.borderRadius = '4px'; del.style.cursor = 'pointer';
+    del.onclick = () => row.remove();
+    row.appendChild(sel); row.appendChild(del);
+    crewList.appendChild(row);
+  };
+  
+  (sl.crew || []).forEach(c => renderCrewSelect(c));
+  addCrewBtn.onclick = () => renderCrewSelect();
+  
   elBox.querySelector('.save')?.addEventListener('click', () => {
     sl.s = Number((elBox.querySelector('.ed-s') as HTMLInputElement).value) || 0;
     sl.e = Number((elBox.querySelector('.ed-e') as HTMLInputElement).value) || 0;
     sl.show = (elBox.querySelector('.ed-show') as HTMLInputElement).value;
     sl.room = (elBox.querySelector('.ed-room') as HTMLInputElement).value;
-    sl.crew = (elBox.querySelector('.ed-crew') as HTMLInputElement).value.split(',').map(s=>s.trim()).filter(Boolean);
+    sl.floor = (elBox.querySelector('.ed-floor') as HTMLSelectElement).value;
+    sl.controlRoom = (elBox.querySelector('.ed-cr') as HTMLSelectElement).value;
+    
+    const crewSels = Array.from(elBox.querySelectorAll('.ed-crew-sel')) as HTMLSelectElement[];
+    sl.crew = crewSels.map(s => s.value).filter(Boolean);
+    
     sl.resources = (elBox.querySelector('.ed-res') as HTMLInputElement).value.split(',').map(s=>s.trim()).filter(Boolean);
     if (idx === SCHEDULE.length) SCHEDULE.push(sl);
     SCHEDULE.sort((a,b) => a.s - b.s);
@@ -161,18 +204,21 @@ function build(root: HTMLElement): void {
       return;
     }
     const live = now >= sl.s && now < sl.e;
+    const reh = now >= sl.s - 0.75 && now < sl.s;
+    const tear = now >= sl.e && now < sl.e + 0.5;
+    const locked = live || reh || tear;
     const pc = showColor(sl.show);
     const elNode = document.createElement('div');
-    elNode.className = 'sc-slot' + (live ? ' live' : '');
+    elNode.className = 'sc-slot' + (live ? ' live' : '') + (reh ? ' reh' : '') + (tear ? ' tear' : '');
     elNode.style.borderLeft = `4px solid ${pc}`;   // production identity bar
-    elNode.innerHTML = `<div class="sc-time">${fmt(sl.s)}<br>–${fmt(sl.e)}<div class="badge">${live ? '● LIVE NOW' : 'SCHEDULED'}</div></div>
+    elNode.innerHTML = `<div class="sc-time">${fmt(sl.s)}<br>–${fmt(sl.e)}<div class="badge">${live ? '● LIVE NOW' : reh ? '● REHEARSAL' : tear ? '● TEARDOWN' : 'SCHEDULED'}</div></div>
       <div class="sc-show"><b style="color:${pc}">${sl.show}</b><div class="sc-room">▣ ${sl.room}</div>
         <div class="sc-crew">${sl.crew.map((r) => { const [d, c] = division(r); return `<span class="sc-role" style="border-color:${c};color:${c}" title="${d} division">${r}</span>`; }).join('')}</div>
         ${sl.resources ? `<div class="sc-resources">${sl.resources.map((res) => `<span class="sc-resource" title="Booked Remote Resource">⚡ ${res}</span>`).join('')}</div>` : ''}
       </div>
-      ${editMode ? '<button class="sc-edit-btn">Edit</button>' : ''}`;
+      ${editMode && !locked ? '<button class="sc-edit-btn">Edit</button>' : editMode && locked ? '<div class="sc-locked-msg">Locked (Live/Reh/Tear)</div>' : ''}`;
       
-    if (editMode) {
+    if (editMode && !locked) {
       elNode.querySelector('.sc-edit-btn')?.addEventListener('click', () => {
         editingIndex = idx;
         build(root);
@@ -200,8 +246,14 @@ export function showSchedule(editShowName?: string): void {
   if (editShowName && (role().id === 'ep' || role().id === 'director')) {
     const idx = SCHEDULE.findIndex((s) => s.show === editShowName);
     if (idx !== -1) {
-      editMode = true;
-      editingIndex = idx;
+      const sl = SCHEDULE[idx]!;
+      const now = nowHours();
+      if (now >= sl.s - 0.75 && now < sl.e + 0.5) {
+        alert(`${sl.show} cannot be edited while on air, in rehearsal, or during teardown.`);
+      } else {
+        editMode = true;
+        editingIndex = idx;
+      }
     }
   }
   build(root);

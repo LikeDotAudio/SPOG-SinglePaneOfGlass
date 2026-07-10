@@ -36,7 +36,7 @@ function ensure(): HTMLElement {
   if (ov) return ov;
   ov = document.createElement('div');
   ov.className = 'pm-ov';
-  ov.innerHTML = `<div class="pm-box"><h2>CREW & TALENT MANAGER</h2><p>GUIDE TO ON-AIR TALENT AND CREW</p><div class="pm-list"><div class="pm-loading">Loading talent data...</div></div></div>`;
+  ov.innerHTML = `<div class="pm-box"><h2>TALENT MANAGER</h2><p>GUIDE TO ON-AIR TALENT</p><div class="pm-list"><div class="pm-loading">Loading talent data...</div></div></div>`;
   ov.addEventListener('click', (e) => { if (e.target === ov) ov?.classList.remove('open'); });
   document.body.appendChild(ov);
   return ov;
@@ -77,7 +77,7 @@ async function build(root: HTMLElement): Promise<void> {
       const title = prompt(`Enter title for ${name}:`, catName);
       const safeName = name.replace(/[^a-zA-Z0-9 ]/g, '');
       const filename = `999_${safeName}.json`;
-      const url = `Routes/Talent/${cat.href}${filename}`;
+      const url = `Routes/Talent/${cat.href}${encodeURIComponent(filename)}`;
       
       const tmpl = validDatas[0]?.data || { source: { audio: [], video: [] }, kit: { twists: [] } };
       const newPerson = {

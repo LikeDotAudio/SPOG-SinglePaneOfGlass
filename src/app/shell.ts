@@ -101,7 +101,7 @@ export async function buildConsole(BUILD: BuildStamp): Promise<void> {
   Footer.init(footer.querySelector('#production-tabs') as HTMLElement, content);
 
   const peopleColor = rgbAt(DEST_GROUP_COLORS, 5); // Fallback color
-  const peopleGroup = Footer.addGroup('PEOPLE', { color: peopleColor, collapsed: true });
+  const peopleGroup = Footer.addGroup('TALENT', { color: peopleColor, collapsed: true });
   if (peopleGroup) {
     const mgrIcon = document.createElement('span');
     mgrIcon.innerHTML = 'ℹ️ MGR';

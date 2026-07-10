@@ -10,6 +10,10 @@ export const SCHED_CSS = `
 .sc-time{font:bold 15px 'Courier New',monospace;color:#6FC8F0;letter-spacing:1px;}
 .sc-time .badge{display:inline-block;margin-top:8px;font:900 9px sans-serif;letter-spacing:1px;border-radius:5px;padding:3px 7px;background:#1d2942;color:#9fb6cc;}
 .sc-slot.live .sc-time .badge{background:#ff3b3b;color:#fff;}
+.sc-slot.reh{border-color:#F2B74B;box-shadow:0 0 16px rgba(242,183,75,.25);}
+.sc-slot.reh .sc-time .badge{background:#F2B74B;color:#000;}
+.sc-slot.tear{border-color:#A06EB4;box-shadow:0 0 16px rgba(160,110,180,.25);}
+.sc-slot.tear .sc-time .badge{background:#A06EB4;color:#fff;}
 .sc-show b{display:block;color:#fff;font-size:17px;letter-spacing:1px;}
 .sc-room{color:#9fd6ff;font-size:12px;letter-spacing:1px;margin:3px 0 10px;}
 .sc-crew{display:flex;flex-wrap:wrap;gap:6px;}
@@ -20,6 +24,7 @@ export const SCHED_CSS = `
 .sc-hint{color:#6b82a3;font-size:11px;letter-spacing:1px;margin-top:6px;}
 .sc-edit-btn{position:absolute;top:14px;right:14px;background:#1d2942;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:10px;cursor:pointer;}
 .sc-edit-btn:hover{background:#2c3e5e;}
+.sc-locked-msg{position:absolute;top:14px;right:14px;color:#ff6a6a;font-size:10px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:4px;}
 .sc-editor{display:flex;flex-direction:column;gap:8px;width:100%;}
 .sc-editor input{background:#0d1730;border:1px solid #2c3e5e;color:#fff;padding:6px;border-radius:4px;}
 .sc-editor label{font-size:11px;color:#7e93b5;display:flex;flex-direction:column;gap:4px;}
