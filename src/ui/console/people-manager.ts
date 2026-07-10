@@ -1,5 +1,5 @@
-// src/ui/console/people-manager.ts — the PEOPLE MANAGER overlay.
-// Displays categories of people and the people themselves as a guide to the crew.
+// src/ui/console/people-manager.ts — the TALENT MANAGER overlay.
+// Displays categories of talent and the talent themselves as a guide to the crew.
 import { addStyles } from '../dom.js';
 import { listDirectory, fetchJSON, type Entry } from '../../platform/discovery.js';
 import type { SourceLeaf } from '../../model/index.js';
@@ -36,7 +36,7 @@ function ensure(): HTMLElement {
   if (ov) return ov;
   ov = document.createElement('div');
   ov.className = 'pm-ov';
-  ov.innerHTML = `<div class="pm-box"><h2>CREW & PEOPLE MANAGER</h2><p>GUIDE TO ON-AIR TALENT AND CREW</p><div class="pm-list"><div class="pm-loading">Loading crew data...</div></div></div>`;
+  ov.innerHTML = `<div class="pm-box"><h2>CREW & TALENT MANAGER</h2><p>GUIDE TO ON-AIR TALENT AND CREW</p><div class="pm-list"><div class="pm-loading">Loading talent data...</div></div></div>`;
   ov.addEventListener('click', (e) => { if (e.target === ov) ov?.classList.remove('open'); });
   document.body.appendChild(ov);
   return ov;
@@ -46,7 +46,7 @@ async function build(root: HTMLElement): Promise<void> {
   const list = root.querySelector<HTMLElement>('.pm-list');
   if (!list) return;
   
-  const { dirs } = await listDirectory('Routes/People/');
+  const { dirs } = await listDirectory('Routes/Talent/');
   
   list.innerHTML = '';
   
@@ -64,9 +64,9 @@ async function build(root: HTMLElement): Promise<void> {
     catDiv.appendChild(peopleGrid);
     list.appendChild(catDiv);
     
-    const { files } = await listDirectory(`Routes/People/${cat.href}`);
+    const { files } = await listDirectory(`Routes/Talent/${cat.href}`);
     const rawDatas = await Promise.all(files.map(async f => {
-      const data = await fetchJSON<any>(`Routes/People/${cat.href}${f.href}`);
+      const data = await fetchJSON<any>(`Routes/Talent/${cat.href}${f.href}`);
       return data ? { file: f, data } : null;
     }));
     const validDatas = rawDatas.filter(d => Boolean(d)) as Array<{file: any, data: any}>;
@@ -77,7 +77,7 @@ async function build(root: HTMLElement): Promise<void> {
       const title = prompt(`Enter title for ${name}:`, catName);
       const safeName = name.replace(/[^a-zA-Z0-9 ]/g, '');
       const filename = `999_${safeName}.json`;
-      const url = `Routes/People/${cat.href}${filename}`;
+      const url = `Routes/Talent/${cat.href}${filename}`;
       
       const tmpl = validDatas[0]?.data || { source: { audio: [], video: [] }, kit: { twists: [] } };
       const newPerson = {
@@ -90,7 +90,7 @@ async function build(root: HTMLElement): Promise<void> {
       
       putDraft(url, newPerson);
       
-      const idxUrl = `Routes/People/${cat.href}index.json`;
+      const idxUrl = `Routes/Talent/${cat.href}index.json`;
       let manifest = getDraft<string[]>(idxUrl) || await fetchJSON<string[]>(idxUrl) || [];
       if (Array.isArray(manifest) && !manifest.includes(filename)) {
         manifest.push(filename);
@@ -119,7 +119,7 @@ async function build(root: HTMLElement): Promise<void> {
         const newTitle = prompt(`Enter new title for ${d.name}:`, titleStr);
         if (!newTitle) return;
         d.title = newTitle.toUpperCase();
-        putDraft(`Routes/People/${cat.href}${file.href}`, d);
+        putDraft(`Routes/Talent/${cat.href}${file.href}`, d);
         pDiv.querySelector('.pm-person-role')!.textContent = d.title;
       });
       

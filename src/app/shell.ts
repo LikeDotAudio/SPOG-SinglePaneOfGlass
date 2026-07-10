@@ -112,7 +112,7 @@ export async function buildConsole(BUILD: BuildStamp): Promise<void> {
     });
     peopleGroup.labelEl.querySelector('span')?.appendChild(mgrIcon);
   }
-  const peoplePromise = addDestinationTree('Routes/People/', peopleGroup, peopleColor, undefined, openEditorForTwist, 'People');
+  const peoplePromise = addDestinationTree('Routes/Talent/', peopleGroup, peopleColor, undefined, openEditorForTwist, 'Talent');
 
   await Promise.all([
     renderSourcesPanel(ingress, () => wireSourceNodes(ingress)).then(() => wireSourceNodes(ingress)),

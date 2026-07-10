@@ -125,8 +125,8 @@ export async function renderSourcesPanel(panel: HTMLElement, onRendered?: Render
   // `icons/` holds the ICON-face tiles, not a source category (deploy.py keeps it
   // out of the manifests too — this guard covers a stale/hand-built index.json).
   const dirs = allDirs.filter((d) => !/^\.?icons?\/?$/i.test(stripOrder(d.name)));
-  const peopleContent = buildSuperPool(panel, 'People', paletteAt(SOURCE_POOL_COLORS, 0));
-  const built = [{ content: peopleContent, url: 'Routes/People/' }];
+  const peopleContent = buildSuperPool(panel, 'Talent', paletteAt(SOURCE_POOL_COLORS, 0));
+  const built = [{ content: peopleContent, url: 'Routes/Talent/' }];
 
   dirs.forEach((cat, i) => {
     const color = paletteAt(SOURCE_POOL_COLORS, i + 1);

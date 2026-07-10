@@ -62,7 +62,7 @@ export async function initSickBay(): Promise<void> {
       }
 
       await Promise.all([
-        walkSources('Routes/People/'), // Walk people first
+        walkSources('Routes/Talent/'), // Walk people first
         walkSources('Routes/Sources/'),
         walkDestinations('Routes/Destinations/')
       ]);

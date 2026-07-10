@@ -93,7 +93,7 @@ export function initAuthPanel(): void {
   corner.className = 'au-corner';
   const bRights = document.createElement('button');
   bRights.className = 'au-c-rights';
-  bRights.title = 'Edit user rights';
+  bRights.title = 'Edit crew rights';
   bRights.textContent = '⚙ RIGHTS';
   const bOut = document.createElement('button');
   bOut.className = 'au-c-out';
@@ -170,7 +170,7 @@ export function initAuthPanel(): void {
   // rights overlay (roles × capabilities matrix)
   const rights = document.createElement('div');
   rights.className = 'au-overlay';
-  rights.innerHTML = `<div class="au-box"><h2>EDIT USER RIGHTS</h2><p>CAPTAIN · ADMINISTRATIVE — toggle each role's capabilities</p><div class="au-matrix"></div><div class="au-rnote">Changes apply live to the capability gate — the basis for control-lock & progressive disclosure.</div></div>`;
+  rights.innerHTML = `<div class="au-box"><h2>EDIT CREW RIGHTS</h2><p>CAPTAIN · ADMINISTRATIVE — toggle each role's capabilities</p><div class="au-matrix"></div><div class="au-rnote">Changes apply live to the capability gate — the basis for control-lock & progressive disclosure.</div></div>`;
   rights.addEventListener('click', (e) => { if (e.target === rights) rights.classList.remove('open'); });
   document.body.appendChild(rights);
   const matrix = rights.querySelector<HTMLElement>('.au-matrix')!;

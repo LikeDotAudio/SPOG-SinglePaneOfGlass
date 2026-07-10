@@ -78,7 +78,7 @@ export interface SourceLeaf {
   status?: Status;
   type?: string;
   origin?: string;
-  /** Person/source-box hover tip — authored in the Routes/People or Sources JSON. */
+  /** Person/source-box hover tip — authored in the Routes/Talent or Sources JSON. */
   tip?: TipSpec;
   // stage box (video/audio)
   prefix?: string;
@@ -91,7 +91,7 @@ export interface SourceLeaf {
   role?: string;                  // talent type (host, co-host, correspondent, …)
   // person (SINGLE unified model — a person is both a source and a destination):
   // `source` is the source projection (feeds), `kit` the destination projection
-  // (twists), `lowerThird`/`title` the shared identity. See Routes/People/**.
+  // (twists), `lowerThird`/`title` the shared identity. See Routes/Talent/**.
   source?: { audio?: string[]; video?: string[] };
   kit?: { twists?: Array<string | TwistConfig> };
   lowerThird?: LowerThird;
