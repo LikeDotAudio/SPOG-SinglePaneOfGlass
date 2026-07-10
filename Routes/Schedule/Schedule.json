@@ -19,7 +19,8 @@
     "Flash Update": "#4ad6c0",
     "Late Edition": "#f08fb0",
     "World News · Tokyo AM": "#b0d04a",
-    "Overnight Handoff": "#8f9cf0"
+    "Overnight Handoff": "#8f9cf0",
+    "Tech Innovators": "#f0502a"
   },
   "slots": [
     {
@@ -177,6 +178,22 @@
       ],
       "resources": [
         "Press Room Pool"
+      ]
+    },
+    {
+      "s": 15,
+      "e": 16.5,
+      "show": "Tech Innovators",
+      "room": "Studio 2 · 2nd Floor",
+      "crew": [
+        "Captain · EP",
+        "First Officer · Director",
+        "Conn · TD",
+        "Science"
+      ],
+      "resources": [
+        "Guest Skype Feed",
+        "Remote Cam 3"
       ]
     },
     {

@@ -16,6 +16,7 @@ const DEFAULT_HOST = 'test.mosquitto.org:8081/ws';
 
 const LS_KEY = 'twistMqtt';
 const LS_PORT = 'twistMqttPort', LS_USER = 'twistMqttUser', LS_PASS = 'twistMqttPass';
+const LS_ENABLED = 'twistMqttEnabled';
 const DEFAULT_USER = '', DEFAULT_PASS = '';
 
 const lsGet = (k: string, d: string): string => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
@@ -36,7 +37,7 @@ const LS_PLAINTEXT = 'twistMqttPlaintext';
 
 /** The full broker connection config — host, port, and credentials. Port/user/pass
  *  always resolve to a value (the defaults) so the connection form is never blank. */
-export interface BrokerConfig { host: string; port: number; username: string; password: string; plaintext: boolean; }
+export interface BrokerConfig { host: string; port: number; username: string; password: string; plaintext: boolean; enabled: boolean; }
 export function getBrokerConfig(): BrokerConfig {
   return {
     host: getBrokerSetting(),
@@ -44,6 +45,7 @@ export function getBrokerConfig(): BrokerConfig {
     username: lsGet(LS_USER, DEFAULT_USER),
     password: lsGet(LS_PASS, DEFAULT_PASS),
     plaintext: lsGet(LS_PLAINTEXT, 'false') === 'true',
+    enabled: lsGet(LS_ENABLED, 'true') !== 'false',
   };
 }
 /** Persist any subset of the broker config (host '' clears MQTT next boot). */
@@ -54,11 +56,13 @@ export function setBrokerConfig(c: Partial<BrokerConfig>): void {
     if (c.username !== undefined) localStorage.setItem(LS_USER, c.username);
     if (c.password !== undefined) localStorage.setItem(LS_PASS, c.password);
     if (c.plaintext !== undefined) localStorage.setItem(LS_PLAINTEXT, String(c.plaintext));
+    if (c.enabled !== undefined) localStorage.setItem(LS_ENABLED, String(c.enabled));
   } catch { /* ignore */ }
 }
 
 /** Resolve the broker WS url from `?mqtt=`, localStorage, or the compiled default. */
 export function resolveBrokerUrl(): string | null {
+  if (lsGet(LS_ENABLED, 'true') === 'false') return null;
   let raw = '';
   try {
     raw = new URLSearchParams(location.search).get('mqtt')

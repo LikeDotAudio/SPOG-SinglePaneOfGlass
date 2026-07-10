@@ -202,25 +202,25 @@ export function initMqttTree(bus: TwistBus): void {
     });
   };
 
-  // Chip toggles the panel; the tree auto-connects on first open if a broker is set.
+  // Chip toggles the panel; the tree auto-connects on first open if a broker is set AND enabled.
   chip.addEventListener('click', () => {
     const open = panel.classList.toggle('open');
-    if (open && !started && resolveUrl(hostInput.value, Number(portInput.value))) { started = true; connect(); }
+    if (open && !started && getBrokerConfig().enabled && resolveUrl(hostInput.value, Number(portInput.value))) { started = true; connect(); }
   });
   bX.addEventListener('click', () => panel.classList.remove('open'));
-  // Save & Connect persists the full config (host/port/user/pass) so the shared
-  // PUBLISHING bus adopts it on the next boot and starts advertising the tree, then
-  // reloads. Disable clears the host. Both mirror the old settings popover.
+  // Save & Connect persists the full config (host/port/user/pass) and turns MQTT ON.
+  // Disable turns MQTT OFF without blowing away the configured host string.
   const persist = (): void => {
     const plainCb = panel.querySelector('.plain-cb') as HTMLInputElement | null;
     setBrokerConfig({
       host: hostInput.value, port: Number(portInput.value) || 8081,
       username: userInput.value, password: passInput.value,
       plaintext: plainCb ? plainCb.checked : false,
+      enabled: true,
     });
   };
   bGo.addEventListener('click', () => { persist(); location.reload(); });
-  bOff.addEventListener('click', () => { setBrokerConfig({ host: '' }); location.reload(); });
+  bOff.addEventListener('click', () => { setBrokerConfig({ enabled: false }); location.reload(); });
 
   // The chip dot reflects the live diagnostic connection, falling back to the shared
   // bus's configured/connected state before the panel has been opened.
