@@ -5,7 +5,7 @@
 // fold. Split out of captains-log-timeline (200-line rule).
 export interface RKf { ts: number; text: string; rev: boolean; op: string; color: string }
 export interface RPlan { s: number; e: number; label: string; showName: string; reh?: boolean; tear?: boolean; color?: string }
-export interface RLane { section: 'where' | 'who' | 'how' | 'whom'; group: string; name: string; kf: RKf[]; plans: RPlan[] }
+export interface RLane { type: 'where' | 'who' | 'how' | 'whom'; section: 'in_use' | 'to_be_used' | 'not_used'; group: string; name: string; kf: RKf[]; plans: RPlan[] }
 export interface REv { ts: number; text: string; op: string; rev: boolean; color: string }
 
 const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] ?? c));
@@ -70,10 +70,9 @@ export function buildGrid(lanes: RLane[], x: (ts: number) => number, width: numb
     if (ln.section !== curSec) {
       curSec = ln.section; curGrp = '';
       const LABELS: Record<string, string> = {
-        where: 'WHERE — DESTINATIONS',
-        how: 'HOW — PRODUCTION ROOMS',
-        who: 'WHO — OPERATORS &amp; BOOKED CREW',
-        whom: 'WHOM — PEOPLE (HOSTS, GUESTS)'
+        in_use: 'IN USE NOW',
+        to_be_used: 'TO BE USED (PLANNED)',
+        not_used: 'NOT USED'
       };
       const c = collapsed.has(secKey), label = LABELS[ln.section] || ln.section.toUpperCase();
       const aggsec = aggS.get(secKey) ?? [];
@@ -92,7 +91,7 @@ export function buildGrid(lanes: RLane[], x: (ts: number) => number, width: numb
       html += `<div class="tl-group${c ? ' folded' : ''}" data-fold="${esc(grpKey)}"><span class="tl-hd-in">${c ? '▸' : '▾'} ${esc(ln.group)}${count}</span>${c ? summaryMarks(agg) : ''}</div>`;
     }
     if (collapsed.has(grpKey)) continue;
-    html += laneHtml(ln.name, ln.kf, ln.plans, ln.section === 'how');
+    html += laneHtml(ln.name, ln.kf, ln.plans, ln.type === 'how');
   }
   let ticks = '', ruler = '';
   for (let h = Math.floor(t0 / 3600000) * 3600000; h <= t1; h += 3600000) {

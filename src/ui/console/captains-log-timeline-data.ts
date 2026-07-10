@@ -10,7 +10,7 @@ const OP_COLORS = ['#FF9C63', '#3FC1C9', '#A06EB4', '#6cdf4a', '#6FC8F0', '#C2B7
 
 export interface Keyframe { ts: number; text: string; rev: boolean; op: string; color: string }
 export interface Plan { s: number; e: number; label: string; showName: string; reh?: boolean; tear?: boolean; color?: string }
-export interface Lane { section: 'where' | 'who' | 'how' | 'whom'; group: string; name: string; kf: Keyframe[]; plans: Plan[] }
+export interface Lane { type: 'where' | 'who' | 'how' | 'whom'; section: 'in_use' | 'to_be_used' | 'not_used'; group: string; name: string; kf: Keyframe[]; plans: Plan[] }
 
 const allEntries = (): Entry[] => narratives.flatMap((n) => n.entries).sort((a, b) => a.ts - b.ts);
 /** Operator off a narration ("… · by NAME") for the WHO lane + colour key. */
@@ -24,9 +24,9 @@ export function buildLanes(): { lanes: Lane[]; opColor: Map<string, string>; t0:
   // A lane is keyed separately from its display name so a scheduled crew ROLE and an
   // operator acting in that role land on the SAME lane (booked vs actual), matched on
   // the role's first segment ("Conn · TD" / "Conn · Helm" → "conn").
-  const lane = (section: 'where' | 'who' | 'how' | 'whom', group: string, key: string, name: string): Lane => {
-    const k = `${section}|${group}|${key}`;
-    if (!lanes.has(k)) lanes.set(k, { section, group, name, kf: [], plans: [] });
+  const lane = (type: 'where' | 'who' | 'how' | 'whom', group: string, key: string, name: string): Lane => {
+    const k = `${type}|${group}|${key}`;
+    if (!lanes.has(k)) lanes.set(k, { type, section: 'not_used', group, name, kf: [], plans: [] });
     return lanes.get(k)!;
   };
   const roleKey = (s: string): string => s.split(/[·—]/)[0]!.trim().toLowerCase();
@@ -76,12 +76,19 @@ export function buildLanes(): { lanes: Lane[]; opColor: Map<string, string>; t0:
     }
   }
   const now = Date.now();
+  for (const ln of lanes.values()) {
+    const active = ln.plans.some(p => p.s <= now && p.e > now);
+    const future = ln.plans.some(p => p.e > now);
+    if (active) ln.section = 'in_use';
+    else if (future) ln.section = 'to_be_used';
+    else ln.section = 'not_used';
+  }
   const tsAll = [...entries.map((e) => e.ts), now, ...(Number.isFinite(firstPlan) ? [firstPlan, lastPlan] : [])];
   // Span the whole picture: earliest of (first event, first scheduled show) → latest of
   // (now, last event, last scheduled show), so the day's schedule is always on-canvas.
   const t0 = Math.min(...tsAll) - 900000;
   const t1 = Math.max(now + 900000, ...tsAll);
-  const ord = { where: 0, how: 1, who: 2, whom: 3 } as const;
+  const ord = { in_use: 0, to_be_used: 1, not_used: 2 } as const;
   const list = [...lanes.values()].sort((a, b) => ord[a.section] - ord[b.section] || a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
   return { lanes: list, opColor, t0, t1 };
 }

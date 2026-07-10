@@ -25,7 +25,6 @@ const collapsed = new Set<string>();          // explicitly-collapsed SECTIONS (
 const expandedGroups = new Set<string>();     // explicitly-expanded room GROUPS (rooms fold by default)
 const selectedGroups = new Set<string>();   // multi-select room chips (stack / union)
 let filter = '';
-let showUnused = false;
 let evList: { ts: number; text: string; op: string; rev: boolean; color: string }[] = [];
 
 /** Sync the minimap's viewport rectangle to the main scroll position. */
@@ -52,8 +51,7 @@ function renderInto(body: HTMLElement, resetScroll = true): void {
     const laneHit = hit(ln.name) || hit(ln.group);
     return { ...ln, kf: laneHit ? ln.kf : ln.kf.filter((k) => hit(k.text) || hit(k.op)), plans: laneHit ? ln.plans : ln.plans.filter((p) => hit(p.label)), keep: laneHit };
   }).filter((ln) => ln.keep || ln.kf.length || ln.plans.length) as (Lane & { keep: boolean })[];
-  if (showUnused) lanes = lanes.filter((ln) => !ln.plans.some((p) => p.s <= now && p.e > now));
-  if (!lanes.length) { body.replaceChildren(el('div', { class: 'tl-empty' }, [(filter || sel.length || showUnused) ? '— no timeline items match the current filter —' : '— no log events or schedule yet — routing decisions and booked shows plot here —'])); return; }
+  if (!lanes.length) { body.replaceChildren(el('div', { class: 'tl-empty' }, [(filter || sel.length) ? '— no timeline items match the current filter —' : '— no log events or schedule yet — routing decisions and booked shows plot here —'])); return; }
   const spanMin = Math.max(MIN_SPAN_MIN, (t1 - t0) / 60000);
   const width = Math.ceil(GUTTER + spanMin * pxPerMin) + 20;
   curWidth = width;
@@ -126,8 +124,6 @@ export function openTimeline(): void {
     const body = el('div', { class: 'tl-body' });
     const nowBtn = el('button', { class: 'tl-btn' }, ['⤒ NOW']);
     const schedBtn = el('button', { class: 'tl-btn' }, ['⇥ SCHEDULE']);
-    const unusedBtn = el('button', { class: 'tl-btn' + (showUnused ? ' on' : '') }, ['UNUSED']);
-    unusedBtn.addEventListener('click', () => { showUnused = !showUnused; unusedBtn.className = 'tl-btn' + (showUnused ? ' on' : ''); const sx = body.scrollLeft; renderInto(body, false); body.scrollLeft = sx; });
     const filterEl = el('input', { class: 'tl-filter', type: 'search', placeholder: '⌕ filter lanes / events…' }) as HTMLInputElement;
     filterEl.addEventListener('input', () => { filter = filterEl.value.trim().toLowerCase(); const sx = body.scrollLeft; renderInto(body, false); body.scrollLeft = sx; });
     const groupsEl = el('span', { class: 'tl-groups' });
@@ -147,7 +143,7 @@ export function openTimeline(): void {
       filterEl,
       el('span', { class: 'tl-legend' }),
       el('span', { class: 'tl-onair-banner' }),
-      unusedBtn, nowBtn, schedBtn, el('button', { class: 'tl-btn' }, ['⟳ REFRESH']),
+      nowBtn, schedBtn, el('button', { class: 'tl-btn' }, ['⟳ REFRESH']),
       el('span', { class: 'tl-x', title: 'Close' }, ['✕']),
     ]);
     const chipbar = el('div', { class: 'tl-chipbar' }, [groupsEl]);
