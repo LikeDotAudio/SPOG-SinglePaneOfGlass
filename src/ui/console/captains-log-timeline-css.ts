@@ -20,6 +20,7 @@ export const TL_CSS = `
 .tl-chip.all{--c:#C2B74B;}
 .tl-btn{font:900 11px sans-serif;letter-spacing:1px;text-transform:uppercase;border:none;border-radius:12px;padding:7px 12px;cursor:pointer;background:#140f06;color:#ffcf6b;}
 .tl-btn:hover{filter:brightness(1.15);}
+.tl-btn.on{background:#ffcf6b;color:#140f06;}
 .tl-x{cursor:pointer;font-weight:900;padding:0 6px;}
 .tl-body{flex:1;min-height:0;overflow:auto;position:relative;background:#06070c;}
 .tl-grid{position:relative;}
