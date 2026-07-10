@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LCARS RULES · Anatomy of the Frame</title>
+<style>
+  :root{
+    --orange:#ffaa00; --tomato:#FF9C63; --lilac:#CC99CC; --bluebell:#646DCC;
+    --magenta:#C864C8; --ok:#39d98a; --ink:#e7d3ea; --dim:#7d8ba0; --faint:#5a6472;
+    --panel:#0a080d; --edge:#241a26; --ghost:#23232b;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:#000;color:var(--ink);
+    font-family:'Courier New',Consolas,monospace;line-height:1.5;}
+  .wrap{max-width:1080px;margin:0 auto;padding:24px 20px 80px;}
+
+  /* Page header — itself an elbow: arm across the top, spine down the left. */
+  .masthead{position:relative;padding:14px 26px 10px 78px;margin-bottom:34px;}
+  .masthead::before{content:'';position:absolute;top:0;left:0;width:96px;height:100%;
+    border-left:44px solid var(--orange);border-top:22px solid var(--orange);
+    border-top-left-radius:30px;border-bottom-left-radius:30px;}
+  .masthead::after{content:'';position:absolute;top:0;left:106px;right:0;height:22px;
+    background:var(--orange);border-top-right-radius:11px;border-bottom-right-radius:11px;}
+  .masthead h1{margin:14px 0 0;font-size:24px;letter-spacing:4px;text-transform:uppercase;color:var(--magenta);}
+  .masthead p{margin:4px 0 0;color:var(--dim);font-size:12px;letter-spacing:1px;}
+
+  h2{font-size:15px;letter-spacing:3px;text-transform:uppercase;color:var(--magenta);
+    margin:44px 0 6px;display:flex;align-items:center;gap:12px;}
+  h2::before{content:'';flex:0 0 34px;height:14px;background:var(--orange);
+    border-radius:7px 0 0 7px;}
+  h2::after{content:'';flex:1;height:14px;background:var(--orange);opacity:.25;
+    border-radius:0 7px 7px 0;}
+  .lede{color:var(--dim);font-size:13px;max-width:76ch;margin:0 0 18px;}
+  .lede b, td b{color:var(--ink);}
+  code{color:#9fe0b0;font-size:12px;}
+
+  .hero{background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:14px;}
+  .hero svg{display:block;width:100%;height:auto;}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-top:14px;}
+  .card{background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:12px 14px;}
+  .card h3{margin:0 0 2px;font-size:14px;letter-spacing:2px;text-transform:uppercase;}
+  .card .latin{color:var(--faint);font-size:10px;letter-spacing:1px;text-transform:uppercase;margin:0 0 8px;}
+  .card svg{display:block;width:100%;height:auto;background:#050506;border-radius:8px;}
+  .card p{font-size:12px;color:#cdd6e6;margin:10px 0 6px;}
+  .card .where{font-size:11px;color:var(--dim);margin:0;}
+  .card .where code{display:inline-block;}
+
+  table{border-collapse:collapse;width:100%;font-size:12px;margin-top:14px;}
+  th{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--magenta);
+    text-align:left;padding:8px 10px;border-bottom:2px solid var(--edge);}
+  td{padding:8px 10px;border-bottom:1px solid #15121a;vertical-align:top;color:#cdd6e6;}
+  td:first-child{color:var(--ink);font-weight:800;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;}
+  .scroll{overflow-x:auto;}
+
+  ol.rules{margin:10px 0 0;padding-left:26px;font-size:13px;}
+  ol.rules li{margin:8px 0;color:#cdd6e6;}
+  ol.rules b{color:var(--orange);letter-spacing:1px;text-transform:uppercase;}
+
+  .foot{margin-top:56px;color:var(--faint);font-size:11px;letter-spacing:1px;}
+
+  /* SVG piece fills — each card lights its part via these custom properties. */
+  .pc-elbow {fill:var(--pcelbow, var(--ghost));}
+  .pc-arm   {fill:var(--pcarm,   var(--ghost));}
+  .pc-wrist {fill:var(--pcwrist, var(--ghost));}
+  .pc-hand  {fill:var(--pchand,  var(--ghost));}
+  .pc-finger{fill:var(--pcfinger,var(--ghost));}
+  .pc-spine {fill:var(--pcspine, var(--ghost));}
+  .pc-branch{fill:var(--pcbranch,var(--ghost));}
+  .mark{fill:none;stroke:var(--ok);stroke-width:1.5;stroke-dasharray:4 3;}
+  .callout{stroke:var(--dim);stroke-width:1;fill:none;}
+  .lbl{fill:var(--ink);font:800 13px 'Courier New',monospace;letter-spacing:2px;}
+</style>
+</head>
+<body>
+<!-- The master assembly, defined ONCE. Every diagram below reuses it via <use>,
+     lighting its own piece through the --pc* custom properties (they inherit
+     into the <use> shadow tree). Geometry obeys the Corner Law throughout:
+     elbow R40 → pit R20; foot R24; hand R18; branch cap R14; finger caps R8. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="anat" viewBox="0 0 680 340">
+    <!-- ELBOW: one piece — arm top run + outer R40 sweep + inner R20 pit + spine head -->
+    <path class="pc-elbow"  d="M 250 40 L 80 40 A 40 40 0 0 0 40 80 L 40 140 L 110 140 L 110 96 A 20 20 0 0 1 130 76 L 250 76 Z"/>
+    <!-- ARM segment: square both ends (butt-joins across black seams) -->
+    <path class="pc-arm"    d="M 256 40 L 426 40 L 426 76 L 256 76 Z"/>
+    <!-- WRIST: the step-down joint before the terminal segments -->
+    <path class="pc-wrist"  d="M 434 48 L 464 48 L 464 76 L 434 76 Z"/>
+    <!-- HAND: terminal cap, rounded only on the terminating end (R18) -->
+    <path class="pc-hand"   d="M 470 40 L 512 40 A 18 18 0 0 1 530 58 A 18 18 0 0 1 512 76 L 470 76 Z"/>
+    <!-- FINGERS: a stack of short interactive segments (R8 outer caps) -->
+    <path class="pc-finger" d="M 470 92  L 532 92  A 8 8 0 0 1 540 100 A 8 8 0 0 1 532 108 L 470 108 Z"/>
+    <path class="pc-finger" d="M 470 114 L 532 114 A 8 8 0 0 1 540 122 A 8 8 0 0 1 532 130 L 470 130 Z"/>
+    <path class="pc-finger" d="M 470 136 L 532 136 A 8 8 0 0 1 540 144 A 8 8 0 0 1 532 152 L 470 152 Z"/>
+    <!-- SPINE segment + FOOT: square seam at top, outer R24 foot at the bottom -->
+    <path class="pc-spine"  d="M 40 146 L 110 146 L 110 300 L 64 300 A 24 24 0 0 1 40 276 Z"/>
+    <!-- BRANCH arm: butt-joins the spine's inner edge FLUSH — the ARMPIT joint -->
+    <path class="pc-branch" d="M 110 170 L 216 170 A 14 14 0 0 1 230 184 A 14 14 0 0 1 216 198 L 110 198 Z"/>
+  </symbol>
+</svg>
+
+<div class="wrap">
+  <header class="masthead">
+    <h1>LCARS Rules — Anatomy of the Frame</h1>
+    <p>The naming standard for every LCARS component part in TwistRouting ·
+       companion to <b>LCARS.md</b> (the Corner Law) and <b>lcars.css</b> (the implementation)</p>
+  </header>
+
+  <p class="lede">
+    Every LCARS frame in this app is a <b>body</b>: a <b>spine</b> runs down the edge, turns
+    through an <b>elbow</b> into an <b>arm</b> across the top, and the arm articulates through a
+    <b>wrist</b> into a <b>hand</b> and <b>fingers</b>. The concave joints have names too — the
+    <b>elbow pit</b> (the curved inner bend of one piece) and the <b>armpit</b> (the square joint
+    where a separate arm butts the spine). Use these names in comments, commits and audits.
+  </p>
+
+  <h2>The Assembly</h2>
+  <div class="hero">
+    <svg viewBox="0 0 680 340" style="--pcelbow:var(--orange);--pcarm:var(--lilac);--pcwrist:var(--tomato);--pchand:var(--orange);--pcfinger:var(--bluebell);--pcspine:var(--orange);--pcbranch:var(--lilac);">
+      <use href="#anat"/>
+      <!-- callouts -->
+      <text class="lbl" x="150" y="24">ELBOW</text>            <path class="callout" d="M 146 27 L 66 50"/>
+      <text class="lbl" x="305" y="30">ARM</text>              <path class="callout" d="M 320 33 L 320 55"/>
+      <text class="lbl" x="425" y="24">WRIST</text>            <path class="callout" d="M 449 27 L 449 55"/>
+      <text class="lbl" x="556" y="50">HAND</text>             <path class="callout" d="M 552 52 L 532 58"/>
+      <text class="lbl" x="560" y="126">FINGERS</text>         <path class="callout" d="M 556 122 L 542 122"/>
+      <text class="lbl" x="225" y="116">ELBOW PIT</text>       <path class="callout" d="M 221 112 L 124 92"/>
+      <text class="lbl" x="280" y="160">ARMPIT</text>          <path class="callout" d="M 276 160 L 116 168"/>
+      <text class="lbl" x="160" y="246">SPINE</text>           <path class="callout" d="M 156 242 L 112 242"/>
+      <text class="lbl" x="160" y="296">FOOT</text>            <path class="callout" d="M 156 292 L 58 292"/>
+    </svg>
+  </div>
+
+  <h2>The Parts</h2>
+  <div class="cards">
+
+    <div class="card">
+      <h3 style="color:var(--orange)">Elbow</h3>
+      <p class="latin">the load-bearing corner</p>
+      <svg viewBox="0 0 680 340" style="--pcelbow:var(--orange);">
+        <use href="#anat"/><circle class="mark" cx="60" cy="60" r="36"/>
+      </svg>
+      <p>Where a horizontal run turns into a vertical run through one continuous 90° sweep.
+         The outer curve takes the full radius <b>R</b>, picked from the ladder
+         (44 / 40 / 30 / 25…). Elbows come one-piece, or composite — an arm + spine
+         butt-joined at an armpit, capped so they read as one.</p>
+      <p class="where">HERE: <code>.twist-container::before</code> (R25) ·
+         audio-mixer master <code>.am-rail</code> (R44) · super-pool spine (R40) ·
+         <code>.twist-group &gt; summary</code> gang elbow · the composite
+         <code>.program-title</code> + <code>.program-row::after</code> frame (R30)</p>
+    </div>
+
+    <div class="card">
+      <h3 style="color:var(--orange)">Elbow Pit</h3>
+      <p class="latin">the inner bend — always R/2</p>
+      <svg viewBox="0 0 680 340" style="--pcelbow:var(--orange);">
+        <use href="#anat"/><circle class="mark" cx="122" cy="88" r="24"/>
+      </svg>
+      <p>The concave curve inside the bend of a one-piece elbow — where the shape tucks back
+         into the frame. The Corner Law (<b>LCARS.md §1.1</b>) fixes it at exactly
+         <b>half the elbow's outer radius</b>. Get the pit wrong and the corner reads as
+         "a rounded rectangle", not LCARS. Never eyeball it — halve it.</p>
+      <p class="where">HERE: super-pool 40→20 · audio-mixer 44→22 ·
+         program frame 30→15 · monitor tile 16→8 (the §1.4 radius table)</p>
+    </div>
+
+    <div class="card">
+      <h3 style="color:var(--lilac)">Arm</h3>
+      <p class="latin">the horizontal rail</p>
+      <svg viewBox="0 0 680 340" style="--pcarm:var(--lilac);">
+        <use href="#anat"/>
+      </svg>
+      <p>The horizontal run leaving the elbow. Its long top and bottom edges are dead
+         straight; both short ends stay <b>square</b> wherever they butt-join a neighbour
+         across a seam. The arm carries the furniture: title text, stats, fold controls
+         all ride on (or hang from) an arm.</p>
+      <p class="where">HERE: <code>.twist-container::after</code> (the 20px twist top rail) ·
+         <code>.program-title</code> (the production name bar) ·
+         the <code>.twist-group</code> summary bar · the <code>.auth-dock</code> band</p>
+    </div>
+
+    <div class="card">
+      <h3 style="color:var(--lilac)">Armpit</h3>
+      <p class="latin">the square arm-to-spine joint</p>
+      <svg viewBox="0 0 680 340" style="--pcbranch:var(--lilac);--pcspine:var(--orange);">
+        <use href="#anat"/><circle class="mark" cx="112" cy="170" r="18"/>
+      </svg>
+      <p>Where a <b>separate</b> arm piece butt-joins the spine's inner edge: the joint is
+         <b>square, radius 0</b> (LCARS.md §1.2), so the two pieces tile into one silhouette.
+         Not the same as the elbow pit — the pit is the <b>curved</b> inner bend of ONE piece;
+         the armpit is the <b>square</b> seam between TWO. Composite elbows are an arm and a
+         spine meeting at an armpit, with the curve worn on the outside only.</p>
+      <p class="where">HERE: <code>.program-title</code>'s bottom-right corner (radius 0)
+         where it caps <code>.program-row::after</code> — "bottom-right stays square (inner edge)"</p>
+    </div>
+
+    <div class="card">
+      <h3 style="color:var(--tomato)">Wrist</h3>
+      <p class="latin">the step before the end</p>
+      <svg viewBox="0 0 680 340" style="--pcwrist:var(--tomato);">
+        <use href="#anat"/><circle class="mark" cx="449" cy="62" r="28"/>
+      </svg>
+      <p>The joint near the end of an arm: a black seam plus (often) a step-down in height
+         or width, where the rail hands off to its terminal segments. Both sides of the
+         joint stay square — the step articulates, it never curves. A rail that changes
+         weight mid-run does it at a wrist, never with a taper.</p>
+      <p class="where">HERE: the seam where the twist top rail hands off to
+         <code>.twist-lip</code> · the monitor-twist step-down (45→26px bar, radius 25→16,
+         Corner Law re-derived at the new size)</p>
+    </div>
+
+    <div class="card">
+      <h3 style="color:var(--orange)">Hand</h3>
+      <p class="latin">the terminal cap</p>
+      <svg viewBox="0 0 680 340" style="--pchand:var(--orange);">
+        <use href="#anat"/><circle class="mark" cx="512" cy="58" r="28"/>
+      </svg>
+      <p>The cap that closes a run: rounded <b>only on the terminating end</b> (full R),
+         square on the side that joins the wrist. A segment rounded on <b>both</b> ends is
+         not a hand — it's a free-standing <b>pill</b> (the folded super-pool, the credit
+         pill), which belongs to no arm.</p>
+      <p class="where">HERE: <code>.lcars-tab</code>'s pill end
+         (<code>border-radius: 0 999px 999px 0</code>) · <code>.program-title</code>'s 14px
+         leading cap · the twist rail's 10px cap · <code>.lcp-cap</code></p>
+    </div>
+
+    <div class="card">
+      <h3 style="color:var(--bluebell)">Finger</h3>
+      <p class="latin">the working segments</p>
+      <svg viewBox="0 0 680 340" style="--pcfinger:var(--bluebell);">
+        <use href="#anat"/><rect class="mark" x="460" y="84" width="90" height="76" rx="10"/>
+      </svg>
+      <p>The short, independently-coloured, usually <b>interactive</b> segments at the end of
+         a run — tab stacks, fold lips, toggles. Fingers come in rows separated by seams;
+         each one rounds only its outer end and stays square against its neighbours.
+         If the user clicks it, it's probably a finger.</p>
+      <p class="where">HERE: the footer tab stacks
+         (<code>.lcars-group-tabs .lcars-tab</code>) · the <code>.twist-lip</code> fold
+         control · <code>.twist-foldbar</code></p>
+    </div>
+
+    <div class="card">
+      <h3 style="color:var(--orange)">Spine &amp; Foot</h3>
+      <p class="latin">the vertical run and its end</p>
+      <svg viewBox="0 0 680 340" style="--pcspine:var(--orange);--pcelbow:var(--orange);">
+        <use href="#anat"/><circle class="mark" cx="56" cy="286" r="22"/>
+      </svg>
+      <p>The vertical run the elbow feeds. Stacked spine segments meet on square seams
+         (§1.2 — verticals square their tops and bottoms); only the last segment terminates,
+         through a <b>foot</b>: the outer bottom corner takes the full R while the inner edge
+         stays square against the content.</p>
+      <p class="where">HERE: <code>.program-row::after</code> (45px spine,
+         <code>border-radius: 0 30px 30px 30px</code>) · the super-pool spine block ·
+         <code>.am-rail-foot</code> (the audio-mixer literally names it)</p>
+    </div>
+
+    <div class="card">
+      <h3 style="color:var(--faint)">Seam</h3>
+      <p class="latin">the black gap — the articulation</p>
+      <svg viewBox="0 0 680 340" style="--pcelbow:var(--orange);--pcarm:var(--lilac);--pcwrist:var(--tomato);--pchand:var(--orange);">
+        <use href="#anat"/>
+        <rect class="mark" x="248" y="34" width="12" height="48"/>
+        <rect class="mark" x="424" y="34" width="14" height="48"/>
+      </svg>
+      <p>The black gap between segments. It is not empty space — it's the joint itself, the
+         thing that makes a run read as articulated LCARS instead of one smeared bar. Seams
+         are a few pixels, constant along a run, and both segments arrive at them square.</p>
+      <p class="where">HERE: the 10px gap between <code>.twist-container::before</code>
+         (ends at 100px) and <code>::after</code> (starts at 110px) · every gap in the
+         footer tab rows</p>
+    </div>
+
+  </div>
+
+  <h2>The Corner Law, restated</h2>
+  <p class="lede">From <b>LCARS.md §1</b> — the two rules that make a shape read as LCARS.
+     The pit is not a style choice; it is derived.</p>
+  <div class="hero" style="max-width:560px;">
+    <svg viewBox="0 0 300 200">
+      <path fill="var(--orange)" d="M 240 30 L 70 30 A 40 40 0 0 0 30 70 L 30 170 L 100 170 L 100 86 A 20 20 0 0 1 120 66 L 240 66 Z"/>
+      <circle class="mark" cx="70"  cy="70" r="40"/>
+      <circle class="mark" cx="120" cy="86" r="20"/>
+      <text class="lbl" x="128" y="120" fill="var(--ok)">R/2</text>
+      <path class="callout" d="M 126 116 L 112 96"/>
+      <text class="lbl" x="150" y="160" fill="var(--ok)">R</text>
+      <path class="callout" d="M 148 154 L 92 106"/>
+      <text class="lbl" x="170" y="52" fill="#000" style="font-size:11px;">R OUTSIDE</text>
+    </svg>
+  </div>
+  <ol class="rules">
+    <li><b>Pit = R/2.</b> The elbow pit is always exactly half the elbow's outer radius.
+        44→22 · 40→20 · 30→15 · 16→8. Halve it, never eyeball it.</li>
+    <li><b>Joints are square.</b> Armpits, wrists and seams are radius 0 — a shape rounds
+        only the corners that terminate into open space. Verticals square their tops and
+        bottoms; horizontals square their long edges and round their ends.</li>
+    <li><b>Radii come off the ladder.</b> 44 / 40 / 30 / 25 / 16 / 15 / 12 / 10 / 8.
+        A new part picks the nearest rung, then derives its pit.</li>
+    <li><b>Chirality mirrors the skeleton, never the text.</b> On a hand-flip
+        (<code>html[data-chirality]</code>), elbows curl the other way, hands cap the other
+        end, spines swap edges — but labels, data and spatial canvases
+        (<code>.chir-exempt</code>) never mirror.</li>
+    <li><b>Name the part.</b> CSS comments, audits and commit messages use this
+        vocabulary: "the arm's trailing hand", "square at the armpit",
+        "wrist steps 45→26", "three fingers on the footer group".</li>
+  </ol>
+
+  <h2>Audit — where each part lives in this codebase</h2>
+  <div class="scroll">
+  <table>
+    <tr><th>Part</th><th>Instance</th><th>Where</th><th>Geometry</th></tr>
+    <tr><td>Elbow</td><td>Twist frame elbow (one-piece: spine head + arm root)</td>
+        <td><code>lcars.css · .twist-container::before</code></td>
+        <td>45px spine border, 20px arm border, outer R25 (monitor tiles R16)</td></tr>
+    <tr><td>Elbow</td><td>Production frame (composite: title arm caps the spine)</td>
+        <td><code>lcars.css · .program-title + .program-row::after</code></td>
+        <td>R30 outer cap; title <code>14px 30px 0 14px</code></td></tr>
+    <tr><td>Elbow</td><td>Audio-mixer master elbow — largest in the app</td>
+        <td><code>src/editors/audio-mixer · .am-rail</code></td>
+        <td>R44 → pit 22; mirrored rule for chirality</td></tr>
+    <tr><td>Elbow</td><td>Super-pool category spine</td>
+        <td><code>lcars.css · super-pool block (~1228)</code></td>
+        <td>R40 → pit 20; folded pool tightens to R15 pill</td></tr>
+    <tr><td>Elbow</td><td>Gang-row elbow — the summary IS the arm</td>
+        <td><code>lcars.css · .twist-group &gt; summary (~1447)</code></td>
+        <td>outer cap top-left, terminating pill right, square armpit bottom-left</td></tr>
+    <tr><td>Elbow pit</td><td>Every inner bend</td>
+        <td>derived, <code>LCARS.md §1.1 + §1.4</code></td>
+        <td>always R/2: 44→22 · 40→20 · 30→15 · 16→8</td></tr>
+    <tr><td>Arm</td><td>Twist top rail</td>
+        <td><code>lcars.css · .twist-container::after</code></td>
+        <td>20px tall, square left (seam to elbow), 10px hand right</td></tr>
+    <tr><td>Arm</td><td>Production title bar</td>
+        <td><code>lcars.css · .program-title</code></td>
+        <td>full-width, butts flush into the spine at the armpit</td></tr>
+    <tr><td>Arm</td><td>EDIT-LAYOUT band seated on the title rail</td>
+        <td><code>src/ui/console/authoring.ts · .auth-dock</code></td>
+        <td>seated at y=44, h=35 — keep in sync with the frame paddings</td></tr>
+    <tr><td>Armpit</td><td>Title-bar ↔ spine joint</td>
+        <td><code>lcars.css · .program-title (bottom-right)</code></td>
+        <td>radius 0 — "bottom-right stays square (inner edge)"</td></tr>
+    <tr><td>Wrist</td><td>Rail hand-off to the fold lip</td>
+        <td><code>lcars.css · .twist-lip (~914)</code></td>
+        <td>seam + same-height segment overlaying the rail end</td></tr>
+    <tr><td>Wrist</td><td>Monitor-tile step-down</td>
+        <td><code>lcars.css · .monitor-twist::before (~289)</code></td>
+        <td>bar 45→26px, radius re-derived 25→16 at the new weight</td></tr>
+    <tr><td>Hand</td><td>Footer tab cap</td>
+        <td><code>src/ui/console/footer.ts · .lcars-tab</code></td>
+        <td><code>border-radius: 0 999px 999px 0</code> — full pill cap, square butt</td></tr>
+    <tr><td>Hand</td><td>Chat-dock caps</td>
+        <td><code>lcars.css · .lcp-cap (~377)</code></td>
+        <td>R11, mirrored to face inward per chirality</td></tr>
+    <tr><td>Finger</td><td>Footer group tab stacks</td>
+        <td><code>lcars.css · .lcars-group-tabs .lcars-tab</code></td>
+        <td>stacked column, seam-separated, outer end caps only</td></tr>
+    <tr><td>Finger</td><td>Fold lip + fold bar on the twist rail</td>
+        <td><code>lcars.css · .twist-lip / .twist-foldbar</code></td>
+        <td>interactive; chevron rotates .2s (LCARS.md §5)</td></tr>
+    <tr><td>Spine</td><td>Production right spine</td>
+        <td><code>lcars.css · .program-row::after</code></td>
+        <td>45px wide, <code>0 30px 30px 30px</code> — square where it meets the arm</td></tr>
+    <tr><td>Foot</td><td>Spine terminus</td>
+        <td><code>lcars.css · .am-rail-foot / .program-row::after bottom</code></td>
+        <td>outer corner R, inner square; the mixer names it literally</td></tr>
+    <tr><td>Seam</td><td>Elbow ↔ arm gap on every twist</td>
+        <td><code>lcars.css · ::before ends 100px / ::after starts 110px</code></td>
+        <td>10px black; constant along the run</td></tr>
+  </table>
+  </div>
+
+  <p class="foot">TWISTROUTING · LCARS-RULES.html — companion to LCARS.md · palette per §2
+     (video&nbsp;<span style="color:var(--lilac)">lilac</span> · audio&nbsp;<span
+     style="color:var(--tomato)">tomato</span> · program&nbsp;<span
+     style="color:var(--bluebell)">blue bell</span>) · all diagram geometry on this page
+     obeys the Corner Law it documents.</p>
+</div>
+</body>
+</html>
