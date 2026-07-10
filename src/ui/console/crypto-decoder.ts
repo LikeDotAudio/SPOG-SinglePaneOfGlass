@@ -1,5 +1,5 @@
 import { el, addStyles } from '../dom.js';
-import { debugDecryptAndDecode } from '../../platform/mqtt/crypto.js';
+import { debugDecodePayload } from '../../platform/mqtt/codec.js';
 
 const CSS = `
 .crypto-decoder-modal {
@@ -71,7 +71,7 @@ export function toggleCryptoDecoder(): void {
   const manualPanel = el('div', { class: 'cd-panel' });
   const manualTitle = el('div', { class: 'cd-panel-title' }, ['MANUAL HEX/B64 DECODER']);
   const textarea = el('textarea', { class: 'cd-textarea', placeholder: 'Paste Hex or Base64 string here...' });
-  const btnDecode = el('button', { class: 'cd-decode-btn' }, ['DECRYPT & DECODE PROTOBUF']);
+  const btnDecode = el('button', { class: 'cd-decode-btn' }, ['DECODE PROTOBUF']);
   const resultLog = el('div', { class: 'cd-log' });
   manualPanel.append(manualTitle, textarea, btnDecode, resultLog);
   
@@ -88,7 +88,7 @@ export function toggleCryptoDecoder(): void {
         for (let i = 0; i < binString.length; i++) bytes[i] = binString.charCodeAt(i);
       }
       
-      const res = await debugDecryptAndDecode(bytes);
+      const res = await debugDecodePayload(bytes);
       resultLog.innerHTML = '';
       resultLog.append(
         el('div', { class: 'cd-log-topic' }, ['DECODED RESULT']),
@@ -113,7 +113,7 @@ if (typeof window !== 'undefined') {
     const evt = e as CustomEvent<{ topic: string, payload: Uint8Array }>;
     const hex = Array.from(evt.detail.payload, b => b.toString(16).padStart(2,'0')).join('');
     
-    debugDecryptAndDecode(evt.detail.payload).then(res => {
+    debugDecodePayload(evt.detail.payload).then(res => {
       const entry = el('div', { class: 'cd-log-entry' }, [
         el('div', { class: 'cd-log-topic' }, [evt.detail.topic]),
         el('div', { class: 'cd-log-hex' }, [hex]),

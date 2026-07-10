@@ -11,7 +11,7 @@
 import type { TwistBus, ConfigMsg, ValueMsg } from './types.js';
 import { getBrokerConfig, resolveBrokerUrl } from './config.js';
 import { loadMqtt, type MqttClient } from './mqtt-load.js';
-import { encodeAndEncrypt, decryptAndDecode } from './crypto.js';
+import { encodePayload, decodePayload } from './codec.js';
 import { makeThrottler } from './throttle.js';
 import { topicMatches } from './topics.js';
 
@@ -83,12 +83,10 @@ export function createTwistBus(): TwistBus {
   const send = async (topic: string, payload: any, retain = true): Promise<void> => {
     if (!client) return;                       // mqtt.js buffers pre-connect and flushes on connect
     try {
-      let outPayload: string | Uint8Array;
-      if (getBrokerConfig().plaintext) {
-        outPayload = typeof payload === 'string' ? payload : JSON.stringify(payload);
-      } else {
-        outPayload = await encodeAndEncrypt(payload);
-      }
+      // plaintext = raw JSON; else compact protobuf. No app-layer encryption (see codec.ts, audit §1).
+      const outPayload: string | Uint8Array = getBrokerConfig().plaintext
+        ? (typeof payload === 'string' ? payload : JSON.stringify(payload))
+        : await encodePayload(payload);
       client.publish(topic, outPayload as any, { retain, qos: 0 });
       messageCounter++;
     } catch (e) { dbg('publish failed', topic, e); }
@@ -131,7 +129,7 @@ export function createTwistBus(): TwistBus {
     client.on('offline', () => { connected = false; });
     client.on('error', (e) => dbg('error', e));
     client.on('message', async (topic: string, payload: Uint8Array) => {
-      let parsed: unknown = await decryptAndDecode(payload);
+      let parsed: unknown = await decodePayload(payload);
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('mqtt-raw-message', { detail: { topic, payload } }));
       }
