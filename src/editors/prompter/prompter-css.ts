@@ -52,4 +52,4 @@ export const PROMPTER_CSS = `
 .tp-mid{position:absolute;left:0;right:0;top:50%;height:2px;background:rgba(111,200,240,.35);pointer-events:none;margin-top:-1px;}
 .tp-mid::before{content:'▶';position:absolute;left:3%;top:-10px;color:#6FC8F0;font-size:22px;line-height:22px;text-shadow:0 2px 4px rgba(0,0,0,0.8);}
 .tp-mid::after{content:'◀';position:absolute;right:3%;top:-10px;color:#6FC8F0;font-size:22px;line-height:22px;text-shadow:0 2px 4px rgba(0,0,0,0.8);}
-\`;
+`;
