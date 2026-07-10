@@ -62,7 +62,7 @@ function renderInto(body: HTMLElement, resetScroll = true): void {
   const groupSelected = (group: string): boolean => sel.some((g) => group.toLowerCase().includes(g));
   const foldSet = new Set<string>(collapsed);   // section collapses carry through
   for (const l of all) {
-    if ((l.section === 'where' || l.section === 'how') && !expandedGroups.has(`G:${l.section}|${l.group}`) && !groupSelected(l.group)) foldSet.add(`G:${l.section}|${l.group}`);
+    if ((l.type === 'where' || l.type === 'how') && !expandedGroups.has(`G:${l.section}|${l.group}`) && !groupSelected(l.group)) foldSet.add(`G:${l.section}|${l.group}`);
   }
   // Grid HTML (foldable headers with inline counts, dots, bands, ruler) — see
   // captains-log-timeline-render. `ev` is the click-lookup list.
@@ -81,7 +81,7 @@ function renderInto(body: HTMLElement, resetScroll = true): void {
   const chips = panel?.querySelector('.tl-groups');
   if (chips) {
     const twists = [...document.querySelectorAll<HTMLElement>('.twist-container')];
-    const groups = [...new Set(all.filter((l) => l.section === 'where' || l.section === 'how').map((l) => l.group))];
+    const groups = [...new Set(all.filter((l) => l.type === 'where' || l.type === 'how').map((l) => l.group))];
     chips.innerHTML = `<button class="tl-chip all${!selectedGroups.size && !filter ? ' on' : ''}" data-group="">◎ SHOW ALL</button>` + groups.map((g) => {
       const tw = twists.find((t) => (t.dataset['prodName'] || '').toUpperCase() === g);
       const c = (tw && getComputedStyle(tw).getPropertyValue('--lcars-color').trim()) || '#3FC1C9';
@@ -124,6 +124,7 @@ export function openTimeline(): void {
     const body = el('div', { class: 'tl-body' });
     const nowBtn = el('button', { class: 'tl-btn' }, ['⤒ NOW']);
     const schedBtn = el('button', { class: 'tl-btn' }, ['⇥ SCHEDULE']);
+    const refreshBtn = el('button', { class: 'tl-btn' }, ['⟳ REFRESH']);
     const filterEl = el('input', { class: 'tl-filter', type: 'search', placeholder: '⌕ filter lanes / events…' }) as HTMLInputElement;
     filterEl.addEventListener('input', () => { filter = filterEl.value.trim().toLowerCase(); const sx = body.scrollLeft; renderInto(body, false); body.scrollLeft = sx; });
     const groupsEl = el('span', { class: 'tl-groups' });
@@ -143,7 +144,7 @@ export function openTimeline(): void {
       filterEl,
       el('span', { class: 'tl-legend' }),
       el('span', { class: 'tl-onair-banner' }),
-      nowBtn, schedBtn, el('button', { class: 'tl-btn' }, ['⟳ REFRESH']),
+      nowBtn, schedBtn, refreshBtn,
       el('span', { class: 'tl-x', title: 'Close' }, ['✕']),
     ]);
     const chipbar = el('div', { class: 'tl-chipbar' }, [groupsEl]);
@@ -152,7 +153,7 @@ export function openTimeline(): void {
     // except when the click lands on an actual control (buttons, filter, chips, legend).
     head.addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('button, input, select, .tl-filter, .tl-legend, .tl-groups')) return; closeTimeline(); });
     head.querySelector('.tl-x')!.addEventListener('click', closeTimeline);
-    (head.querySelectorAll('.tl-btn')[3] as HTMLElement).addEventListener('click', () => renderInto(body));
+    refreshBtn.addEventListener('click', () => renderInto(body));
     nowBtn.addEventListener('click', () => { const n = body.querySelector<HTMLElement>('.tl-now'); if (n) body.scrollLeft = Math.max(0, n.offsetLeft - body.clientWidth * 0.5); });
     schedBtn.addEventListener('click', () => {
       const nowX = body.querySelector<HTMLElement>('.tl-now')?.offsetLeft ?? 0;
