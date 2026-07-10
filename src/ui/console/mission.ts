@@ -9,6 +9,7 @@
 import { addStyles } from '../dom.js';
 import { role } from '../../platform/auth.js';
 import { showSchedule, SCHEDULE, type Slot } from './schedule.js';
+import { openTimeline } from './captains-log-timeline.js';
 
 const slug = (s: string): string => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const fmt = (h: number): string => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
@@ -64,8 +65,8 @@ export function initMission(): void {
   addStyles('mission-styles', MZ_CSS);
   const bar = document.createElement('div');
   bar.className = 'mz-bar';
-  bar.title = 'Your current mission — click to open the schedule';
-  bar.addEventListener('click', () => showSchedule());
+  bar.title = 'Your current mission — click to open the timeline';
+  bar.addEventListener('click', () => openTimeline());
   document.body.appendChild(bar);
 
   const setURL = (ctx: Ctx): void => {
