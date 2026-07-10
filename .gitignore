@@ -10,9 +10,6 @@ __pycache__/
 # vite temp config file (created during config eval)
 vite.config.*.timestamp-*
 
-# Audit docs — kept local, not part of the repo/deploy (folder name has a
-# trailing space, so the space is backslash-escaped to survive gitignore parsing).
-docs/Audit\ /
-
-.crawler/
-docs/
+docs/Audits/
+docs/PAST\ Audits/
+docs/Audits\ /
