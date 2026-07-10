@@ -46,6 +46,7 @@ export const TL_CSS = `
 .tl-band{position:absolute;top:11px;height:8px;border-radius:4px;opacity:.5;}
 .tl-plan{position:absolute;top:7px;height:16px;border-radius:5px;border:1.5px solid var(--pc,#5a6a8c);background:color-mix(in srgb,var(--pc,#5a6a8c) 24%,transparent);color:#e6ecf7;font:9px 'Courier New',monospace;line-height:16px;padding:0 6px;overflow:hidden;white-space:nowrap;box-sizing:border-box;}
 .tl-plan.reh{border-style:dashed;background:color-mix(in srgb,var(--pc,#5a6a8c) 10%,transparent);color:#aeb9d0;font-style:italic;}
+.tl-plan.tear{border-style:dotted;background:transparent;color:#8a99a8;font-style:italic;}
 .tl-conflict{font-style:normal;font-weight:900;color:#ff6a6a;margin-left:5px;}
 .room-onair { background: rgba(255, 0, 0, 0.15) !important; }
 .room-onair .tl-lanelabel { background: #660000; color: #ffcccc; border-right-color: #ff3b3b; animation: pulseBg 1.5s infinite alternate; }
