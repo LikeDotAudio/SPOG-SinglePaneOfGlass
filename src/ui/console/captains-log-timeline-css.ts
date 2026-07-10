@@ -25,7 +25,7 @@ export const TL_CSS = `
 .tl-grid{position:relative;}
 .tl-sec,.tl-group{cursor:pointer;user-select:none;height:19px;position:relative;}
 .tl-sec{font:900 10px sans-serif;letter-spacing:2px;color:#06070c;}
-.tl-sec.where{background:#6FC8F0;} .tl-sec.who{background:#A06EB4;}
+.tl-sec.where{background:#6FC8F0;} .tl-sec.how{background:#3FC1C9;} .tl-sec.who{background:#A06EB4;} .tl-sec.whom{background:#ff5fa2;}
 .tl-group{color:#9a8845;font:9px 'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;background:#0a0805;}
 .tl-group.folded{color:#7f8fa6;}
 /* The header TEXT (title + fold flap) sticks to the left edge — like the lane labels —
@@ -46,6 +46,17 @@ export const TL_CSS = `
 .tl-plan{position:absolute;top:7px;height:16px;border-radius:5px;border:1.5px solid var(--pc,#5a6a8c);background:color-mix(in srgb,var(--pc,#5a6a8c) 24%,transparent);color:#e6ecf7;font:9px 'Courier New',monospace;line-height:16px;padding:0 6px;overflow:hidden;white-space:nowrap;box-sizing:border-box;}
 .tl-plan.reh{border-style:dashed;background:color-mix(in srgb,var(--pc,#5a6a8c) 10%,transparent);color:#aeb9d0;font-style:italic;}
 .tl-conflict{font-style:normal;font-weight:900;color:#ff6a6a;margin-left:5px;}
+.room-onair { background: rgba(255, 0, 0, 0.15) !important; }
+.room-onair .tl-lanelabel { background: #660000; color: #ffcccc; border-right-color: #ff3b3b; animation: pulseBg 1.5s infinite alternate; }
+.room-reh { background: rgba(255, 165, 0, 0.15) !important; }
+.room-reh .tl-lanelabel { background: #663300; color: #ffe5cc; border-right-color: #ff9900; }
+.r-badge { margin-left: 8px; padding: 2px 5px; border-radius: 4px; font-weight: bold; font-size: 9px; }
+.r-badge.onair { background: #ff3b3b; color: #fff; }
+.r-badge.reh { background: #ff9900; color: #fff; }
+@keyframes pulseBg { from { background: #660000; } to { background: #cc0000; } }
+.tl-onair-banner { flex: 1; display: flex; justify-content: center; gap: 24px; font-size: 18px; font-weight: 900; color: #ff3b3b; letter-spacing: 2px; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+.tl-onair-banner.active span { animation: pulseText 1.5s infinite alternate; }
+@keyframes pulseText { from { opacity: 0.6; text-shadow: 0 0 4px #ff3b3b; } to { opacity: 1; text-shadow: 0 0 12px #ff3b3b; } }
 .tl-kf{position:absolute;top:8px;width:12px;height:12px;margin-left:-6px;border-radius:50%;border:2px solid #06070c;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.6);z-index:3;}
 .tl-kf:hover{transform:scale(1.4);z-index:6;}
 .tl-kf.rev{opacity:.35;}

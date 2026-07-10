@@ -10,7 +10,7 @@ const OP_COLORS = ['#FF9C63', '#3FC1C9', '#A06EB4', '#6cdf4a', '#6FC8F0', '#C2B7
 
 export interface Keyframe { ts: number; text: string; rev: boolean; op: string; color: string }
 export interface Plan { s: number; e: number; label: string; reh?: boolean; color?: string }
-export interface Lane { section: 'where' | 'who'; group: string; name: string; kf: Keyframe[]; plans: Plan[] }
+export interface Lane { section: 'where' | 'who' | 'how' | 'whom'; group: string; name: string; kf: Keyframe[]; plans: Plan[] }
 
 const allEntries = (): Entry[] => narratives.flatMap((n) => n.entries).sort((a, b) => a.ts - b.ts);
 /** Operator off a narration ("… · by NAME") for the WHO lane + colour key. */
@@ -24,7 +24,7 @@ export function buildLanes(): { lanes: Lane[]; opColor: Map<string, string>; t0:
   // A lane is keyed separately from its display name so a scheduled crew ROLE and an
   // operator acting in that role land on the SAME lane (booked vs actual), matched on
   // the role's first segment ("Conn · TD" / "Conn · Helm" → "conn").
-  const lane = (section: 'where' | 'who', group: string, key: string, name: string): Lane => {
+  const lane = (section: 'where' | 'who' | 'how' | 'whom', group: string, key: string, name: string): Lane => {
     const k = `${section}|${group}|${key}`;
     if (!lanes.has(k)) lanes.set(k, { section, group, name, kf: [], plans: [] });
     return lanes.get(k)!;
@@ -37,8 +37,15 @@ export function buildLanes(): { lanes: Lane[]; opColor: Map<string, string>; t0:
     lane('where', (e.prod || 'FACILITY').toUpperCase(), dest, dest).kf.push(kf);
     // Prefer the operator's ROLE lane (aligns with scheduled crew); fall back to the
     // operator name for legacy entries with no role recorded.
-    if (e.role) lane('who', 'CREW / ROLES', roleKey(e.role), e.role).kf.push(kf);
-    else lane('who', 'OPERATORS', op, op).kf.push(kf);
+    if (e.role) {
+      if (/(host|guest|panelist)/i.test(e.role)) {
+        lane('whom', 'PEOPLE', roleKey(e.role), e.role).kf.push(kf);
+      } else {
+        lane('who', 'CREW / ROLES', roleKey(e.role), e.role).kf.push(kf);
+      }
+    } else {
+      lane('who', 'OPERATORS', op, op).kf.push(kf);
+    }
   }
   // The production SCHEDULE is a DAILY recurring timetable — project it across today
   // and the next few days so future occurrences land to the RIGHT of now (the graph
@@ -53,7 +60,7 @@ export function buildLanes(): { lanes: Lane[]; opColor: Map<string, string>; t0:
       const reh = s - 45 * 60000;   // every slot earns a 45-minute rehearsal band before air
       firstPlan = Math.min(firstPlan, reh); lastPlan = Math.max(lastPlan, en);
       const pc = showColor(sl.show);   // production identity colour, shared with the schedule overlay
-      const room = lane('where', 'SCHEDULED — ROOMS', sl.room, sl.room);
+      const room = lane('how', 'PRODUCTION ROOMS', sl.room, sl.room);
       room.plans.push({ s: reh, e: s, label: `${sl.show} · rehearsal`, reh: true, color: pc });
       room.plans.push({ s, e: en, label: sl.show, color: pc });
       // Booked crew ride the SAME role lanes as the operators who act in them — so two
@@ -71,7 +78,7 @@ export function buildLanes(): { lanes: Lane[]; opColor: Map<string, string>; t0:
   // (now, last event, last scheduled show), so the day's schedule is always on-canvas.
   const t0 = Math.min(...tsAll) - 900000;
   const t1 = Math.max(now + 900000, ...tsAll);
-  const ord = { where: 0, who: 1 } as const;
+  const ord = { where: 0, how: 1, who: 2, whom: 3 } as const;
   const list = [...lanes.values()].sort((a, b) => ord[a.section] - ord[b.section] || a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
   return { lanes: list, opColor, t0, t1 };
 }

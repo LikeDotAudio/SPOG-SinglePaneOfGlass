@@ -55,7 +55,7 @@ export async function buildConsole(BUILD: BuildStamp): Promise<void> {
   document.body.innerHTML = '';
   const ingress = el('div', { class: 'panel ingress-panel', id: 'sources' });
   const sash = el('div', { class: 'sidebar-sash', id: 'sidebar-sash', title: 'Drag to resize the sources sidebar' });
-  const content = el('div', { id: 'production-content', style: 'flex:1 1 auto;min-height:0;overflow-y:auto;padding:24px 6px 4px 0;' });
+  const content = el('div', { id: 'production-content', style: 'flex:1 1 auto;min-height:0;overflow-y:auto;padding:0 6px 4px 0;' });
   const destFrame = el('div', { class: 'panel dest-frame', style: 'overflow:hidden;display:flex;flex-direction:column;border:none;border-radius:0;' }, [content]);
   const container = el('div', { class: 'container' }, [ingress, sash, destFrame]);
   // Sources sash: drag to resize (chirality-aware — the grid is RTL right-handed),

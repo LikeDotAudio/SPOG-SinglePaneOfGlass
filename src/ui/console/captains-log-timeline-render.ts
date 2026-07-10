@@ -5,15 +5,16 @@
 // fold. Split out of captains-log-timeline (200-line rule).
 export interface RKf { ts: number; text: string; rev: boolean; op: string; color: string }
 export interface RPlan { s: number; e: number; label: string; reh?: boolean; color?: string }
-export interface RLane { section: 'where' | 'who'; group: string; name: string; kf: RKf[]; plans: RPlan[] }
+export interface RLane { section: 'where' | 'who' | 'how' | 'whom'; group: string; name: string; kf: RKf[]; plans: RPlan[] }
 export interface REv { ts: number; text: string; op: string; rev: boolean; color: string }
 
 const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] ?? c));
 const hm = (ts: number): string => new Date(ts).toISOString().slice(11, 16);
 
 /** Build the grid innerHTML + the click-lookup event list. `x(ts)` maps a time to px. */
-export function buildGrid(lanes: RLane[], x: (ts: number) => number, width: number, t0: number, t1: number, now: number, collapsed: Set<string>): { html: string; ev: REv[] } {
+export function buildGrid(lanes: RLane[], x: (ts: number) => number, width: number, t0: number, t1: number, now: number, collapsed: Set<string>): { html: string; ev: REv[]; onAirRooms: string[] } {
   const ev: REv[] = [];
+  const onAirRooms: string[] = [];
   // Aggregate every lane's keyframes per group and per section (for fold composites).
   const aggG = new Map<string, RKf[]>(), aggS = new Map<string, RKf[]>();
   for (const ln of lanes) {
@@ -21,7 +22,7 @@ export function buildGrid(lanes: RLane[], x: (ts: number) => number, width: numb
     (aggG.get(gk) ?? aggG.set(gk, []).get(gk)!).push(...ln.kf);
     (aggS.get(sk) ?? aggS.set(sk, []).get(sk)!).push(...ln.kf);
   }
-  const laneHtml = (label: string, kf: RKf[], plans: RPlan[], cls = ''): string => {
+  const laneHtml = (label: string, kf: RKf[], plans: RPlan[], isRoom: boolean, cls = ''): string => {
     // Pack overlapping plans into sub-rows (greedy interval colouring): a booking clash
     // grows the lane into a SECOND line, and the label gets a ×N badge = how many people
     // / rooms that slot demands at peak. Non-overlapping plans keep one row (30px).
@@ -30,7 +31,22 @@ export function buildGrid(lanes: RLane[], x: (ts: number) => number, width: numb
     const rowOf = sp.map((p) => { let r = rowEnd.findIndex((e) => p.s >= e); if (r === -1) { r = rowEnd.length; rowEnd.push(0); } rowEnd[r] = p.e; return r; });
     const rows = Math.max(1, rowEnd.length);
     const conflict = rows > 1 ? ` <em class="tl-conflict" title="peak concurrent bookings — needs ${rows} people/rooms">×${rows}</em>` : '';
-    let h = `<div class="tl-lane ${cls}" style="height:${30 + (rows - 1) * 18}px"><span class="tl-lanelabel" title="${esc(label)}">${esc(label)}${conflict}</span>`;
+    let rowCls = cls;
+    let labelBadge = '';
+    if (isRoom) {
+      const active = plans.find((p) => now >= p.s && now < p.e);
+      if (active) {
+        if (active.reh) {
+          rowCls += ' room-reh';
+          labelBadge = ' <span class="r-badge reh">REHEARSAL</span>';
+        } else {
+          rowCls += ' room-onair';
+          labelBadge = ' <span class="r-badge onair pulse">ON AIR</span>';
+          onAirRooms.push(`${label.toUpperCase()} ON AIR`);
+        }
+      }
+    }
+    let h = `<div class="tl-lane ${rowCls}" style="height:${30 + (rows - 1) * 18}px"><span class="tl-lanelabel" title="${esc(label)}">${esc(label)}${conflict}${labelBadge}</span>`;
     const s = [...kf].sort((a, b) => a.ts - b.ts);
     s.forEach((k, i) => { const sx = x(k.ts), ex = i + 1 < s.length ? x(s[i + 1]!.ts) : sx; if (ex > sx) h += `<div class="tl-band" style="left:${sx}px;width:${ex - sx}px;background:${k.color};"></div>`; });
     sp.forEach((p, i) => { const pc = p.color ? `--pc:${p.color};` : ''; h += `<div class="tl-plan${p.reh ? ' reh' : ''}" style="${pc}left:${x(p.s)}px;width:${x(p.e) - x(p.s)}px;top:${7 + rowOf[i]! * 18}px;" title="${esc(p.label)} · scheduled">${esc(p.label)}</div>`; });
@@ -53,7 +69,13 @@ export function buildGrid(lanes: RLane[], x: (ts: number) => number, width: numb
     const secKey = `S:${ln.section}`, grpKey = `G:${ln.section}|${ln.group}`;
     if (ln.section !== curSec) {
       curSec = ln.section; curGrp = '';
-      const c = collapsed.has(secKey), label = ln.section === 'where' ? 'WHERE — DESTINATIONS &amp; ROOMS' : 'WHO — OPERATORS &amp; BOOKED CREW';
+      const LABELS: Record<string, string> = {
+        where: 'WHERE — DESTINATIONS',
+        how: 'HOW — PRODUCTION ROOMS',
+        who: 'WHO — OPERATORS &amp; BOOKED CREW',
+        whom: 'WHOM — PEOPLE (HOSTS, GUESTS)'
+      };
+      const c = collapsed.has(secKey), label = LABELS[ln.section] || ln.section.toUpperCase();
       const aggsec = aggS.get(secKey) ?? [];
       const scount = c ? ` <span class="tl-count">(${aggsec.length} event${aggsec.length === 1 ? '' : 's'})</span>` : '';
       html += `<div class="tl-sec ${ln.section}" data-fold="${secKey}"><span class="tl-hd-in">${c ? '▸' : '▾'} ${label}${scount}</span>${c ? summaryMarks(aggsec) : ''}</div>`;
@@ -70,7 +92,7 @@ export function buildGrid(lanes: RLane[], x: (ts: number) => number, width: numb
       html += `<div class="tl-group${c ? ' folded' : ''}" data-fold="${esc(grpKey)}"><span class="tl-hd-in">${c ? '▸' : '▾'} ${esc(ln.group)}${count}</span>${c ? summaryMarks(agg) : ''}</div>`;
     }
     if (collapsed.has(grpKey)) continue;
-    html += laneHtml(ln.name, ln.kf, ln.plans);
+    html += laneHtml(ln.name, ln.kf, ln.plans, ln.section === 'how');
   }
   let ticks = '', ruler = '';
   for (let h = Math.floor(t0 / 3600000) * 3600000; h <= t1; h += 3600000) {
@@ -78,5 +100,5 @@ export function buildGrid(lanes: RLane[], x: (ts: number) => number, width: numb
     ruler += `<div class="tl-rlabel" style="left:${px}px;">${hm(h)}<b>${new Date(h).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</b></div>`;
   }
   html = ticks + html + `<div class="tl-now" style="left:${x(now)}px;" title="now"></div><div class="tl-ruler" style="width:${width}px;">${ruler}</div>`;
-  return { html, ev };
+  return { html, ev, onAirRooms };
 }

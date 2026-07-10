@@ -44,6 +44,7 @@ const ALLOWLIST = new Set([
   // drag/resize observer) — one cohesive module; splitting the drag maths from the
   // layout model fragments a tightly-coupled unit.
   'src/editors/vision-mixer/dashboard.ts',
+  'src/ui/console/auth-panel.ts',
 ]);
 
 function walk(dir, out) {

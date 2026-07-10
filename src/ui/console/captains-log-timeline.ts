@@ -60,17 +60,18 @@ function renderInto(body: HTMLElement, resetScroll = true): void {
   // so selecting one (or many) chips unfolds those rooms and exposes their lanes.
   const groupSelected = (group: string): boolean => sel.some((g) => group.toLowerCase().includes(g));
   const foldSet = new Set<string>(collapsed);   // section collapses carry through
-  for (const g of new Set(all.filter((l) => l.section === 'where' && l.group !== 'SCHEDULED — ROOMS').map((l) => l.group))) {
-    const key = `G:where|${g}`;
-    if (!expandedGroups.has(key) && !groupSelected(g)) foldSet.add(key);
+  for (const l of all) {
+    if ((l.section === 'where' || l.section === 'how') && !expandedGroups.has(`G:${l.section}|${l.group}`) && !groupSelected(l.group)) foldSet.add(`G:${l.section}|${l.group}`);
   }
   // Grid HTML (foldable headers with inline counts, dots, bands, ruler) — see
   // captains-log-timeline-render. `ev` is the click-lookup list.
-  const { html, ev } = buildGrid(lanes, x, width, t0, t1, now, foldSet);
+  const { html, ev, onAirRooms } = buildGrid(lanes, x, width, t0, t1, now, foldSet);
   evList = ev;
   const grid = el('div', { class: 'tl-grid', style: `width:${width}px;` });
   grid.innerHTML = html;
   body.replaceChildren(grid);
+
+  const banner = panel?.querySelector('.tl-onair-banner'); if (banner) { banner.innerHTML = onAirRooms.map((r) => `<span>${esc(r)}</span>`).join(''); banner.className = `tl-onair-banner${onAirRooms.length ? ' active' : ''}`; }
 
   const legend = panel?.querySelector('.tl-legend');
   if (legend) legend.innerHTML = [...opColor].map(([op, c]) => `<span><i style="background:${c}"></i>${esc(op)}</span>`).join('') + `<span><i style="background:${PLAN};border-radius:2px"></i>scheduled</span>`;
@@ -79,7 +80,7 @@ function renderInto(body: HTMLElement, resetScroll = true): void {
   const chips = panel?.querySelector('.tl-groups');
   if (chips) {
     const twists = [...document.querySelectorAll<HTMLElement>('.twist-container')];
-    const groups = [...new Set(all.filter((l) => l.section === 'where' && l.group !== 'SCHEDULED — ROOMS').map((l) => l.group))];
+    const groups = [...new Set(all.filter((l) => l.section === 'where' || l.section === 'how').map((l) => l.group))];
     chips.innerHTML = `<button class="tl-chip all${!selectedGroups.size && !filter ? ' on' : ''}" data-group="">◎ SHOW ALL</button>` + groups.map((g) => {
       const tw = twists.find((t) => (t.dataset['prodName'] || '').toUpperCase() === g);
       const c = (tw && getComputedStyle(tw).getPropertyValue('--lcars-color').trim()) || '#3FC1C9';
@@ -140,7 +141,7 @@ export function openTimeline(): void {
       el('span', { class: 'tl-title' }, ['⧗ TIMELINE VIEWER']),
       filterEl,
       el('span', { class: 'tl-legend' }),
-      el('span', { class: 'tl-spacer' }),
+      el('span', { class: 'tl-onair-banner' }),
       nowBtn, schedBtn, el('button', { class: 'tl-btn' }, ['⟳ REFRESH']),
       el('span', { class: 'tl-x', title: 'Close' }, ['✕']),
     ]);
