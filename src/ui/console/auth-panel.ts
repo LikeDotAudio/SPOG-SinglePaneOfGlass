@@ -77,7 +77,7 @@ html[data-face="icons"] .au-corner button.has-face-icon:hover{
 const CAPS: Array<[Capability, string]> = [
   ['switch', 'Switch'], ['route', 'Route'], ['signal', 'Signal'], ['shade', 'Shade'], ['audio', 'Audio'],
   ['gfx', 'Graphics'], ['comms', 'Comms'], ['book', 'Booking'], ['view', 'View'],
-  ['build', 'Build'], ['arrange', 'Arrange'], ['admin', 'Admin'],
+  ['build', 'Build'], ['arrange', 'Arrange'], ['network', 'Network'], ['admin', 'Admin'],
 ];
 
 const capLine = (r: Role): string =>

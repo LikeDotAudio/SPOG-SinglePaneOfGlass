@@ -3,7 +3,7 @@ import type { Hex } from './common.js';
 
 export type Capability =
   | 'admin' | 'switch' | 'route' | 'signal' | 'shade'
-  | 'gfx' | 'comms' | 'audio' | 'book' | 'view'
+  | 'gfx' | 'comms' | 'audio' | 'book' | 'view' | 'network'
   // Layout-authoring rights (single-pane editor). Split so an operator can be
   // allowed to MOVE/resize the layout without being allowed to ADD or edit it:
   | 'build'      // add / edit / delete rooms & containers (declaration authoring)
