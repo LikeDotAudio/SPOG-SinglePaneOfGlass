@@ -12,6 +12,7 @@ import { buildLanes, type Lane } from './captains-log-timeline-data.js';
 import { TL_CSS } from './captains-log-timeline-css.js';
 import { wireNav } from './captains-log-timeline-nav.js';
 import { buildGrid } from './captains-log-timeline-render.js';
+import { showSchedule } from './schedule.js';
 
 const PLAN = '#5a6a8c';
 const MIN_SPAN_MIN = 60, GUTTER = 220;
@@ -165,7 +166,9 @@ export function openTimeline(): void {
       // Groups fold by default → their toggle tracks EXPANDED (opt-in); sections track COLLAPSED.
       if (fold) { const k = fold.dataset['fold']!; const set = k.startsWith('G:') ? expandedGroups : collapsed; set.has(k) ? set.delete(k) : set.add(k); const sx = body.scrollLeft; renderInto(body, false); body.scrollLeft = sx; return; }
       const kf = t.closest<HTMLElement>('.tl-kf[data-ev]');
+      const plan = t.closest<HTMLElement>('.tl-plan[data-show]');
       if (kf) showDetail(Number(kf.dataset['ev']), (e as MouseEvent).clientX, (e as MouseEvent).clientY);
+      else if (plan) showSchedule(plan.dataset['show']);
       else panel!.querySelector('.tl-detail')?.remove();
     });
     // Middle-button (wheel-click) drag = grab-scrub the timeline on both axes.

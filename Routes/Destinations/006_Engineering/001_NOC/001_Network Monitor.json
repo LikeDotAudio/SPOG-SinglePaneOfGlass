@@ -1,0 +1,43 @@
+{
+  "id": "noc1",
+  "name": "NETWORK MONITOR",
+  "color": "#C678C6",
+  "twists": [
+    {
+      "name": "State Time Graph",
+      "accepts": "telemetry",
+      "row": "graphs"
+    },
+    {
+      "name": "PTP Jitter Graph",
+      "accepts": "telemetry",
+      "row": "graphs"
+    },
+    {
+      "name": "Event Log",
+      "accepts": "telemetry",
+      "row": "logs",
+      "inputs": [
+        "Filter: Critical",
+        "Filter: Major",
+        "Filter: Info"
+      ]
+    },
+    {
+      "name": "Everything is awesome, compare to this point",
+      "accepts": "action",
+      "row": "controls",
+      "button": true
+    },
+    {
+      "name": "Core Switch A status",
+      "accepts": "telemetry",
+      "row": "switches"
+    },
+    {
+      "name": "Core Switch B status",
+      "accepts": "telemetry",
+      "row": "switches"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import { addStyles, el } from '../dom.js';
 import { fetchJSON } from '../../platform/discovery.js';
 import { putDraft } from '../../platform/routes-store.js';
+import { role } from '../../platform/auth.js';
 import { SCHED_CSS } from './schedule-css.js';
 
 export interface Slot { s: number; e: number; show: string; room: string; crew: string[]; resources?: string[] }
@@ -66,11 +67,16 @@ function ensure(): HTMLElement {
     if (e.target === ov) {
       ov?.classList.remove('open');
       editingIndex = -1;
+      editMode = false;
     }
   });
   const toggleBtn = ov.querySelector('.toggle-edit-btn');
   if (toggleBtn) {
     toggleBtn.addEventListener('click', () => {
+      if (role().id !== 'ep' && role().id !== 'director') {
+        alert('Schedule editing is locked to Captains and First Officers.');
+        return;
+      }
       editMode = !editMode;
       editingIndex = -1;
       build(ov!);
@@ -143,6 +149,11 @@ function build(root: HTMLElement): void {
   if (!list) return;
   list.innerHTML = '';
   const now = nowHours();
+  const toggleBtn = root.querySelector('.toggle-edit-btn') as HTMLElement;
+  if (toggleBtn) {
+    if (role().id === 'ep' || role().id === 'director') toggleBtn.style.display = 'block';
+    else toggleBtn.style.display = 'none';
+  }
   
   SCHEDULE.forEach((sl, idx) => {
     if (editingIndex === idx) {
@@ -184,8 +195,22 @@ function build(root: HTMLElement): void {
   }
 }
 
-export function showSchedule(): void {
+export function showSchedule(editShowName?: string): void {
   const root = ensure();
+  if (editShowName && (role().id === 'ep' || role().id === 'director')) {
+    const idx = SCHEDULE.findIndex((s) => s.show === editShowName);
+    if (idx !== -1) {
+      editMode = true;
+      editingIndex = idx;
+    }
+  }
   build(root);
   root.classList.add('open');
+  if (editMode && editingIndex !== -1) {
+    // scroll to it
+    setTimeout(() => {
+      const ed = root.querySelector('.sc-editor');
+      if (ed) ed.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  }
 }

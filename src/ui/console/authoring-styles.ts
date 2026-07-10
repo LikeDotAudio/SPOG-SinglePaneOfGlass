@@ -18,11 +18,10 @@ body.authoring .auth-only{display:flex !important;}
    (spine is RIGHT in left-handed mode, LEFT in right-handed mode). */
 .dest-frame{position:relative;}
 /* The dock IS a segment of the production rail's elbow corner — not a pill floating
-   over it. It seats exactly on the title rail band (frame padding 20px + content
-   padding-top 24px → top:44px; rail height 35px), butt-joins the bar through a 4px
+   over it. It seats exactly on the title rail band (flush to the top → top:0; rail height 35px), butt-joins the bar through a 4px
    black notch on the joining side, and its outer top corner carries the rail's 30px
    cap radius (Corner Law: round the terminating end, square the joining edges). */
-.auth-dock{position:absolute;top:44px;right:26px;left:auto;height:35px;z-index:30;
+.auth-dock{position:absolute;top:0;right:26px;left:auto;height:35px;z-index:30;
   display:flex;align-items:stretch;gap:5px;flex-direction:row-reverse;padding:0;}
 /* No destination loaded → no rail to seat on → the dock hides entirely. */
 .dest-frame:not(:has(.program-row)) .auth-dock{display:none;}

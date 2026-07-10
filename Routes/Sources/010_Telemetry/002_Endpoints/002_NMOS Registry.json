@@ -1,0 +1,9 @@
+{
+  "id": "telemetry-nmos-reg",
+  "name": "NMOS REG",
+  "prefix": "IS-",
+  "count": 2,
+  "extraClass": "telemetry-endpoint",
+  "color": "#C678C6",
+  "status": "ONLINE"
+}

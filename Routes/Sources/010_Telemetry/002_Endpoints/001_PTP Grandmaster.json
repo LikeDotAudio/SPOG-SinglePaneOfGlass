@@ -1,0 +1,9 @@
+{
+  "id": "telemetry-ptp-gm",
+  "name": "PTP GM",
+  "prefix": "GM-",
+  "count": 2,
+  "extraClass": "telemetry-endpoint",
+  "color": "#C678C6",
+  "status": "LOCKED"
+}

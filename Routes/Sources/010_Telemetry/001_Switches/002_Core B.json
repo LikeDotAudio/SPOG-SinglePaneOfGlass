@@ -1,0 +1,9 @@
+{
+  "id": "switch-core-b",
+  "name": "CORE B",
+  "prefix": "SW-B-",
+  "count": 4,
+  "extraClass": "telemetry-switch",
+  "color": "#39D353",
+  "status": "ONLINE"
+}

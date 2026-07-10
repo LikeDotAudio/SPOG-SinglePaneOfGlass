@@ -35,6 +35,8 @@ const ALLOWLIST = new Set([
   'src/ui/console/chat-dock.ts',
   'src/editors/encoder/index.ts',
   'src/editors/signal-conditioner/index.ts',
+  'src/ui/console/schedule.ts',
+  'src/ui/console/captains-log-timeline.ts',
   'src/platform/mqtt/schema.js',
   'src/platform/mqtt/schema.d.ts',
   'src/ui/console/dest-fixtures-counters.ts',
@@ -45,6 +47,8 @@ const ALLOWLIST = new Set([
   // layout model fragments a tightly-coupled unit.
   'src/editors/vision-mixer/dashboard.ts',
   'src/ui/console/auth-panel.ts',
+  'src/ui/console/schedule.ts',
+  'src/ui/console/captains-log-timeline.ts',
 ]);
 
 function walk(dir, out) {

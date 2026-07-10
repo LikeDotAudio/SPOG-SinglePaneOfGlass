@@ -49,7 +49,7 @@ export function buildGrid(lanes: RLane[], x: (ts: number) => number, width: numb
     let h = `<div class="tl-lane ${rowCls}" style="height:${30 + (rows - 1) * 18}px"><span class="tl-lanelabel" title="${esc(label)}">${esc(label)}${conflict}${labelBadge}</span>`;
     const s = [...kf].sort((a, b) => a.ts - b.ts);
     s.forEach((k, i) => { const sx = x(k.ts), ex = i + 1 < s.length ? x(s[i + 1]!.ts) : sx; if (ex > sx) h += `<div class="tl-band" style="left:${sx}px;width:${ex - sx}px;background:${k.color};"></div>`; });
-    sp.forEach((p, i) => { const pc = p.color ? `--pc:${p.color};` : ''; h += `<div class="tl-plan${p.reh ? ' reh' : ''}" style="${pc}left:${x(p.s)}px;width:${x(p.e) - x(p.s)}px;top:${7 + rowOf[i]! * 18}px;" title="${esc(p.label)} · scheduled">${esc(p.label)}</div>`; });
+    sp.forEach((p, i) => { const pc = p.color ? `--pc:${p.color};` : ''; h += `<div class="tl-plan${p.reh ? ' reh' : ''}" data-show="${esc(p.label)}" style="${pc}left:${x(p.s)}px;width:${x(p.e) - x(p.s)}px;top:${7 + rowOf[i]! * 18}px;" title="${esc(p.label)} · scheduled">${esc(p.label)}</div>`; });
     for (const k of s) { const idx = ev.push({ ts: k.ts, text: k.text, op: k.op, rev: k.rev, color: k.color }) - 1; h += `<div class="tl-kf${k.rev ? ' rev' : ''}" data-ev="${idx}" style="left:${x(k.ts)}px;background:${k.color};" title="${esc(hm(k.ts) + '  ' + k.text)}"></div>`; }
     return h + '</div>';
   };
