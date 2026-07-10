@@ -30,33 +30,18 @@ const hueShift = (hex: string, deg: number): string => {
   return `#${to(R)}${to(G)}${to(B)}`;
 };
 
-// ── glyph library (extracted to a sibling module to keep this file small) ────
-import { GLYPHS } from './icon-glyphs.js';
+// ── glyph library — category glyphs + their accents come one-per-file from
+// ./glyphs/ (GLYPH_TOKENS), assembled in icon-glyphs.ts alongside CHROME_GLYPHS.
+import { GLYPHS, GLYPH_TOKENS } from './icon-glyphs.js';
 
 // ── palette hookup: each icon's accent = a SEMANTIC token of the active palette
 // (colour-scheme.ts writes these inline on <html>), so palette choices re-tint
-// the tiles. Fallback hexes cover a cold start before the engine paints.
-const TOKENS: Record<string, [token: string, fallback: string]> = {
-  'sound':        ['--sig-audio', '#FF9C63'],
-  'video':        ['--sig-video', '#CC99CC'],
-  'studios':      ['--sig-video', '#CC99CC'],
-  'wireless':     ['--sig-audio', '#FF9C63'],
-  'remotes':      ['--state-onair', '#ffaa00'],
-  'streams':      ['--sig-program', '#646DCC'],
-  'play':         ['--state-ok', '#39d98a'],
-  'prod':         ['--state-onair', '#ffaa00'],
-  'graphics':     ['--sig-program', '#646DCC'],
-  'prompter':     ['--sig-video', '#CC99CC'],
-  'portals':      ['--state-ok', '#39d98a'],
-  'people':       ['--sig-audio', '#FF9C63'],
-  'control-rooms': ['--sig-program', '#646DCC'],
-  'floors':       ['--sig-video', '#CC99CC'],
-  'encoders':     ['--state-alarm', '#ff3b3b'],
-  'edit-suites':  ['--state-ok', '#39d98a'],
-  'test-tools':   ['--state-onair', '#ffaa00'],
+// the tiles. Fallback hexes cover a cold start before the engine paints. Chrome
+// tiles (glyphs in icon-glyphs-chrome.ts) keep their accents here; category
+// icons carry theirs in ./glyphs/<id>.ts and merge in via GLYPH_TOKENS.
+const CHROME_TOKENS: Record<string, [token: string, fallback: string]> = {
   'captains-log': ['--state-onair', '#ffaa00'],
   'chat':         ['--state-ok', '#39d98a'],
-  'voice':        ['--state-alarm', '#ff3366'],
   'mqtt':         ['--sig-program', '#646DCC'],
   'chirality':    ['--sig-video', '#CC99CC'],
   'settings':     ['--sig-program', '#646DCC'],
@@ -66,8 +51,8 @@ const TOKENS: Record<string, [token: string, fallback: string]> = {
   'log-out':      ['--state-alarm', '#ff3b3b'],
   'menu':         ['--sig-program', '#646DCC'],
   'credits':      ['--sig-video', '#CC99CC'],
-  'sick-bay':     ['--state-alarm', '#ff3b3b'],
 };
+const TOKENS: Record<string, [token: string, fallback: string]> = { ...CHROME_TOKENS, ...GLYPH_TOKENS };
 
 export const hasTile = (id: string): boolean => id in GLYPHS;
 
